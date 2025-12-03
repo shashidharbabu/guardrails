@@ -1,0 +1,74 @@
+# PII NER Pipeline Configuration
+
+# GCS Configuration
+gcs:
+  source_bucket: "guardrails-data"
+  destination_bucket: "guardrails-data"
+  source_path: "raw/pii-masking-200k"  # Path within source bucket
+  destination_path: "processed"  # Base path in destination bucket
+  eda_output_path: "eda"  # Path for EDA outputs
+
+# Hugging Face Configuration
+huggingface:
+  dataset_name: "ai4privacy/pii-masking-200k"
+  splits:
+    - "train"
+  download_if_missing: true
+
+# Data Split Configuration
+data_splits:
+  train_ratio: 0.8
+  val_ratio: 0.1
+  test_ratio: 0.1
+  random_seed: 42
+  stratify: true  # Whether to stratify splits based on entity distribution
+
+# NER Configuration
+ner:
+  format: "BIO"  # BIO or IOB2
+  entity_types:
+    - "PERSON"
+    - "ORGANIZATION"
+    - "LOCATION"
+    - "EMAIL"
+    - "PHONE"
+    - "CREDIT_CARD"
+    - "SSN"
+    - "IP_ADDRESS"
+    - "DATE"
+    - "URL"
+  tokenizer: "spacy"  # spacy or nltk
+  max_sequence_length: 512
+
+# EDA Configuration
+eda:
+  generate_visualizations: true
+  output_formats:
+    - "json"
+    - "png"
+  statistics_to_generate:
+    - "dataset_size"
+    - "entity_distribution"
+    - "text_length_stats"
+    - "missing_values"
+    - "entity_co_occurrence"
+
+# Data Cleaning Configuration
+data_cleaning:
+  remove_invalid_annotations: true
+  normalize_whitespace: true
+  handle_special_characters: true
+  min_text_length: 10
+  max_text_length: 10000
+
+# Airflow Configuration
+airflow:
+  default_args:
+    retries: 3
+    retry_delay_minutes: 5
+    email_on_failure: false
+    email_on_retry: false
+  schedule_interval: null  # Manual trigger by default
+  max_active_runs: 1
+  catchup: false
+

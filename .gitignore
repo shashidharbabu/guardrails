@@ -1,0 +1,50 @@
+# Airflow
+logs/
+*.log
+airflow.db
+airflow-webserver.pid
+
+# GCP Keys and Service Account Keys
+gcp_keys/
+*.json
+!config/*.json
+# Explicitly ignore service account keys at root
+guardrails-*.json
+*-*.json
+service-account-key.json
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+.venv
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Docker and Environment
+.env
+.env.local
+.env.*
+!.env.example
+
+# Data
+data/
+*.csv
+*.parquet
+*.jsonl
+!config/*.yaml
+
