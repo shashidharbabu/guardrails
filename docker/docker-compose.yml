@@ -15,12 +15,12 @@ x-airflow-common:
     GOOGLE_APPLICATION_CREDENTIALS: /opt/airflow/gcp_keys/service-account-key.json
     AIRFLOW_CONN_GOOGLE_CLOUD_DEFAULT: 'google-cloud-platform://?extra__google_cloud_platform__key_path=/opt/airflow/gcp_keys/service-account-key.json&extra__google_cloud_platform__project=guardrails-477420'
   volumes:
-    - ./dags:/opt/airflow/dags
-    - ./plugins:/opt/airflow/plugins
-    - ./config:/opt/airflow/config
-    - ./logs:/opt/airflow/logs
-    - ./gcp_keys:/opt/airflow/gcp_keys
-    - ./requirements.txt:/opt/airflow/requirements.txt
+    - ../dags:/opt/airflow/dags
+    - ../plugins:/opt/airflow/plugins
+    - ../config:/opt/airflow/config
+    - ../logs:/opt/airflow/logs
+    - ../gcp_keys:/opt/airflow/gcp_keys
+    - ../requirements.txt:/opt/airflow/requirements.txt
   user: "${AIRFLOW_UID:-50000}:0"
   depends_on:
     &airflow-common-depends-on

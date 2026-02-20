@@ -157,12 +157,12 @@ gcs:
   eda_output_path: "eda"
 ```
 
-**Optional:** Update the GCP project ID in `docker-compose.yml` if needed:
+**Optional:** Update the GCP project ID in `docker/docker-compose.yml` if needed:
 
 ```bash
-# Open docker-compose.yml and find line 16
+# Open docker/docker-compose.yml and find line 16
 # Update the project ID if different from 'guardrails-477420'
-nano docker-compose.yml
+nano docker/docker-compose.yml
 ```
 
 Look for this line and update your project ID:
@@ -174,10 +174,10 @@ AIRFLOW_CONN_GOOGLE_CLOUD_DEFAULT: 'google-cloud-platform://?extra__google_cloud
 
 ```bash
 # Make setup scripts executable (if needed)
-chmod +x setup_airflow.sh start_airflow.sh stop_airflow.sh
+chmod +x scripts/setup_airflow.sh scripts/start_airflow.sh scripts/stop_airflow.sh
 
 # Run the setup script
-./setup_airflow.sh
+./scripts/setup_airflow.sh
 ```
 
 This will:
@@ -191,7 +191,7 @@ This will:
 Then start Airflow:
 
 ```bash
-./start_airflow.sh
+./scripts/start_airflow.sh
 ```
 
 This will start all services. Wait about 30-60 seconds for everything to initialize.
@@ -203,7 +203,11 @@ This will start all services. Wait about 30-60 seconds for everything to initial
 ### Understanding the Project Structure
 
 ```
-Guardrails/
+guardrails-1/
+├── docs/                         # All documentation
+│   ├── README.md
+│   ├── QUICK_START.md           # This file!
+│   └── SETUP_GUIDE.md
 ├── dags/
 │   └── pii_ner_pipeline.py      # Main Airflow DAG
 ├── plugins/
@@ -214,12 +218,17 @@ Guardrails/
 │       └── gcs_utils.py         # GCS utilities
 ├── config/
 │   └── pipeline_config.yaml     # Pipeline configuration
+├── scripts/                      # Utility scripts
+│   ├── setup_airflow.sh
+│   ├── start_airflow.sh
+│   └── stop_airflow.sh
+├── docker/                       # Docker configuration
+│   ├── Dockerfile
+│   └── docker-compose.yml
 ├── gcp_keys/                     # Service account keys (create this)
 │   └── service-account-key.json # Your GCP key (not in git)
 ├── logs/                         # Airflow logs (auto-created)
-├── docker-compose.yml           # Docker configuration
-├── requirements.txt             # Python dependencies
-└── QUICK_START.md              # This file!
+└── requirements.txt             # Python dependencies
 ```
 
 ### What the Pipeline Does
@@ -351,7 +360,7 @@ Then try logging in again with username: `airflow`, password: `airflow`.
 ### ❌ Issue: "Port 8080 already in use"
 
 **Solution:**
-Edit `docker-compose.yml` and change the port mapping:
+Edit `docker/docker-compose.yml` and change the port mapping:
 
 ```yaml
 ports:
@@ -415,19 +424,19 @@ cp ~/Downloads/your-key-file.json gcp_keys/service-account-key.json
 
 2. **Check scheduler logs:**
    ```bash
-   docker-compose logs -f airflow-scheduler
+   cd docker && docker-compose logs -f airflow-scheduler
    ```
    Look for import errors or syntax issues.
 
 3. **Restart services:**
    ```bash
-   ./stop_airflow.sh
-   ./start_airflow.sh
+   ./scripts/stop_airflow.sh
+   ./scripts/start_airflow.sh
    ```
 
 4. **Verify directory structure:**
    - Ensure `dags/` folder is mounted correctly
-   - Check `docker-compose.yml` volumes section
+   - Check `docker/docker-compose.yml` volumes section
 
 ### ❌ Issue: "Task failed: ModuleNotFoundError"
 
@@ -438,8 +447,8 @@ cp ~/Downloads/your-key-file.json gcp_keys/service-account-key.json
 
 2. **Manually install if needed:**
    ```bash
-   docker-compose exec airflow-webserver pip install -r /opt/airflow/requirements.txt
-   docker-compose restart
+   cd docker && docker-compose exec airflow-webserver pip install -r /opt/airflow/requirements.txt
+   cd docker && docker-compose restart
    ```
 
 ### ❌ Issue: "Out of memory" or pipeline is slow
@@ -460,21 +469,21 @@ cp ~/Downloads/your-key-file.json gcp_keys/service-account-key.json
 
 **To fix (optional):**
 ```bash
-docker-compose exec airflow-webserver python -m spacy download en_core_web_sm
-docker-compose restart
+cd docker && docker-compose exec airflow-webserver python -m spacy download en_core_web_sm
+cd docker && docker-compose restart
 ```
 
 ### Viewing Logs
 
 **All services:**
 ```bash
-docker-compose logs -f
+cd docker && docker-compose logs -f
 ```
 
 **Specific service:**
 ```bash
-docker-compose logs -f airflow-webserver
-docker-compose logs -f airflow-scheduler
+cd docker && docker-compose logs -f airflow-webserver
+cd docker && docker-compose logs -f airflow-scheduler
 ```
 
 **Task-specific logs:**
@@ -540,34 +549,34 @@ See `SETUP_GUIDE.md` for Cloud Composer setup instructions.
 
 ```bash
 # Start Airflow
-./start_airflow.sh
+./scripts/start_airflow.sh
 
 # Stop Airflow
-./stop_airflow.sh
+./scripts/stop_airflow.sh
 
 # View all logs
-docker-compose logs -f
+cd docker && docker-compose logs -f
 
 # View specific service logs
-docker-compose logs -f airflow-scheduler
+cd docker && docker-compose logs -f airflow-scheduler
 
 # Restart services
-docker-compose restart
+cd docker && docker-compose restart
 
 # Check service status
-docker-compose ps
+cd docker && docker-compose ps
 
 # Stop and remove everything (including data)
-docker-compose down -v
+cd docker && docker-compose down -v
 
 # Rebuild containers
-docker-compose up -d --build
+cd docker && docker-compose up -d --build
 
 # Access Airflow container shell
-docker-compose exec airflow-webserver bash
+cd docker && docker-compose exec airflow-webserver bash
 
 # Check Airflow connections
-docker-compose exec airflow-webserver airflow connections list
+cd docker && docker-compose exec airflow-webserver airflow connections list
 ```
 
 ---
@@ -582,7 +591,7 @@ If you're stuck:
 
 2. **Verify configuration:**
    - `config/pipeline_config.yaml`
-   - `docker-compose.yml`
+   - `docker/docker-compose.yml`
    - Service account key location
 
 3. **Review detailed documentation:**
@@ -590,7 +599,7 @@ If you're stuck:
    - `SETUP_GUIDE.md` - Detailed setup instructions
 
 4. **Common fixes:**
-   - Restart services: `./stop_airflow.sh && ./start_airflow.sh`
+   - Restart services: `./scripts/stop_airflow.sh && ./scripts/start_airflow.sh`
    - Verify GCP permissions
    - Check bucket names match exactly
 
@@ -604,10 +613,10 @@ Before running the pipeline, verify:
 - [ ] Service account key is at `gcp_keys/service-account-key.json`
 - [ ] GCS buckets exist and are accessible
 - [ ] `config/pipeline_config.yaml` has correct bucket names
-- [ ] `docker-compose.yml` has correct project ID (if different)
+- [ ] `docker/docker-compose.yml` has correct project ID (if different)
 - [ ] Airflow is accessible at http://localhost:8080
 - [ ] DAG appears in Airflow UI
-- [ ] All services are running: `docker-compose ps`
+- [ ] All services are running: `cd docker && docker-compose ps`
 
 ---
 

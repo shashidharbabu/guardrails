@@ -67,7 +67,7 @@ gcs:
 ### Step 4: Run Setup Script
 
 ```bash
-./setup_airflow.sh
+./scripts/setup_airflow.sh
 ```
 
 This script will:
@@ -79,13 +79,13 @@ This script will:
 ### Step 5: Start Airflow
 
 ```bash
-./start_airflow.sh
+./scripts/start_airflow.sh
 ```
 
 Or manually:
 ```bash
 export AIRFLOW_UID=$(id -u)
-docker-compose up -d
+cd docker && docker-compose up -d
 ```
 
 ### Step 6: Access Airflow UI
@@ -112,7 +112,7 @@ chmod +x *.sh
 
 **Issue: Port 8080 already in use**
 ```bash
-# Edit docker-compose.yml and change:
+# Edit docker/docker-compose.yml and change:
 ports:
   - "8081:8080"  # Use different port
 ```
@@ -124,8 +124,8 @@ ports:
 
 **View Logs:**
 ```bash
-docker-compose logs -f airflow-webserver
-docker-compose logs -f airflow-scheduler
+cd docker && docker-compose logs -f airflow-webserver
+cd docker && docker-compose logs -f airflow-scheduler
 ```
 
 ## Option 2: Local Installation (Without Docker)
