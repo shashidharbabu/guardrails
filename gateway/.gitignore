@@ -1,0 +1,9 @@
+# Python
+__pycache__/
+.pytest_cache/
+*.pyc
+*.db
+
+# Local env (repo root .env holds secrets)
+.env
+.env.local
