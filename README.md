@@ -103,10 +103,3 @@ All documentation is located in the `docs/` directory:
 - [Quick Start Guide](docs/QUICK_START.md)
 - [Setup Guide](docs/SETUP_GUIDE.md)
 
-## 📝 License
-
-[Add your license information here]
-
-## 🤝 Contributing
-
-[Add contributing guidelines here]
