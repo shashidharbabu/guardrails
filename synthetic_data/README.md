@@ -1,20 +1,33 @@
-# Synthetic Data Generation Pipeline
+# Synthetic Evaluation Dataset
 
-This directory contains synthetic data pipelines for both embedding and LLM finetuning.
+This directory contains synthetic data pipelines for both embedding and LLM finetuning, and generates a labelled evaluation dataset for benchmarking the MAD pipeline end-to-end.
 
 ## Status
-🚧 In Development
+🚧 In Development — build after MAD pipeline is verified running.
 
 ## Purpose
 Generate high-quality synthetic training data for:
-- embedding retrieval finetuning (triplets)
+- Embedding retrieval finetuning (triplets)
 - LLM safety/decision finetuning (instruction-response pairs)
+- Ground-truth evaluation dataset to test MAD pipeline routing accuracy
 
-## Planned Components
-- Data generation strategies
-- Quality evaluation metrics
-- Pipeline orchestration
-- Integration with finetuning pipeline
+## Evaluation Dataset Specification
+
+| Property | Value |
+|----------|-------|
+| Size | 200 examples |
+| Domain | Healthcare / Hospital (primary evaluation domain) |
+| Generator | Claude API (NOT Qwen2.5 — avoids circular evaluation) |
+| Human labels | Required — judge verdicts (v=1.0/0.5/0.0) per claim must be human-validated |
+
+### Error types (50 examples each)
+
+| Error type | Expected MAD routing |
+|-----------|---------------------|
+| `fully_correct` | `DELIVER` |
+| `missing_caveat` | `RETRY` |
+| `hallucinated_specific` | `HARD_BLOCK` |
+| `jurisdiction_blind` | `HARD_BLOCK` or `RETRY` |
 
 ## Split Pipeline Entry Points
 

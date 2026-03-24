@@ -48,3 +48,4 @@ data/
 *.jsonl
 !config/*.yaml
 
+.env

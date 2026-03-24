@@ -5,20 +5,20 @@ This project provides an Apache Airflow DAG pipeline for performing Exploratory 
 ## Overview
 
 The pipeline performs the following operations:
-1. **Load Raw Data**: Downloads and loads the PII dataset from a GCS bucket
-2. **Exploratory Data Analysis**: Generates statistics and visualizations about the dataset
-3. **Data Transformation**: Converts the dataset to NER format (BIO tagging) and creates train/val/test splits
-4. **Upload Processed Data**: Uploads the transformed dataset back to GCS
+1. **Download from Hugging Face** (optional): Downloads the `ai4privacy/pii-masking-200k` dataset from HuggingFace Hub and uploads raw JSONL splits to GCS if they are not already present
+2. **Load Raw Data**: Loads the PII dataset from a GCS bucket
+3. **Exploratory Data Analysis**: Generates statistics and visualizations about the dataset
+4. **Data Transformation**: Converts the dataset to NER format (BIO tagging) and creates train/val/test splits
+5. **Upload Processed Data**: Uploads the transformed dataset back to GCS
 
 ## Project Structure
 
 ```
-guardrails-1/
+guardrails-enterprise/
 ├── docs/                            # All documentation
 │   ├── README.md                    # This file
 │   ├── QUICK_START.md               # Quick start guide
-│   ├── SETUP_GUIDE.md               # Detailed setup instructions
-│   └── Agents - RL.pdf              # Research papers and references
+│   └── SETUP_GUIDE.md               # Detailed setup instructions
 ├── dags/
 │   └── pii_ner_pipeline.py          # Main Airflow DAG
 ├── plugins/
@@ -271,6 +271,13 @@ gsutil -m cp -r local_path/* gs://your-source-bucket-name/raw/pii-masking-200k/
 2. Find the `pii_ner_pipeline` DAG
 3. Toggle it ON
 4. Click "Trigger DAG" to run manually
+
+The DAG runs 5 tasks in sequence:
+- `download_from_huggingface` — downloads dataset from HuggingFace Hub to GCS (skipped if files exist)
+- `load_raw_data` — loads raw JSONL from GCS
+- `perform_eda` — generates statistics and visualizations, uploads to GCS `eda/` path
+- `transform_data` — converts to BIO NER JSONL format with stratified train/val/test splits
+- `upload_processed_data` — uploads final split files to GCS `processed/` path
 
 ### Monitor Execution
 
