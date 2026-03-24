@@ -1,6 +1,9 @@
 # multi_agent — MAD pipeline dependencies
 # Install with: pip install -r multi_agent/requirements.txt
 
+# Environment variable loading
+python-dotenv>=1.0.0
+
 # LLM client (Ollama-compatible — uses OpenAI API interface)
 openai>=1.30.0
 

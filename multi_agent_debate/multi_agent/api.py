@@ -12,7 +12,11 @@ Run with:
 from __future__ import annotations
 
 import traceback
+from pathlib import Path
 from typing import List, Optional
+
+from dotenv import load_dotenv
+load_dotenv(Path(__file__).resolve().parent.parent.parent / ".env")
 
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel

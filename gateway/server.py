@@ -6,7 +6,11 @@ Start with: uvicorn gateway.server:app --reload --port 8080
 """
 
 import os
+from pathlib import Path
 from typing import List, Optional
+
+from dotenv import load_dotenv
+load_dotenv(Path(__file__).resolve().parent.parent / ".env")
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware

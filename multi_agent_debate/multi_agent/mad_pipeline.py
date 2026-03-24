@@ -1,5 +1,5 @@
 """
-mad_pipeline.py — Top-level MAD pipeline orchestrator
+mad_pipeline.py — Top-level MAD pipeline orchestrator (loads .env from repo root)
 ======================================================
 
 ENTRY POINT
@@ -47,7 +47,11 @@ The paper must report this as "judge-only aggregate (v0.1)" not the full formula
 from __future__ import annotations
 
 import uuid
+from pathlib import Path
 from typing import List, Optional, Tuple
+
+from dotenv import load_dotenv
+load_dotenv(Path(__file__).resolve().parent.parent.parent / ".env")
 
 from multi_agent import storage
 from multi_agent.claim_extractor import extract_claims
