@@ -1,0 +1,594 @@
+{
+  "queries": [
+    {
+      "query_id": "msq_001",
+      "group": "correct_baseline",
+      "query_text": "What are the six principles of lawful processing under GDPR Article 5?",
+      "target_regulation": "GDPR Art 5",
+      "hallucination_risk": "low",
+      "what_llm_typically_gets_wrong": "LLMs rarely get this wrong — the six principles (lawfulness/fairness/transparency, purpose limitation, data minimisation, accuracy, storage limitation, integrity/confidentiality) are well-documented and frequently cited in training data",
+      "expected_mad_outcome": {
+        "likely_verdict": "SUPPORTED",
+        "likely_confidence_range": "0.85-0.95",
+        "likely_agent_b_challenge": "Agent B may check whether the LLM correctly lists all six principles without adding fabricated ones or omitting storage limitation"
+      },
+      "notes": "Baseline query — validates that the MAD pipeline does not over-challenge correct, well-established regulatory content"
+    },
+    {
+      "query_id": "msq_002",
+      "group": "correct_baseline",
+      "query_text": "What are the five core functions of the NIST Cybersecurity Framework 2.0?",
+      "target_regulation": "NIST CSF 2.0 2024",
+      "hallucination_risk": "low",
+      "what_llm_typically_gets_wrong": "LLMs sometimes omit the sixth function 'Govern' added in CSF 2.0 and only list the original five (Identify, Protect, Detect, Respond, Recover), but the five original functions are always correct",
+      "expected_mad_outcome": {
+        "likely_verdict": "SUPPORTED",
+        "likely_confidence_range": "0.85-0.95",
+        "likely_agent_b_challenge": "Agent B may challenge whether the LLM mentions Govern as the new sixth function in CSF 2.0 versus the original five in CSF 1.1"
+      },
+      "notes": "Baseline for NIST knowledge — if Agent A flags this as unsupported, calibration is broken"
+    },
+    {
+      "query_id": "msq_003",
+      "group": "correct_baseline",
+      "query_text": "What is the definition of a covered entity under HIPAA?",
+      "target_regulation": "HIPAA",
+      "hallucination_risk": "low",
+      "what_llm_typically_gets_wrong": "LLMs correctly identify the three categories (health plans, healthcare clearinghouses, healthcare providers who transmit electronically) but sometimes incorrectly include business associates as covered entities rather than a separate category",
+      "expected_mad_outcome": {
+        "likely_verdict": "SUPPORTED",
+        "likely_confidence_range": "0.85-0.95",
+        "likely_agent_b_challenge": "Agent B may check whether the LLM correctly distinguishes covered entities from business associates"
+      },
+      "notes": "Fundamental HIPAA definition — validates that well-established concepts pass through without false challenges"
+    },
+    {
+      "query_id": "msq_004",
+      "group": "correct_baseline",
+      "query_text": "What is the legal basis for processing personal data under GDPR Article 6?",
+      "target_regulation": "GDPR Art 6",
+      "hallucination_risk": "low",
+      "what_llm_typically_gets_wrong": "LLMs consistently list the six lawful bases correctly (consent, contract, legal obligation, vital interests, public task, legitimate interests) — this is one of the most frequently cited GDPR provisions",
+      "expected_mad_outcome": {
+        "likely_verdict": "SUPPORTED",
+        "likely_confidence_range": "0.85-0.95",
+        "likely_agent_b_challenge": "Agent B unlikely to find strong challenge material; may verify completeness of all six bases"
+      },
+      "notes": "Core GDPR provision — establishes that the pipeline correctly handles unambiguous regulatory content"
+    },
+    {
+      "query_id": "msq_005",
+      "group": "correct_baseline",
+      "query_text": "What are the main control domains defined in ISO 27001:2022 Annex A?",
+      "target_regulation": "ISO 27001 2022",
+      "hallucination_risk": "low",
+      "what_llm_typically_gets_wrong": "LLMs sometimes cite the old 14-domain structure from ISO 27001:2013 instead of the 2022 reorganisation into 4 themes (Organisational, People, Physical, Technological) with 93 controls",
+      "expected_mad_outcome": {
+        "likely_verdict": "SUPPORTED",
+        "likely_confidence_range": "0.80-0.90",
+        "likely_agent_b_challenge": "Agent B may challenge if the LLM describes the 2013 structure instead of the 2022 revision"
+      },
+      "notes": "Tests whether the RAG retrieves the 2022 version — the 2013-to-2022 structural change is a known LLM confusion point"
+    },
+    {
+      "query_id": "msq_006",
+      "group": "correct_baseline",
+      "query_text": "What rights does the CCPA grant to California consumers regarding their personal information?",
+      "target_regulation": "CCPA/CPRA",
+      "hallucination_risk": "low",
+      "what_llm_typically_gets_wrong": "LLMs generally list the core rights (know, delete, opt-out of sale, non-discrimination) correctly but may miss CPRA additions like right to correct and right to limit use of sensitive personal information",
+      "expected_mad_outcome": {
+        "likely_verdict": "SUPPORTED",
+        "likely_confidence_range": "0.85-0.95",
+        "likely_agent_b_challenge": "Agent B may verify whether CPRA amendments are reflected in the response"
+      },
+      "notes": "Baseline for US state privacy law — well-established consumer rights that should pass validation"
+    },
+    {
+      "query_id": "msq_007",
+      "group": "correct_baseline",
+      "query_text": "What is the purpose of the NIST Secure Software Development Framework (SSDF)?",
+      "target_regulation": "NIST SSDF SP800-218",
+      "hallucination_risk": "low",
+      "what_llm_typically_gets_wrong": "LLMs occasionally confuse SSDF with the general NIST CSF or with NIST SP 800-53 controls, but the high-level purpose statement is usually correct",
+      "expected_mad_outcome": {
+        "likely_verdict": "SUPPORTED",
+        "likely_confidence_range": "0.80-0.90",
+        "likely_agent_b_challenge": "Agent B may check whether the LLM correctly identifies SSDF as focused on software development practices rather than general cybersecurity"
+      },
+      "notes": "Validates NIST SSDF RAG retrieval — the purpose is well-defined and should produce a clean SUPPORTED verdict"
+    },
+    {
+      "query_id": "msq_008",
+      "group": "correct_baseline",
+      "query_text": "What are the key data subject rights guaranteed under GDPR Chapter III?",
+      "target_regulation": "GDPR Art 12-23",
+      "hallucination_risk": "low",
+      "what_llm_typically_gets_wrong": "LLMs reliably list the main rights (access, rectification, erasure, restriction, portability, objection) but sometimes omit the right not to be subject to automated decision-making (Art 22)",
+      "expected_mad_outcome": {
+        "likely_verdict": "SUPPORTED",
+        "likely_confidence_range": "0.85-0.95",
+        "likely_agent_b_challenge": "Agent B may check completeness — whether Art 22 automated decision-making is included"
+      },
+      "notes": "Well-established GDPR content that should produce high-confidence SUPPORTED verdicts"
+    },
+    {
+      "query_id": "msq_009",
+      "group": "correct_baseline",
+      "query_text": "What categories of AI systems are classified as prohibited under the EU AI Act?",
+      "target_regulation": "EU AI Act 2024",
+      "hallucination_risk": "low",
+      "what_llm_typically_gets_wrong": "LLMs generally list social scoring, real-time biometric identification, and manipulative AI correctly, but may miss newer additions like emotion recognition in workplaces/schools or untargeted scraping for facial recognition databases",
+      "expected_mad_outcome": {
+        "likely_verdict": "SUPPORTED",
+        "likely_confidence_range": "0.75-0.90",
+        "likely_agent_b_challenge": "Agent B may verify the LLM includes the full list of prohibited practices from Article 5 rather than just the commonly cited ones"
+      },
+      "notes": "Tests EU AI Act knowledge — the prohibited practices list is well-publicised but the full list is longer than most LLMs reproduce"
+    },
+    {
+      "query_id": "msq_010",
+      "group": "correct_baseline",
+      "query_text": "What does the Singapore PDPA require organisations to do before collecting personal data?",
+      "target_regulation": "Singapore PDPA 2012",
+      "hallucination_risk": "high — also IDK risk if RAG chunks are sparse for this regulation",
+      "what_llm_typically_gets_wrong": "LLMs usually correctly identify the consent and notification obligations but may incorrectly state that consent must be written when the PDPA accepts deemed consent in certain circumstances",
+      "expected_mad_outcome": {
+        "likely_verdict": "NOT_SUPPORTED or IDK — depends on RAG chunk coverage for this regulation",
+        "likely_confidence_range": "0.80-0.90",
+        "likely_agent_b_challenge": "Agent B may check whether deemed consent provisions are accurately described"
+      },
+      "notes": "Ensures non-EU/non-US regulation coverage in baseline — tests Singapore PDPA RAG retrieval"
+    },
+    {
+      "query_id": "msq_011",
+      "group": "high_hallucination_risk",
+      "query_text": "What are the maximum fine amounts for GDPR violations under Article 83, and what types of violations fall under each tier?",
+      "target_regulation": "GDPR Art 83",
+      "hallucination_risk": "high",
+      "what_llm_typically_gets_wrong": "LLMs frequently confuse the two tiers: Art 83(4) is up to EUR 10M or 2% of global turnover for controller/processor obligation violations, Art 83(5) is up to EUR 20M or 4% of global turnover for data subject rights and lawful basis violations. LLMs commonly state 4% as the only maximum or apply it to the wrong violation category",
+      "expected_mad_outcome": {
+        "likely_verdict": "NOT_SUPPORTED",
+        "likely_confidence_range": "0.10-0.30",
+        "likely_agent_b_challenge": "Agent B will challenge specific fine amounts and which violations map to which tier — LLMs almost always get the tier mapping wrong"
+      },
+      "notes": "High-value stress test — the two-tier fine structure is the most commonly hallucinated GDPR detail"
+    },
+    {
+      "query_id": "msq_012",
+      "group": "high_hallucination_risk",
+      "query_text": "What is the exact timeframe for breach notification under GDPR Article 33, and who must be notified?",
+      "target_regulation": "GDPR Art 33-34",
+      "hallucination_risk": "high",
+      "what_llm_typically_gets_wrong": "LLMs correctly state 72 hours for supervisory authority notification but frequently hallucinate a specific timeframe for data subject notification under Art 34 — Art 34 says 'without undue delay' with no specific hour/day deadline. LLMs often fabricate '72 hours for data subjects too' or '30 days for data subjects'",
+      "expected_mad_outcome": {
+        "likely_verdict": "NOT_SUPPORTED",
+        "likely_confidence_range": "0.10-0.30",
+        "likely_agent_b_challenge": "Agent B will challenge any specific timeframe cited for Art 34 data subject notification — the regulation deliberately avoids specifying one"
+      },
+      "notes": "Classic hallucination trap — LLMs impose false precision on Art 34's deliberately vague language"
+    },
+    {
+      "query_id": "msq_013",
+      "group": "high_hallucination_risk",
+      "query_text": "What specific encryption standards does GDPR Article 32 require organisations to implement?",
+      "target_regulation": "GDPR Art 32",
+      "hallucination_risk": "high",
+      "what_llm_typically_gets_wrong": "LLMs frequently hallucinate that GDPR mandates AES-256, TLS 1.2, or other specific encryption standards. Art 32 says 'appropriate technical and organisational measures' and lists encryption as one example but never specifies any standard. This is the exact hallucination the synthetic dataset was built around",
+      "expected_mad_outcome": {
+        "likely_verdict": "NOT_SUPPORTED",
+        "likely_confidence_range": "0.05-0.20",
+        "likely_agent_b_challenge": "Agent B will cite the actual Art 32 text showing no encryption standard is named — this should be a strong, evidence-based challenge"
+      },
+      "notes": "Flagship hallucination test — mirrors the GDPR AES-256 example used in the synthetic training data and report"
+    },
+    {
+      "query_id": "msq_014",
+      "group": "high_hallucination_risk",
+      "query_text": "What are the four penalty tiers under the HITECH Act for HIPAA violations, and what are the specific dollar amounts for each tier?",
+      "target_regulation": "HIPAA/HITECH",
+      "hallucination_risk": "high",
+      "what_llm_typically_gets_wrong": "LLMs often cite outdated pre-2019 penalty amounts. The 2019 HHS inflation adjustment changed the tiers. LLMs also frequently confuse per-violation minimums with annual caps, or hallucinate specific amounts like $50,000 for Tier 2 when the actual amount differs",
+      "expected_mad_outcome": {
+        "likely_verdict": "NOT_SUPPORTED",
+        "likely_confidence_range": "0.10-0.30",
+        "likely_agent_b_challenge": "Agent B will challenge specific dollar amounts against the RAG source — exact figures are frequently hallucinated"
+      },
+      "notes": "Tests whether Agent A can detect its own overconfidence when citing specific penalty amounts from memory vs evidence"
+    },
+    {
+      "query_id": "msq_015",
+      "group": "high_hallucination_risk",
+      "query_text": "What is the maximum response time a business must meet when a California consumer submits a CCPA data access request?",
+      "target_regulation": "CCPA/CPRA",
+      "hallucination_risk": "high",
+      "what_llm_typically_gets_wrong": "LLMs often state 30 days (confusing with GDPR's one-month period) when the CCPA actually allows 45 calendar days with a possible 45-day extension. Some LLMs hallucinate a 10-business-day acknowledgment requirement that does not exist in the statute",
+      "expected_mad_outcome": {
+        "likely_verdict": "NOT_SUPPORTED",
+        "likely_confidence_range": "0.15-0.35",
+        "likely_agent_b_challenge": "Agent B will challenge any 30-day timeframe and verify the 45+45 day structure from the CCPA text"
+      },
+      "notes": "Cross-regulation confusion test — LLMs conflate GDPR and CCPA response deadlines almost universally"
+    },
+    {
+      "query_id": "msq_016",
+      "group": "high_hallucination_risk",
+      "query_text": "What conformity assessment requirements does the EU AI Act impose on high-risk AI systems before they can be placed on the market?",
+      "target_regulation": "EU AI Act 2024",
+      "hallucination_risk": "high",
+      "what_llm_typically_gets_wrong": "LLMs frequently hallucinate that all high-risk AI systems require third-party conformity assessment. In reality, most high-risk systems under Annex III can use self-assessment (internal control procedure) — only biometric identification systems and a few others require notified body involvement. LLMs also fabricate specific certification bodies or ISO standards as mandatory",
+      "expected_mad_outcome": {
+        "likely_verdict": "NOT_SUPPORTED",
+        "likely_confidence_range": "0.10-0.25",
+        "likely_agent_b_challenge": "Agent B will challenge the blanket third-party assessment claim with evidence that self-assessment is the default for most Annex III systems"
+      },
+      "notes": "Critical EU AI Act test — the self-assessment vs third-party distinction is one of the most misunderstood provisions"
+    },
+    {
+      "query_id": "msq_017",
+      "group": "high_hallucination_risk",
+      "query_text": "What are the specific incident reporting timeframes required under the NIS2 Directive for essential entities?",
+      "target_regulation": "NIS2 Directive",
+      "hallucination_risk": "high",
+      "what_llm_typically_gets_wrong": "LLMs often state a single reporting deadline (24 or 72 hours) when NIS2 actually has a multi-stage reporting process: early warning within 24 hours, incident notification within 72 hours, and final report within one month. LLMs frequently omit the early warning stage or confuse the 24-hour and 72-hour deadlines",
+      "expected_mad_outcome": {
+        "likely_verdict": "NOT_SUPPORTED",
+        "likely_confidence_range": "0.15-0.35",
+        "likely_agent_b_challenge": "Agent B will challenge any single-deadline answer with evidence of the three-stage reporting structure"
+      },
+      "notes": "NIS2 is recent enough that LLMs have poor coverage — the multi-stage reporting is almost never correctly reproduced"
+    },
+    {
+      "query_id": "msq_018",
+      "group": "high_hallucination_risk",
+      "query_text": "What specific data retention periods does HIPAA mandate for medical records?",
+      "target_regulation": "HIPAA",
+      "hallucination_risk": "high",
+      "what_llm_typically_gets_wrong": "LLMs commonly state that HIPAA requires 6 or 7 years of medical record retention. HIPAA actually does NOT mandate medical record retention periods — the 6-year requirement under 45 CFR 164.530(j) applies to HIPAA compliance documentation, not medical records. Medical record retention is governed by state law. This is one of the most persistent HIPAA misconceptions",
+      "expected_mad_outcome": {
+        "likely_verdict": "NOT_SUPPORTED",
+        "likely_confidence_range": "0.10-0.25",
+        "likely_agent_b_challenge": "Agent B will challenge the conflation of compliance documentation retention with medical record retention using the actual CFR text"
+      },
+      "notes": "Extremely common hallucination — the HIPAA-does-not-mandate-medical-record-retention fact surprises even compliance professionals"
+    },
+    {
+      "query_id": "msq_019",
+      "group": "high_hallucination_risk",
+      "query_text": "What are the penalties for non-compliance with the EU Cyber Resilience Act for manufacturers of products with digital elements?",
+      "target_regulation": "CRA 2024",
+      "hallucination_risk": "high",
+      "what_llm_typically_gets_wrong": "LLMs frequently hallucinate specific penalty amounts for the CRA or confuse them with GDPR fines. The CRA specifies up to EUR 15M or 2.5% of global annual turnover for the most serious violations, but LLMs often cite EUR 20M/4% (GDPR numbers) or fabricate entirely different amounts. Some LLMs claim the CRA has not been enacted yet when it was adopted in 2024",
+      "expected_mad_outcome": {
+        "likely_verdict": "NOT_SUPPORTED",
+        "likely_confidence_range": "0.10-0.30",
+        "likely_agent_b_challenge": "Agent B will challenge specific penalty figures against the CRA text — LLMs almost always import GDPR penalty structures here"
+      },
+      "notes": "Tests a very recent regulation — CRA penalty details are poorly represented in LLM training data"
+    },
+    {
+      "query_id": "msq_020",
+      "group": "high_hallucination_risk",
+      "query_text": "Under the China PIPL, what are the conditions for cross-border transfer of personal information outside of China?",
+      "target_regulation": "China PIPL 2021",
+      "hallucination_risk": "high",
+      "what_llm_typically_gets_wrong": "LLMs frequently describe PIPL cross-border transfer as identical to GDPR adequacy decisions. In reality, PIPL requires one of: passing a security assessment by the CAC (mandatory for critical information infrastructure operators and large-scale processors), obtaining personal information protection certification, entering standard contracts filed with the CAC, or meeting other conditions prescribed by law. LLMs omit the CAC security assessment requirement and the volume thresholds that trigger mandatory assessment",
+      "expected_mad_outcome": {
+        "likely_verdict": "NOT_SUPPORTED",
+        "likely_confidence_range": "0.10-0.30",
+        "likely_agent_b_challenge": "Agent B will challenge any description that mirrors GDPR adequacy mechanisms without the China-specific CAC security assessment requirements"
+      },
+      "notes": "Critical test of non-Western regulation knowledge — LLMs default to GDPR-like descriptions for all privacy laws"
+    },
+    {
+      "query_id": "msq_021",
+      "group": "high_hallucination_risk",
+      "query_text": "What specific vulnerability disclosure timeframes does the EU Cyber Resilience Act require from manufacturers?",
+      "target_regulation": "CRA 2024",
+      "hallucination_risk": "high",
+      "what_llm_typically_gets_wrong": "LLMs often hallucinate specific hour or day deadlines for CRA vulnerability disclosure or confuse them with NIS2 incident reporting timelines. The CRA requires notification to ENISA within 24 hours of becoming aware of an actively exploited vulnerability, but LLMs frequently state different timeframes or confuse vulnerability disclosure with product incident reporting",
+      "expected_mad_outcome": {
+        "likely_verdict": "NOT_SUPPORTED",
+        "likely_confidence_range": "0.15-0.35",
+        "likely_agent_b_challenge": "Agent B will challenge any fabricated timeframe with the actual CRA text on vulnerability notification to ENISA"
+      },
+      "notes": "Tests CRA-specific knowledge — LLMs frequently import NIS2 timelines into CRA answers"
+    },
+    {
+      "query_id": "msq_022",
+      "group": "high_hallucination_risk",
+      "query_text": "What are the specific fines for violating the Digital Services Act's transparency obligations for very large online platforms?",
+      "target_regulation": "DSA 2022",
+      "hallucination_risk": "high",
+      "what_llm_typically_gets_wrong": "LLMs frequently state GDPR-level fines or fabricate specific amounts. The DSA allows fines up to 6% of global annual turnover for VLOPs/VLOSEs, with periodic penalties up to 5% of average daily worldwide turnover. LLMs commonly state 4% (GDPR contamination) or fail to distinguish between VLOP fines and general provider fines",
+      "expected_mad_outcome": {
+        "likely_verdict": "NOT_SUPPORTED",
+        "likely_confidence_range": "0.10-0.30",
+        "likely_agent_b_challenge": "Agent B will challenge the 4% figure if cited and verify the 6% VLOP maximum from the DSA text"
+      },
+      "notes": "Tests DSA knowledge — the 6% figure is distinctive but LLMs default to 4% from GDPR familiarity"
+    },
+    {
+      "query_id": "msq_023",
+      "group": "high_hallucination_risk",
+      "query_text": "What does the Japan APPI require regarding the appointment of a personal information protection officer?",
+      "target_regulation": "Japan APPI",
+      "hallucination_risk": "high — also IDK risk if RAG chunks are sparse for this regulation",
+      "what_llm_typically_gets_wrong": "LLMs frequently state that the APPI requires all businesses to appoint a DPO equivalent, borrowing from GDPR Article 37 requirements. The APPI does not mandate a named officer role like the GDPR DPO — it requires 'necessary and appropriate supervision' of employees handling personal information but the specific organisational mechanism is left to the business",
+      "expected_mad_outcome": {
+        "likely_verdict": "NOT_SUPPORTED or IDK — depends on RAG chunk coverage for this regulation",
+        "likely_confidence_range": "0.10-0.30",
+        "likely_agent_b_challenge": "Agent B will challenge any DPO mandate claim with the actual APPI supervisory obligation language"
+      },
+      "notes": "Tests whether LLMs project GDPR concepts onto non-EU privacy laws — a common hallucination pattern"
+    },
+    {
+      "query_id": "msq_024",
+      "group": "high_hallucination_risk",
+      "query_text": "What is the minimum age for valid consent to data processing under GDPR, and can member states modify this threshold?",
+      "target_regulation": "GDPR Art 8",
+      "hallucination_risk": "high",
+      "what_llm_typically_gets_wrong": "LLMs often state 16 as a fixed EU-wide threshold. Art 8 sets 16 as the default but explicitly allows member states to lower it to as low as 13. LLMs frequently omit the member state derogation or incorrectly state the floor as 14 or 15 instead of 13. Some hallucinate that the UK set it at 12",
+      "expected_mad_outcome": {
+        "likely_verdict": "NOT_SUPPORTED",
+        "likely_confidence_range": "0.15-0.35",
+        "likely_agent_b_challenge": "Agent B will challenge if the member state derogation is omitted or if the minimum floor is stated incorrectly"
+      },
+      "notes": "Tests nuanced GDPR knowledge — the 16/13 default-with-derogation structure is frequently oversimplified"
+    },
+    {
+      "query_id": "msq_025",
+      "group": "high_hallucination_risk",
+      "query_text": "What specific requirements does the Saudi PDPL impose for processing sensitive personal data?",
+      "target_regulation": "Saudi PDPL",
+      "hallucination_risk": "high — also IDK risk if RAG chunks are sparse for this regulation",
+      "what_llm_typically_gets_wrong": "LLMs typically describe GDPR Article 9 requirements and attribute them to the Saudi PDPL. The Saudi PDPL has its own definition of sensitive data and processing conditions that differ from GDPR — for example, it requires explicit consent and regulatory approval for certain categories, and its definition of sensitive data includes data revealing ethnic origin differently from GDPR's racial/ethnic distinction",
+      "expected_mad_outcome": {
+        "likely_verdict": "NOT_SUPPORTED or IDK — depends on RAG chunk coverage for this regulation",
+        "likely_confidence_range": "0.10-0.25",
+        "likely_agent_b_challenge": "Agent B will challenge GDPR-derived descriptions with the actual Saudi PDPL text from the RAG"
+      },
+      "notes": "Tests an underrepresented regulation — Saudi PDPL is in the RAG but rarely in LLM training data, so hallucination rates are very high"
+    },
+    {
+      "query_id": "msq_026",
+      "group": "edge_cases",
+      "query_text": "Is encryption of electronic PHI at rest a required or addressable implementation specification under the HIPAA Security Rule?",
+      "target_regulation": "HIPAA Security Rule",
+      "hallucination_risk": "medium",
+      "what_llm_typically_gets_wrong": "LLMs often state encryption is 'required' when it is actually an 'addressable' specification under 45 CFR 164.312(a)(2)(iv). Addressable does not mean optional — it means the entity must implement it OR document why an equivalent alternative measure is reasonable and appropriate. LLMs typically get the answer half-right by saying addressable but then incorrectly explain what addressable means",
+      "expected_mad_outcome": {
+        "likely_verdict": "PARTIAL",
+        "likely_confidence_range": "0.40-0.60",
+        "likely_agent_b_challenge": "Agent B will challenge the nuance of 'addressable' — most LLM answers either say it's required (wrong) or say it's optional (also wrong)"
+      },
+      "notes": "Classic nuance test — the required/addressable/optional distinction in HIPAA is a three-way trap for LLMs"
+    },
+    {
+      "query_id": "msq_027",
+      "group": "edge_cases",
+      "query_text": "Does GDPR Article 17 give data subjects an absolute right to erasure of their personal data?",
+      "target_regulation": "GDPR Art 17",
+      "hallucination_risk": "medium",
+      "what_llm_typically_gets_wrong": "LLMs often present the right to erasure as absolute when Art 17(3) lists significant exceptions: freedom of expression, legal obligations, public health, archival/research purposes, and legal claims. A simplified LLM answer omitting these exceptions is only partially correct",
+      "expected_mad_outcome": {
+        "likely_verdict": "PARTIAL",
+        "likely_confidence_range": "0.40-0.60",
+        "likely_agent_b_challenge": "Agent B will challenge any answer that presents erasure as unconditional without citing the Art 17(3) exceptions"
+      },
+      "notes": "Tests whether the pipeline correctly identifies oversimplification as PARTIAL rather than SUPPORTED or NOT_SUPPORTED"
+    },
+    {
+      "query_id": "msq_028",
+      "group": "edge_cases",
+      "query_text": "Do the NIS2 Directive requirements apply equally to essential and important entities?",
+      "target_regulation": "NIS2 Directive",
+      "hallucination_risk": "medium",
+      "what_llm_typically_gets_wrong": "LLMs typically describe NIS2 requirements as uniform when the Directive explicitly differentiates between essential and important entities in terms of supervisory regime (ex ante vs ex post), penalty levels, and specific obligations. Essential entities face stricter oversight including proactive audits, while important entities are subject to reactive supervision",
+      "expected_mad_outcome": {
+        "likely_verdict": "PARTIAL",
+        "likely_confidence_range": "0.35-0.55",
+        "likely_agent_b_challenge": "Agent B will challenge any answer that treats essential and important entities identically — the distinction is fundamental to NIS2's architecture"
+      },
+      "notes": "Tests whether the pipeline catches an answer that is correct on the general requirements but wrong on the differentiated treatment"
+    },
+    {
+      "query_id": "msq_029",
+      "group": "edge_cases",
+      "query_text": "Does GDPR apply to small businesses with fewer than 250 employees?",
+      "target_regulation": "GDPR Art 30(5)",
+      "hallucination_risk": "medium",
+      "what_llm_typically_gets_wrong": "LLMs often incorrectly state that GDPR exempts SMEs with fewer than 250 employees. Art 30(5) only exempts them from the records-of-processing-activities requirement, and even that exemption has exceptions (if processing is not occasional, involves special category data, or risks rights/freedoms). All other GDPR obligations apply regardless of size",
+      "expected_mad_outcome": {
+        "likely_verdict": "PARTIAL",
+        "likely_confidence_range": "0.35-0.55",
+        "likely_agent_b_challenge": "Agent B will challenge any blanket SME exemption claim — the 250-employee threshold only applies to one narrow obligation"
+      },
+      "notes": "Extremely common misconception — the SME 'exemption' is one of the most over-stated GDPR provisions"
+    },
+    {
+      "query_id": "msq_030",
+      "group": "edge_cases",
+      "query_text": "Under HIPAA, can a covered entity share patient information with law enforcement without patient authorisation?",
+      "target_regulation": "HIPAA Privacy Rule",
+      "hallucination_risk": "medium",
+      "what_llm_typically_gets_wrong": "LLMs either say yes unconditionally or no unconditionally. The correct answer is nuanced: 45 CFR 164.512(f) permits disclosure to law enforcement under six specific circumstances (court order, administrative subpoena, to identify a suspect/fugitive/witness, about a crime victim, about a decedent, to report a crime on premises) but not as a blanket exception. Each circumstance has specific conditions",
+      "expected_mad_outcome": {
+        "likely_verdict": "PARTIAL",
+        "likely_confidence_range": "0.40-0.60",
+        "likely_agent_b_challenge": "Agent B will challenge either an unconditional yes or an unconditional no — the answer requires enumerating the specific permitted circumstances"
+      },
+      "notes": "Tests whether the pipeline handles a genuinely conditional answer — neither fully supported nor fully unsupported"
+    },
+    {
+      "query_id": "msq_031",
+      "group": "edge_cases",
+      "query_text": "Are all AI systems that process biometric data classified as high-risk under the EU AI Act?",
+      "target_regulation": "EU AI Act 2024",
+      "hallucination_risk": "medium",
+      "what_llm_typically_gets_wrong": "LLMs often state that any biometric processing makes an AI system high-risk. The EU AI Act distinguishes between real-time remote biometric identification (prohibited in public spaces for law enforcement with narrow exceptions), post-remote biometric identification (high-risk), and other biometric systems that may not be high-risk. The classification depends on the specific use case, not merely the data type",
+      "expected_mad_outcome": {
+        "likely_verdict": "PARTIAL",
+        "likely_confidence_range": "0.35-0.55",
+        "likely_agent_b_challenge": "Agent B will challenge any blanket classification by citing the use-case-dependent distinction in the Act"
+      },
+      "notes": "Tests nuanced EU AI Act knowledge — the biometric classification is more complex than 'biometric = high-risk'"
+    },
+    {
+      "query_id": "msq_032",
+      "group": "edge_cases",
+      "query_text": "Does the UK Online Safety Act 2023 apply to end-to-end encrypted messaging services?",
+      "target_regulation": "UK Online Safety Act 2023",
+      "hallucination_risk": "medium",
+      "what_llm_typically_gets_wrong": "LLMs often give a binary yes/no when the answer is deliberately ambiguous in the legislation. The Act technically applies to all user-to-user services including encrypted platforms, but the practical enforcement of content scanning obligations on E2E encrypted services remains contested. Section 122 allows Ofcom to require technology to identify CSAM content but includes a feasibility qualification",
+      "expected_mad_outcome": {
+        "likely_verdict": "PARTIAL",
+        "likely_confidence_range": "0.35-0.55",
+        "likely_agent_b_challenge": "Agent B will challenge any definitive yes or no — the correct answer must acknowledge the tension between legal scope and technical feasibility"
+      },
+      "notes": "Tests a genuinely ambiguous regulatory question where PARTIAL is the correct verdict"
+    },
+    {
+      "query_id": "msq_033",
+      "group": "edge_cases",
+      "query_text": "Does GDPR consent need to be explicit for all types of personal data processing?",
+      "target_regulation": "GDPR Art 6-7, Art 9",
+      "hallucination_risk": "medium",
+      "what_llm_typically_gets_wrong": "LLMs often conflate the consent requirements. Under Art 6, consent must be freely given, specific, informed, and unambiguous — but not necessarily explicit. Explicit consent is only required for special category data under Art 9(2)(a) and for cross-border transfers under Art 49(1)(a). LLMs frequently state that all GDPR consent must be explicit, which is incorrect",
+      "expected_mad_outcome": {
+        "likely_verdict": "PARTIAL",
+        "likely_confidence_range": "0.35-0.55",
+        "likely_agent_b_challenge": "Agent B will challenge the conflation of 'unambiguous' with 'explicit' — they are different GDPR consent standards"
+      },
+      "notes": "Tests a subtle but important GDPR distinction that most LLMs get wrong by oversimplifying"
+    },
+    {
+      "query_id": "msq_034",
+      "group": "edge_cases",
+      "query_text": "Under the Council of Europe Convention 108, do signatory states have to implement the convention provisions identically?",
+      "target_regulation": "Council of Europe Convention 108 1981",
+      "hallucination_risk": "high — also IDK risk if RAG chunks are sparse for this regulation",
+      "what_llm_typically_gets_wrong": "LLMs often describe Convention 108 as directly applicable like an EU regulation. Convention 108 is an international treaty that requires transposition into domestic law, giving signatory states flexibility in implementation. The modernised Convention 108+ (CETS 223) maintained this approach. LLMs frequently confuse treaty obligations with directly applicable law",
+      "expected_mad_outcome": {
+        "likely_verdict": "NOT_SUPPORTED or IDK — depends on RAG chunk coverage for this regulation",
+        "likely_confidence_range": "0.40-0.60",
+        "likely_agent_b_challenge": "Agent B will challenge any description that implies direct applicability — the convention requires domestic implementation with national flexibility"
+      },
+      "notes": "Tests knowledge of an older, less-cited instrument — LLMs have thin coverage and tend to project EU regulation characteristics onto it"
+    },
+    {
+      "query_id": "msq_035",
+      "group": "edge_cases",
+      "query_text": "Does the US Executive Order 14110 on AI create legally binding requirements for private companies developing AI systems?",
+      "target_regulation": "US Executive Order 14110 2023",
+      "hallucination_risk": "high — also IDK risk if RAG chunks are sparse for this regulation",
+      "what_llm_typically_gets_wrong": "LLMs frequently describe EO 14110 as creating binding obligations for all AI developers. Executive orders bind federal agencies, not private companies directly. EO 14110 directs agencies to develop standards and guidelines, requires reporting from companies developing dual-use foundation models above certain compute thresholds (via the Defense Production Act), but does not create a comprehensive private-sector regulatory framework like the EU AI Act",
+      "expected_mad_outcome": {
+        "likely_verdict": "NOT_SUPPORTED or IDK — depends on RAG chunk coverage for this regulation",
+        "likely_confidence_range": "0.40-0.60",
+        "likely_agent_b_challenge": "Agent B will challenge any description that equates EO authority with statutory law — the legal mechanisms are fundamentally different"
+      },
+      "notes": "Tests understanding of US regulatory mechanisms — LLMs often conflate executive orders with legislation"
+    },
+    {
+      "query_id": "msq_036",
+      "group": "cross_regulation",
+      "query_text": "How do GDPR breach notification requirements under Article 33 interact with NIS2 incident reporting obligations for an organisation subject to both?",
+      "target_regulation": "GDPR Art 33 / NIS2 Directive",
+      "hallucination_risk": "high",
+      "what_llm_typically_gets_wrong": "LLMs typically describe only one regime or state they are identical. GDPR requires notification to the supervisory authority within 72 hours for personal data breaches, while NIS2 has a three-stage process (24-hour early warning, 72-hour notification, one-month final report) for significant incidents. An organisation subject to both must comply with both timelines independently. LLMs often merge them into a single obligation or state that NIS2 compliance satisfies GDPR requirements",
+      "expected_mad_outcome": {
+        "likely_verdict": "NOT_SUPPORTED",
+        "likely_confidence_range": "0.10-0.30",
+        "likely_agent_b_challenge": "Agent B will challenge any merged description — the two regimes have different triggers, timeframes, and reporting authorities"
+      },
+      "notes": "Critical cross-regulation test — dual-notification obligations are a real compliance challenge and LLMs consistently oversimplify them"
+    },
+    {
+      "query_id": "msq_037",
+      "group": "cross_regulation",
+      "query_text": "When an AI system processes personal data, how do the GDPR and EU AI Act requirements interact — does compliance with one satisfy the other?",
+      "target_regulation": "GDPR / EU AI Act 2024",
+      "hallucination_risk": "high",
+      "what_llm_typically_gets_wrong": "LLMs often state that GDPR compliance is sufficient for AI Act compliance or vice versa. The two regulations have overlapping but distinct requirements: GDPR governs the personal data processing, while the AI Act governs the AI system's risk classification, transparency, and conformity assessment. An AI system processing personal data must comply with both independently. The AI Act explicitly states it is without prejudice to GDPR. LLMs also often incorrectly state that the AI Act creates a new legal basis for data processing",
+      "expected_mad_outcome": {
+        "likely_verdict": "NOT_SUPPORTED",
+        "likely_confidence_range": "0.10-0.30",
+        "likely_agent_b_challenge": "Agent B will challenge any claim that one regulation subsumes the other, citing the AI Act's 'without prejudice to GDPR' clause"
+      },
+      "notes": "Tests a real-world compliance question that enterprises face — the GDPR/AI Act intersection is one of the most misunderstood regulatory relationships"
+    },
+    {
+      "query_id": "msq_038",
+      "group": "cross_regulation",
+      "query_text": "How do HIPAA and CCPA interact for a California healthcare provider — does HIPAA pre-empt CCPA for patient data?",
+      "target_regulation": "HIPAA / CCPA/CPRA",
+      "hallucination_risk": "high",
+      "what_llm_typically_gets_wrong": "LLMs often state that HIPAA completely pre-empts CCPA for healthcare providers. The CCPA explicitly exempts PHI governed by HIPAA, but the healthcare provider may hold non-PHI personal information (employee data, website visitor data, marketing data) that IS subject to CCPA. LLMs frequently state a blanket exemption when the exemption applies only to the specific data governed by HIPAA, not to the entity as a whole",
+      "expected_mad_outcome": {
+        "likely_verdict": "NOT_SUPPORTED",
+        "likely_confidence_range": "0.15-0.35",
+        "likely_agent_b_challenge": "Agent B will challenge any blanket pre-emption claim — the exemption is data-specific, not entity-specific"
+      },
+      "notes": "Tests a practical US regulatory intersection — the HIPAA/CCPA data-level vs entity-level exemption is a common compliance error"
+    },
+    {
+      "query_id": "msq_039",
+      "group": "cross_regulation",
+      "query_text": "If an organisation holds ISO 27001:2022 certification, does that demonstrate compliance with GDPR Article 32 security requirements?",
+      "target_regulation": "ISO 27001 2022 / GDPR Art 32",
+      "hallucination_risk": "high",
+      "what_llm_typically_gets_wrong": "LLMs often state that ISO 27001 certification equals GDPR Art 32 compliance. While ISO 27001 covers many of the technical and organisational measures Art 32 requires, GDPR compliance is assessed contextually based on the specific data processing operations, risks, and state of the art. ISO 27001 is evidence of good security practices but is not a GDPR compliance certification. Art 42 discusses certification mechanisms but ISO 27001 is not one of them",
+      "expected_mad_outcome": {
+        "likely_verdict": "NOT_SUPPORTED",
+        "likely_confidence_range": "0.15-0.35",
+        "likely_agent_b_challenge": "Agent B will challenge any equivalence claim — ISO 27001 is supportive evidence but not a GDPR compliance determination"
+      },
+      "notes": "Tests a common enterprise misconception — organisations frequently assume ISO certification satisfies GDPR requirements"
+    },
+    {
+      "query_id": "msq_040",
+      "group": "cross_regulation",
+      "query_text": "How do the OWASP AI security guidelines relate to the EU AI Act's requirements for high-risk AI system robustness?",
+      "target_regulation": "OWASP AI Security / EU AI Act 2024",
+      "hallucination_risk": "high",
+      "what_llm_typically_gets_wrong": "LLMs often state that following OWASP AI guidelines satisfies EU AI Act robustness requirements. OWASP provides voluntary technical guidance on threats like prompt injection and model manipulation, while the EU AI Act imposes legal obligations around accuracy, robustness, and cybersecurity for high-risk systems. The AI Act does not reference OWASP specifically. LLMs conflate voluntary best practice frameworks with binding regulatory requirements",
+      "expected_mad_outcome": {
+        "likely_verdict": "NOT_SUPPORTED",
+        "likely_confidence_range": "0.15-0.35",
+        "likely_agent_b_challenge": "Agent B will challenge any claim that OWASP compliance satisfies AI Act obligations — the legal vs voluntary distinction is fundamental"
+      },
+      "notes": "Tests whether LLMs distinguish between voluntary guidance and binding law — a critical distinction for enterprise compliance"
+    }
+  ],
+  "summary": {
+    "total": 40,
+    "by_group": {
+      "correct_baseline": 10,
+      "high_hallucination_risk": 15,
+      "edge_cases": 10,
+      "cross_regulation": 5
+    },
+    "regulations_covered": [
+      "GDPR (Art 5, 6, 8, 12-23, 17, 30, 32, 33-34, 42, 83)",
+      "HIPAA (Privacy Rule, Security Rule, HITECH)",
+      "NIST CSF 2.0 2024",
+      "NIST SSDF SP800-218",
+      "ISO 27001 2022",
+      "EU AI Act 2024",
+      "CCPA/CPRA",
+      "NIS2 Directive",
+      "CRA 2024",
+      "DSA 2022",
+      "Singapore PDPA 2012",
+      "Japan APPI",
+      "China PIPL 2021",
+      "Saudi PDPL",
+      "UK Online Safety Act 2023",
+      "Council of Europe Convention 108 1981",
+      "US Executive Order 14110 2023",
+      "OWASP AI Security Cheatsheets"
+    ],
+    "purpose": "MAD pipeline stress test — fact-checking and calibration evaluation"
+  }
+}

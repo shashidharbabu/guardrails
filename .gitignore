@@ -47,5 +47,7 @@ data/
 *.parquet
 *.jsonl
 !config/*.yaml
+!rlhf/data/
+!rlhf/data/*.json
 
 .env
