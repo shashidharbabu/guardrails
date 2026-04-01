@@ -142,7 +142,17 @@ class DenseRetriever:
         from qdrant_client import QdrantClient
 
         print("  Loading embedding model...")
-        self.tokenizer = AutoTokenizer.from_pretrained(EMBED_MODEL_NAME, trust_remote_code=True)
+        try:
+            self.tokenizer = AutoTokenizer.from_pretrained(EMBED_MODEL_NAME, trust_remote_code=True)
+        except Exception:
+            # Older local transformers/tokenizers builds can fail on the fast
+            # Qwen tokenizer JSON. Fall back to the slow tokenizer so local
+            # hybrid retrieval still works.
+            self.tokenizer = AutoTokenizer.from_pretrained(
+                EMBED_MODEL_NAME,
+                trust_remote_code=True,
+                use_fast=False,
+            )
         self.model = AutoModel.from_pretrained(
             EMBED_MODEL_NAME,
             trust_remote_code=True,
