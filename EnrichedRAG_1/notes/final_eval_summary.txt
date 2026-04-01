@@ -1,0 +1,133 @@
+Final Evaluation Summary
+Project:
+/Users/vineethrayadurgam/Desktop/RagforMAD11
+
+Evaluation scope
+- Corpus evaluated:
+  /Users/vineethrayadurgam/Desktop/RagforMAD11/rechunked_output/enriched_chunks.json
+- Indexed chunks:
+  5903
+- Eval set used:
+  /Users/vineethrayadurgam/Desktop/RagforMAD11/evals_output/evalset_local_85_curated.jsonl
+- Retrieval variant used for final full run:
+  hybrid_no_hyde
+
+Models used
+- Answer generation:
+  minimax/minimax-m2.7
+- Custom judge:
+  Claude Sonnet via OpenRouter
+- RAGAS:
+  run on saved results JSON using OpenAI-compatible routing through OpenRouter
+
+Important scripts
+- Indexing:
+  /Users/vineethrayadurgam/Desktop/RagforMAD11/indexing.py
+- Retrieval:
+  /Users/vineethrayadurgam/Desktop/RagforMAD11/retrieval.py
+- Full custom eval + RAGAS:
+  /Users/vineethrayadurgam/Desktop/RagforMAD11/evals.py
+- RAGAS-only on saved results:
+  /Users/vineethrayadurgam/Desktop/RagforMAD11/evals_ragas_only.py
+
+Final custom eval result
+- Number of eval items:
+  85
+- Per-item custom scores were produced for:
+  - faithfulness
+  - answer_relevance
+  - citation_grounding
+  - completeness
+  - overall
+  - insufficient_evidence flag
+
+Observed per-item pattern
+- Most questions scored in the 0.90 to 1.00 range
+- A few weaker cases were in the high-0.70s to mid-0.80s
+- Only one visible item in the shown run had:
+  insufficient=True
+
+What the custom eval tells us
+- The system is generally highly grounded
+- The answer model is usually producing direct and correctly supported answers
+- Retrieval quality is strong enough that “insufficient evidence” is rare on the curated set
+- Remaining quality loss is from a smaller number of partial or less-direct answers, not systemic retrieval failure
+
+Final RAGAS result
+Source file checked:
+/Users/vineethrayadurgam/Downloads/full_eval_85_results_with_ragas.json
+
+RAGAS metrics saved in that file
+- faithfulness:
+  0.9494
+- answer_relevancy:
+  0.8254
+- context_precision:
+  0.9681
+- context_recall:
+  0.9608
+
+What the RAGAS scores mean
+- faithfulness = 0.9494
+  - very strong grounding
+  - answers are usually supported by retrieved evidence
+- answer_relevancy = 0.8254
+  - decent, but lower than the rest
+  - some answers are grounded yet not as direct or complete as they could be
+- context_precision = 0.9681
+  - retrieval is bringing back highly relevant supporting context
+- context_recall = 0.9608
+  - retrieval is covering the needed evidence very well
+
+Combined interpretation
+- Retrieval is strong
+- Grounding is strong
+- The hybrid_no_hyde design is validated by both:
+  - custom eval
+  - RAGAS
+- The main remaining improvement area is answer directness/completeness, not retrieval integrity
+
+Ablation context from earlier pilot study
+- hybrid_no_hyde overall:
+  0.9220
+- hybrid_hyde overall:
+  0.8727
+- sparse_only overall:
+  0.8510
+- dense_only overall:
+  0.7517
+
+What this means
+- hybrid_no_hyde is the correct current production default
+- HyDE should remain off by default for this corpus
+- sparse-only is stronger than dense-only here
+- hybrid retrieval gives the best balance overall
+
+Key takeaways
+1. Chunk quality and contextual enrichment mattered before indexing even started.
+2. Dense-only retrieval was not enough for this regulatory corpus.
+3. Sparse retrieval remained important because of exact legal and compliance wording.
+4. Hybrid retrieval without HyDE performed best.
+5. RAGAS confirms strong retrieval coverage and strong grounding.
+6. The biggest remaining improvement area is answer relevance/directness, not context retrieval.
+
+Current important result files
+- Saved custom + RAGAS combined results:
+  /Users/vineethrayadurgam/Downloads/full_eval_85_results_with_ragas.json
+- Saved custom-only results from earlier run:
+  /Users/vineethrayadurgam/Downloads/full_eval_85_results.json
+- Curated eval set:
+  /Users/vineethrayadurgam/Desktop/RagforMAD11/evals_output/evalset_local_85_curated.jsonl
+
+Bottom line
+- The current RAG baseline is credible and strong.
+- The best validated setup so far is:
+  - enriched chunks
+  - dense + sparse retrieval
+  - RRF fusion
+  - BGE reranker
+  - tier boost
+  - hybrid_no_hyde
+  - MiniMax answer generation
+  - Claude Sonnet custom judging
+  - RAGAS on top of saved results

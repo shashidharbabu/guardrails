@@ -1,0 +1,386 @@
+RAG Pipeline Handoff
+Project root:
+/Users/vineethrayadurgam/Desktop/RagforMAD11
+
+Purpose
+- This file captures the current RAG pipeline state end to end so the system can be rebuilt, rerun, or extended from one place.
+- Scope covered here:
+  - indexing
+  - retrieval
+  - evaluation
+  - ablation findings
+  - failures and fixes
+  - current file paths
+
+Corpus status
+- Current indexed corpus is the old enriched corpus, not the new chunk enrichment run.
+- Indexed file:
+  /Users/vineethrayadurgam/Desktop/RagforMAD11/rechunked_output/enriched_chunks.json
+- This corpus contains 5903 enriched chunks from about 39 source documents.
+- We later generated eval questions with diversity across those source documents, which is why doc-count constraints mattered during evalset generation.
+
+1. Indexing
+
+What indexing does
+- Dense index:
+  - embeds enriched_text into vectors using Qwen/Qwen3-Embedding-4B
+  - stores vectors plus metadata in local Qdrant
+- Sparse index:
+  - tokenizes raw text
+  - builds BM25 with rank_bm25
+  - saves it to bm25_index.pkl
+
+Current indexing script
+- /Users/vineethrayadurgam/Desktop/RagforMAD11/indexing.py
+
+Important indexing design choices
+- Dense uses enriched_text, not raw text
+  - reason: prepended context helps semantic retrieval on fragmented regulatory chunks
+- BM25 uses raw text, not enriched text
+  - reason: BM25 benefits from exact lexical matching and does not need synthetic prefix context
+- Qdrant is configured for local-disk mode by default
+
+Key config in indexing.py
+- input:
+  /Users/vineethrayadurgam/Desktop/RagforMAD11/rechunked_output/enriched_chunks.json
+- bm25 output:
+  /Users/vineethrayadurgam/Desktop/RagforMAD11/bm25_index.pkl
+- qdrant local dir default:
+  ./qdrant_data
+- collection name:
+  guardrails_rag
+- embed model:
+  Qwen/Qwen3-Embedding-4B
+- embed dim:
+  2560
+- current safe embed batch size:
+  4
+
+Why batch size was lowered
+- Colab/Kaggle T4 memory was tighter than A100.
+- We reduced EMBED_BATCH_SIZE to 4.
+- Added:
+  - device_map="auto"
+  - low_cpu_mem_usage=True
+  - torch.cuda.empty_cache() after each embed batch
+
+Important indexing output files
+- /Users/vineethrayadurgam/Desktop/RagforMAD11/bm25_index.pkl
+- /Users/vineethrayadurgam/Desktop/RagforMAD11/embeddings.npy
+- /Users/vineethrayadurgam/Desktop/RagforMAD11/qdrant_data/
+
+Indexing validation we already saw
+- Qdrant indexed all 5903 points.
+- BM25 built successfully after installing rank-bm25.
+- Validation queries showed:
+  - dense retrieval was generally good
+  - BM25 was also strong on exact-match legal/regulatory questions
+  - hybrid retrieval was justified because dense alone had some noise
+
+What failed during indexing
+- First failure:
+  ModuleNotFoundError: No module named 'rank_bm25'
+- Root cause:
+  package missing in Colab/Kaggle runtime
+- Fix:
+  pip install rank-bm25
+
+Why indexing is considered good enough now
+- All chunks were embedded
+- BM25 built
+- Qdrant stored all vectors
+- validation results looked credible
+- no need to revisit indexing before running retrieval/evals on the old enriched corpus
+
+2. Retrieval
+
+Current retrieval script
+- /Users/vineethrayadurgam/Desktop/RagforMAD11/retrieval.py
+
+Retrieval pipeline stages
+1. Dense retrieval
+  - embed raw query with Qwen3-Embedding-4B
+  - search Qdrant top-20 by cosine similarity
+2. Sparse retrieval
+  - BM25 on raw query
+  - top-20 lexical matches
+3. Reciprocal Rank Fusion
+  - merges dense + sparse by rank, not by raw score
+  - top-30 candidates forwarded
+4. BGE reranker
+  - BAAI/bge-reranker-v2-m3 cross-encoder
+  - reranks the fused candidates against the raw query
+5. Tier boost
+  - protects highly authoritative T0 material from being crowded out
+6. Weak evidence check
+  - conservative flag to prevent fake confidence
+7. Final output
+  - top-5 chunks
+  - citations included
+
+Current retrieval defaults
+- hybrid retrieval is the main path
+- HyDE support exists but is disabled by default
+- final output size:
+  5 chunks
+
+Important retrieval config
+- BM25 path:
+  /Users/vineethrayadurgam/Desktop/RagforMAD11/bm25_index.pkl
+- enriched chunk input:
+  /Users/vineethrayadurgam/Desktop/RagforMAD11/rechunked_output/enriched_chunks.json
+- qdrant collection:
+  guardrails_rag
+- dense top-k:
+  20
+- sparse top-k:
+  20
+- RRF constant:
+  60
+- rerank candidate count:
+  30
+- final top-k:
+  5
+
+Weak evidence logic
+- Retrieval returns:
+  - chunks
+  - evidence summary
+  - insufficient_evidence flag
+- It checks:
+  - top rerank score
+  - top RRF score
+  - source coverage
+
+Bug we found and fixed in retrieval
+- Symptom:
+  clearly good retrievals were being marked insufficient
+- Example:
+  unique_sources was showing 0 even when results were obviously coming from a real document
+- Root cause:
+  assess_retrieval_strength() was reading metadata from the wrong shape
+  - it assumed doc_name was top-level
+  - but raw reranker candidates stored metadata under payload
+- Fix:
+  added shape-safe extraction logic so source identity works on both raw reranker candidates and formatted final rows
+
+Threshold tuning we made
+- MIN_TOP_RRF_SCORE was reduced:
+  0.015 -> 0.013
+- reason:
+  some strong retrievals were being marked weak due to a slightly too-strict RRF threshold
+
+HyDE
+- HyDE is implemented through OpenRouter using minimax/minimax-m2.7
+- It generates a hypothetical answer/passage for the query before dense embedding
+- BM25 still uses the raw query
+- Status:
+  available, but not production default
+
+Why HyDE is off by default
+- The eval pilot showed HyDE did not improve overall results for this corpus
+- It sometimes drifted retrieval/answering away from the best direct evidence
+
+3. Evaluation
+
+Current main eval script
+- /Users/vineethrayadurgam/Desktop/RagforMAD11/evals.py
+
+What evals.py does now
+- reads the curated eval set by default
+- runs only hybrid_no_hyde
+- generates answers with MiniMax M2.7 via OpenRouter
+- judges answers with Claude Sonnet via OpenRouter
+- runs RAGAS on top of the same run
+- writes:
+  - detailed JSON
+  - markdown summary
+  - RAGAS summary JSON
+
+Current default eval input
+- /Users/vineethrayadurgam/Desktop/RagforMAD11/evals_output/evalset_local_85_curated.jsonl
+
+Current eval outputs
+- /Users/vineethrayadurgam/Desktop/RagforMAD11/evals_output/full_eval_85_results.json
+- /Users/vineethrayadurgam/Desktop/RagforMAD11/evals_output/full_eval_85_summary.md
+- /Users/vineethrayadurgam/Desktop/RagforMAD11/evals_output/full_eval_85_ragas.json
+
+Eval prompts
+- Answer generation prompt:
+  - strict evidence-grounded regulatory answering
+  - inline source references required
+  - exact fallback string:
+    Insufficient evidence.
+- Judge prompt:
+  - scores:
+    - faithfulness
+    - answer_relevance
+    - citation_grounding
+    - completeness
+    - overall
+  - strict JSON output
+  - penalizes invented details and citation misuse heavily
+
+RAGAS status
+- RAGAS is now required in evals.py, not optional
+- The script fails fast if ragas/datasets are not installed
+- RAGAS is additive to the OpenRouter judge, not a replacement
+
+Recommended runtime deps for full eval
+- ragas
+- datasets
+- requests
+- retrieval/indexing dependencies already needed for the base pipeline
+
+4. Pilot ablation studies we already ran
+
+Pilot scripts
+- Hybrid pilot:
+  /Users/vineethrayadurgam/Desktop/RagforMAD11/evals_pilot_openrouter.py
+- Dense vs sparse pilot:
+  /Users/vineethrayadurgam/Desktop/RagforMAD11/evals_all_pilot.py
+
+Pilot variants tested
+- dense_only
+- sparse_only
+- hybrid_no_hyde
+- hybrid_hyde
+
+Pilot results we observed
+- hybrid_no_hyde overall:
+  0.9220
+- hybrid_hyde overall:
+  0.8727
+- sparse_only overall:
+  0.8510
+- dense_only overall:
+  0.7517
+
+Interpretation
+- Best overall:
+  hybrid_no_hyde
+- HyDE hurt overall performance on this pilot
+- sparse_only beat dense_only
+- dense_only was the weakest of the four
+
+What this means for production
+- default production retriever should be:
+  hybrid_no_hyde
+- HyDE should remain experimental unless a larger eval proves otherwise
+
+Key HyDE learning
+- HyDE slightly improved faithfulness in some cases
+- but hurt relevance and completeness overall
+- one pilot item had a major HyDE drop, which made it too risky to enable by default
+
+5. Eval set generation
+
+Eval set generator
+- /Users/vineethrayadurgam/Desktop/RagforMAD11/generate_evalset_local.py
+
+How eval set generation works
+- local Ollama model generates:
+  - question
+  - reference_answer
+- grounded on chunk text + metadata
+- uses filtering and rejection rules to avoid bad eval items
+
+Original generated files
+- raw 100-item set:
+  /Users/vineethrayadurgam/Desktop/RagforMAD11/evals_output/evalset_local_100.jsonl
+- reject log:
+  /Users/vineethrayadurgam/Desktop/RagforMAD11/evals_output/evalset_local_rejects.jsonl
+
+Curated eval set
+- /Users/vineethrayadurgam/Desktop/RagforMAD11/evals_output/evalset_local_85_curated.jsonl
+
+Why we curated down to 85
+- the raw 100 set was usable but not clean enough
+- removed suspicious items such as:
+  - likely doc mismatches
+  - vague or thin answers
+  - overly academic/non-regulatory items
+  - weak retrieval probes
+
+Curated-set goal
+- more trustworthy benchmark set
+- less noise during full production eval
+
+6. What failed and what worked
+
+What failed
+- Missing rank_bm25 package during indexing
+- retrieval weak-evidence bug due to wrong metadata shape
+- too-strict weak-evidence threshold
+- HyDE underperformed on the pilot set
+- raw 100 eval set contained weak/noisy items
+
+What worked
+- indexing old enriched corpus into dense + sparse stores
+- dense retrieval was decent, sparse retrieval was strong, hybrid was best
+- reranker helped clean the fused candidate list
+- source citations and evidence flagging made the pipeline safer
+- curated eval set improved benchmark trustworthiness
+- MiniMax + Sonnet split is a sensible answer/judge setup
+- RAGAS was added on top instead of replacing custom evaluation
+
+7. Recommended current production flow
+
+If rebuilding the current old-corpus pipeline, do this:
+1. Make sure enriched corpus file exists
+  - /Users/vineethrayadurgam/Desktop/RagforMAD11/rechunked_output/enriched_chunks.json
+2. Run indexing.py
+  - produces bm25_index.pkl, embeddings.npy, qdrant_data/
+3. Use retrieval.py with hybrid_no_hyde
+4. Run evals.py on:
+  - /Users/vineethrayadurgam/Desktop/RagforMAD11/evals_output/evalset_local_85_curated.jsonl
+5. Review:
+  - full_eval_85_results.json
+  - full_eval_85_summary.md
+  - full_eval_85_ragas.json
+
+8. Current important files and paths
+
+Core scripts
+- /Users/vineethrayadurgam/Desktop/RagforMAD11/indexing.py
+- /Users/vineethrayadurgam/Desktop/RagforMAD11/retrieval.py
+- /Users/vineethrayadurgam/Desktop/RagforMAD11/evals.py
+- /Users/vineethrayadurgam/Desktop/RagforMAD11/generate_evalset_local.py
+- /Users/vineethrayadurgam/Desktop/RagforMAD11/evals_pilot_openrouter.py
+- /Users/vineethrayadurgam/Desktop/RagforMAD11/evals_all_pilot.py
+
+Corpus and retrieval artifacts
+- /Users/vineethrayadurgam/Desktop/RagforMAD11/rechunked_output/enriched_chunks.json
+- /Users/vineethrayadurgam/Desktop/RagforMAD11/bm25_index.pkl
+- /Users/vineethrayadurgam/Desktop/RagforMAD11/embeddings.npy
+- /Users/vineethrayadurgam/Desktop/RagforMAD11/qdrant_data/
+
+Eval datasets
+- /Users/vineethrayadurgam/Desktop/RagforMAD11/evals_output/evalset_local_100.jsonl
+- /Users/vineethrayadurgam/Desktop/RagforMAD11/evals_output/evalset_local_85_curated.jsonl
+- /Users/vineethrayadurgam/Desktop/RagforMAD11/evals_output/evalset_local_rejects.jsonl
+
+Expected main eval outputs
+- /Users/vineethrayadurgam/Desktop/RagforMAD11/evals_output/full_eval_85_results.json
+- /Users/vineethrayadurgam/Desktop/RagforMAD11/evals_output/full_eval_85_summary.md
+- /Users/vineethrayadurgam/Desktop/RagforMAD11/evals_output/full_eval_85_ragas.json
+
+9. Bottom-line decisions already made
+
+- old enriched corpus is the active indexed baseline
+- hybrid_no_hyde is the current production retrieval default
+- HyDE stays available but off by default
+- curated 85-question eval set is the current benchmark set
+- full eval should use both:
+  - OpenRouter answer + judge
+  - RAGAS
+
+10. Next likely extension
+
+Next major comparison to run later
+- repeat indexing, retrieval, and evals for:
+  - naive old chunks
+  - rechunked/enriched chunks
+- purpose:
+  isolate how much chunk quality + contextual enrichment improved retrieval and QA quality
+

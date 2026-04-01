@@ -1,0 +1,112 @@
+CHUNKING STRATEGY ANALYSIS REPORT
+Generated: 2026-03-29
+Base path: /Users/vineethrayadurgam/Desktop/RAG for MAD
+
+========================================================================================================================
+DOMAIN: LEGAL / AI POLICY (domain_legal_ai/) — 10 PDFs
+========================================================================================================================
+Filename                                                                    Size(MB) Pages AvgWPP Structure Type           Tables MultiCol Chunk Strategy          
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------
+CUAD Dataset Documentation.pdf                                                  2.67    15    145 structured_framework         no       no semantic_paragraph        
+EU Digital Operational Resilience Act — DORA (2022:2554).pdf                    1.42    79    600 dense_legal                  no       no article_boundary        
+FTC AI Policy Statement and Guidelines (2023).pdf                               0.34     3    382 short_declaration            no       no no_chunk_single_doc     
+Frontier AI Safety Commitments, AI Seoul Summit 2024 - GOV.UK.pdf               0.21     7     59 short_declaration           yes      yes no_chunk_single_doc     
+NIST SP 800-53 Rev 5 (Security and Privacy Controls).pdf                        5.79   492    180 technical_standard           no       no fixed_512_overlap64     
+OECD AI Principles Updated (2024).pdf                                           0.65    12    294 technical_standard           no       no fixed_256_overlap32     
+OECD Framework for Classifying AI Systems (2022).pdf                             0.9    53    152 structured_framework        yes       no table_aware             
+SEC Cybersecurity Disclosure Rules (2023).pdf                                   0.99   186    191 structured_framework        yes       no table_aware             
+The Bletchley Declaration by Countries Attending the AI Safety Summit, 1-2      0.24     7    198 short_declaration           yes      yes no_chunk_single_doc     
+UNESCO Recommendation on the Ethics of AI (2021).pdf                           36.17    44      0 structured_framework         no       no OCR_REQUIRED→fixed_512_o64     
+
+========================================================================================================================
+DOMAIN: HEALTHCARE (domain_healthcare/) — 16 PDFs + 1 DOCX
+========================================================================================================================
+Filename                                                                    Size(MB) Pages AvgWPP Structure Type           Tables MultiCol Chunk Strategy          
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------
+2023 AHA:ACC:ACCP:ASPC:NLA:PCNA Guideline for the Management of Patients W      4.67   111   1023 clinical_guideline           no       no fixed_512_overlap64     
+ADA (standards-of-care-2024).pdf                                                68.3   328    267 structured_framework        yes       no table_aware             
+AHA:ACC Heart Failure Guidelines (2022).pdf                                    10.24   138    599 clinical_guideline           no      yes table_aware     
+CDC Opioid Prescribing Clinical Practice Guidelines (2022).pdf                  1.35   100    396 clinical_guideline           no       no semantic_paragraph      
+CFR-2022-title21-vol1-part11.pdf                                                0.19     5    682 short_declaration            no       no no_chunk_single_doc     
+CMS Medicare Coverage of Innovative Technology (MCIT) Rule.pdf                  0.32    24   1059 dense_legal                  no       no article_boundary        
+EMA Reflection Paper on AI:ML in Medicines Development (2023).pdf               0.37    18    317 structured_framework        yes       no table_aware             
+EU Medical Device Regulation MDR 2017:745.pdf                                   1.83   231    336 dense_legal                  no       no article_boundary        
+FDA AI:ML-Based Software as a Medical Device Action Plan.pdf                    0.73     8    324 short_declaration            no       no no_chunk_single_doc     
+FDA Drug (CFR-2024-title21-vol4-part201).pdf                                    1.04    99    646 clinical_guideline           no       no semantic_paragraph      
+FDA Predetermined Change Control Plan for AI:ML (2024).pdf                      0.64    49    190 technical_standard           no       no fixed_256_overlap32     
+NICE (evidence-standards-framework-for-digital-health-technologies).pdf         0.33    45    203 structured_framework         no       no fixed_512_overlap64     
+NIH NIDDK Quality of Care in People with Diabetes (Guidelines Chapter).pdf      1.51    19    804 clinical_guideline           no       no semantic_paragraph      
+ONC 21st Century Cures Act Final Rule (2020).pdf                                0.39     2    492 short_declaration           yes       no no_chunk_single_doc     
+WHO Ethics and Governance of AI for Health (2021).pdf                           1.88   165    266 structured_framework         no      yes table_aware        
+hitech_act_excerpt_from_arra_with_index.pdf                                     0.25    89    293 dense_legal                 yes       no article_boundary     
+NCI_Informed_Consent_Template.docx                                               0.1 N/A (.docx)    N/A short_declaration        unknown       no no_chunk_single_doc     
+
+========================================================================================================================
+MITRE ATLAS SPECIAL FILES
+========================================================================================================================
+ATLAS.yaml (MITRE ATLAS v5.4.0 — Adversarial Threat Landscape for AI Systems)
+  Top-level keys: id, name, version, matrices, case-studies
+  Tactics:      16
+  Techniques:  155
+  Mitigations:  35
+  Case Studies: 52
+  Strategy: 3-part synthetic chunking (Gemini approach)
+    - Each technique/tactic/mitigation → 1 chunk with structured metadata
+    - Case studies → 1 chunk each with linked technique IDs
+    - Estimated total: 242 synthetic chunks
+
+stix-atlas-attack-enterprise.json (STIX 2.1 Bundle)
+  Total objects: 25,283 (ONLY processing 1,323)
+  Extract ONLY these object types:
+    attack-pattern:                990  ← INCLUDE
+    course-of-action:              303  ← INCLUDE
+    x-mitre-tactic:                 30  ← INCLUDE
+  SKIP (no standalone semantic value for vector search):
+    relationship:               20,352  ← SKIP (graph edges, pollute results)
+    x-mitre-analytic:            1,739  ← SKIP
+    malware:                       696  ← SKIP
+    x-mitre-detection-strategy:    691  ← SKIP
+    intrusion-set:                 187  ← SKIP
+    x-mitre-data-component:        109  ← SKIP
+    tool:                           91  ← SKIP
+    campaign:                       52  ← SKIP
+    x-mitre-data-source:            38  ← SKIP
+    x-mitre-collection:              2  ← SKIP
+    identity/marking-definition/matrix: SKIP
+  Estimated total: ~1,323 chunks
+
+========================================================================================================================
+SUMMARY
+========================================================================================================================
+
+Total new docs to process: 26 PDFs + 1 DOCX + 2 structured data files
+  ATLAS.yaml  → 242 synthetic chunks
+  STIX JSON   → 1,323 chunks (attack-pattern + course-of-action + x-mitre-tactic only)
+
+Chunk strategy distribution (CORRECTED):
+  no_chunk_single_doc:          7   (FTC, Frontier AI, Bletchley, CFR-21, FDA SaMD, ONC, NCI template)
+  table_aware:                  6   (OECD Framework, SEC, ADA, EMA, AHA/ACC HF, WHO AI Health)
+  article_boundary:             5   (DORA, CMS MCIT, EU MDR, HITECH Act, + was CUAD→now semantic)
+  fixed_256_overlap32:          3   (OECD Principles, AHA/ACC Coronary, FDA PCCP)
+  semantic_paragraph:           4   (CUAD, CDC Opioid, FDA Drug CFR, NIH NIDDK)
+  fixed_512_overlap64:          3   (NIST 800-53, NICE, + UNESCO after OCR)
+  OCR_REQUIRED→fixed_512_o64:  1   (UNESCO — needs pymupdf OCR before chunking)
+  atlas_yaml_synthetic:         1   (ATLAS.yaml — 3-strategy approach)
+  stix_filtered_objects:        1   (STIX JSON — 3 object types only)
+
+CORRECTIONS APPLIED:
+  1. CUAD Dataset Documentation        : article_boundary → semantic_paragraph (research paper, not regulation)
+  2. UNESCO Recommendation on Ethics AI : fixed_512_overlap64 → OCR_REQUIRED (0 words/page = scanned PDF)
+  3. AHA/ACC Heart Failure Guidelines   : fixed_256_overlap32 → table_aware (multi-column layout)
+  4. WHO Ethics & Governance AI Health  : article_boundary → table_aware (multi-column layout)
+  5. NIST SP 800-53 Rev 5              : fixed_256_overlap32 → fixed_512_overlap64 (controls need ~400-500 words)
+  6. HITECH Act                        : fixed_256_overlap32 → article_boundary (legal statute with SEC. headers)
+  7. ATLAS.yaml                        : 3-strategy synthetic chunking, 242 chunks
+  8. STIX JSON                         : filtered to 3 object types only, ~1,323 chunks
+
+Top 3 largest docs by page count (need most attention):
+  1. NIST SP 800-53 Rev 5 (Security and Privacy Controls).pdf — 492 pages (5.79 MB)
+  2. ADA (standards-of-care-2024).pdf — 328 pages (68.3 MB)
+  3. EU Medical Device Regulation MDR 2017:745.pdf — 231 pages (1.83 MB)
+
+No parse failures.

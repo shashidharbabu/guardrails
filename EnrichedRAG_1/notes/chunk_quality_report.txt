@@ -1,0 +1,364 @@
+╔══════════════════════════════════════════════════════════════════════╗
+║          RAG CHUNK QUALITY ANALYSIS REPORT                         ║
+║          Generated:  2026-03-26 21:55:20                         ║
+╚══════════════════════════════════════════════════════════════════════╝
+
+Loaded 4664 chunks from 39 files
+Documents: 39
+======================================================================
+STEP 1 — BASIC STATISTICS
+======================================================================
+
+Total chunks: 4664
+Min tokens:   20
+Max tokens:   794
+Mean tokens:  334.5
+Median tokens:357.0
+
+Token-length distribution:
+      0-50:    25  (  0.5%)  
+    51-100:   150  (  3.2%)  █
+   101-200:   496  ( 10.6%)  █████
+   201-300:   780  ( 16.7%)  ████████
+   301-400:  2030  ( 43.5%)  █████████████████████
+   401-512:   992  ( 21.3%)  ██████████
+      512+:   191  (  4.1%)  ██
+
+  % under 100 tokens (too small): 3.6%
+  % over 500 tokens (too large):  4.6%
+
+======================================================================
+STEP 2 — BOUNDARY QUALITY CHECK
+======================================================================
+
+  Chunks with bad START boundary (mid-sentence): 864/4664 (18.5%)
+  Examples of bad starts:
+    [t0__nist__csf_2_0_2024__chunk_0024] "foster accountability, performance assessment, and continuous improvement are established and communicated o GV.RR-01: O..."
+    [t0__nist__csf_2_0_2024__chunk_0025] "improvement processes o GV.SC-04: Suppliers are known and prioritized by criticality o GV.SC-05: Requirements to address..."
+    [t0__nist__csf_2_0_2024__chunk_0029] "operating systems, applications), and services of physical and virtual platforms are managed consistent with the organiz..."
+    [t0__nist__csf_2_0_2024__chunk_0031] "and recovery activities o RS.AN-03: Analysis is performed to establish what has taken place during an incident and the r..."
+    [t0__nist__ssdf_sp800_218_v1_1__chunk_0023] "to
+gather and safeguard the necessary information in
+support of the criteria. Example 1: Use the toolchain to automatica..."
+
+  Chunks with bad END boundary (mid-sentence):   1929/4664 (41.4%)
+  Examples of bad ends:
+    [t0__iso__27001_2022_infosec__chunk_0007] "...cluded if needed. d) produce a Statement of Applicability that contains:
+— the necessary controls (see 6.1.3 b) and c));"
+    [t0__nist__csf_2_0_2024__chunk_0005] "...p inform continuous improvement of its cybersecurity.
+
+Fig. 3. Steps for creating and using a CSF Organizational Profile"
+    [t0__nist__csf_2_0_2024__chunk_0021] "...ight
+GV.OV
+
+Cybersecurity Supply Chain Risk Management
+GV.SC
+Identify (ID)
+Asset Management
+ID.AM
+
+Risk Assessment
+ID.RA"
+    [t0__nist__csf_2_0_2024__chunk_0022] "...esponse Reporting and Communication
+RS.CO
+
+Incident Mitigation
+RS.MI
+Recover (RC)
+Incident Recovery Plan Execution
+RC.RP"
+    [t0__nist__csf_2_0_2024__chunk_0023] "...iscussions • Roles, Responsibilities, and Authorities (GV.RR): Cybersecurity roles, responsibilities, and authorities to"
+
+======================================================================
+STEP 3 — CONTENT QUALITY CHECK
+======================================================================
+
+  Mostly whitespace/punctuation (<20 meaningful words): 6 (0.1%)
+    [t1__eo_14110_2023__chunk_0019] "specified in subsection 4.2(c)(i) of this section as well as any additional information identified by the Secretary."
+    [t1__eu_ai_act_2024__chunk_0240] "(c) the identification of the type and nature of the systemic risks at Union level, including their sources, where appropriate;"
+    [t1__nis2_2022_2555__chunk_0039] "239, 19.9.2017, p. 36). (16) Council Implementing Decision (EU) 2018/1993 of 11 December 2018 on the EU Integrated Political Crisis Response Arrangeme"
+
+  Header-only chunks (<15 words, no verb): 1 (0.0%)
+    [t1__uk_online_safety_act_2023__chunk_0172] "by S.I. 2023/1420, reg. 2(z5) I166 S. 100(6)(a)(iv) in force at 10.1.2024 for specified purposes by S.I. 2023/1420, reg. 2(z5) I167 S."
+
+  Table-of-contents lines: 11 (0.2%)
+    [t1__ca_ccpa__chunk_0000] "CHAPTER 1. CALIFORNIA CONSUMER PRIVACY ACT REGULATIONS
+ARTICLE 1. GENERAL PROVISIONS ................................................................."
+    [t1__ca_ccpa__chunk_0001] "§ 7028. Requests to Opt-in After Opting-out of the Sale or Sharing of Personal Information or
+Limiting the Use and Disclosure of Sensitive Personal In"
+    [t1__ca_ccpa__chunk_0002] "§ 7153. Additional Requirements for Businesses that Process Personal Information to Train
+Automated Decisionmaking Technology. ......................."
+
+======================================================================
+STEP 4 — DUPLICATION CHECK
+======================================================================
+
+  Exact duplicate groups: 0
+  Total chunks involved in exact duplicates: 0
+
+  Near-duplicate check (>85% character similarity, same document)...
+  Near-duplicate pairs found: 122
+    t0__nist__ssdf_sp800_218_v1_1__chunk_0035  <->  t0__nist__ssdf_sp800_218_v1_1__chunk_0036  (85.77%)
+    t0__nist__ssdf_sp800_218_v1_1__chunk_0058  <->  t0__nist__ssdf_sp800_218_v1_1__chunk_0059  (88.71%)
+    t0__nist__ssdf_sp800_218_v1_1__chunk_0059  <->  t0__nist__ssdf_sp800_218_v1_1__chunk_0060  (91.87%)
+    t1__ca_ccpa__chunk_0003  <->  t1__ca_ccpa__chunk_0004  (93.57%)
+    t1__ca_ccpa__chunk_0030  <->  t1__ca_ccpa__chunk_0031  (96.53%)
+
+======================================================================
+STEP 6 — CONTEXT CONTINUITY CHECK
+======================================================================
+
+  Consecutive chunk pairs checked: 4625
+  Bad splits detected: 1007 (21.8%)
+
+  5 examples of bad splits:
+
+    [t0__nist__csf_2_0_2024__chunk_0002] ends with:
+      "... flexible framework that is intended to be tailored for use by all organizations
+regardless of size."
+    [t0__nist__csf_2_0_2024__chunk_0003] continues with:
+      "Organizations will continue to have unique risks — including different threats
+and vulnerabilities —..."
+
+    [t0__nist__csf_2_0_2024__chunk_0023] ends with:
+      "...Responsibilities, and Authorities (GV.RR): Cybersecurity roles, responsibilities, and authorities to"
+    [t0__nist__csf_2_0_2024__chunk_0024] continues with:
+      "foster accountability, performance assessment, and continuous improvement are established and commun..."
+
+    [t0__nist__csf_2_0_2024__chunk_0024] ends with:
+      "...isk management is integrated into cybersecurity and enterprise risk management, risk assessment, and"
+    [t0__nist__csf_2_0_2024__chunk_0025] continues with:
+      "improvement processes o GV.SC-04: Suppliers are known and prioritized by criticality o GV.SC-05: Req..."
+
+    [t0__nist__csf_2_0_2024__chunk_0028] ends with:
+      "...otected, maintained, and tested • Platform Security (PR.PS): The hardware, software (e.g., firmware,"
+    [t0__nist__csf_2_0_2024__chunk_0029] continues with:
+      "operating systems, applications), and services of physical and virtual platforms are managed consist..."
+
+    [t0__nist__csf_2_0_2024__chunk_0030] ends with:
+      "...nt Analysis (RS.AN): Investigations are conducted to ensure effective response and support forensics"
+    [t0__nist__csf_2_0_2024__chunk_0031] continues with:
+      "and recovery activities o RS.AN-03: Analysis is performed to establish what has taken place during a..."
+
+======================================================================
+STEP 7 — SAMPLE OUTPUT
+======================================================================
+
+── 5 Random Chunks ──
+
+  Sample 1: [t1__eo_14110_2023__chunk_0038] (373 tokens)
+  Doc: t1__eo_14110_2023
+  ------------------------------------------------------------
+  | Council, in consultation with the Secretary of Defense, the Secretary of Commerce, the Secretary of Energy, the Secretary of Homeland Security, and the Director of National Intelligence, shall develop initial guidelines for performing security reviews, including reviews to identify and manage the potential security risks of releasing Federal data that could aid in the development of CBRN weapons as well as the development of autonomous offensive cyber capabilities, while also providing public access to Federal Government data in line with the goals stated in the Open, Public, Electronic, and Necessary Government Data Act (title II of Public Law 115–435); and The memorandum shall outline actions for the Department of Defense, the Department of State, other relevant agencies, and the Intelligence Community to address the national security risks and potential benefits posed by AI. In particular, the memorandum shall: (a) provide guidance to the Department of Defense, other relevant agencies, and the Intelligence Community on the continued adoption of AI capabilities to advance the United States national security mission, including through directing specific AI assurance and risk-management practices for national security uses of AI that may affect the rights or safety of United States persons and, in appropriate contexts, non-United States persons; and (b) direct continued actions, as appropriate and consistent with applicable law, to address the potential use of AI systems by adversaries and other foreign actors in ways that threaten the capabilities or objectives of the Department of Defense or the Intelligence Community, or that otherwise pose risks to the security of the United States or its allies and partners. Sec. 5. Promoting Innovation and Competition. 5.1. Attracting AI Talent to the United States. (a) Within 90 days of the date of this order, to attract and retain talent in AI and other critical and emerging technologies in the United States economy, the Secretary of State and the Secretary of Homeland Security shall take
+  ------------------------------------------------------------
+
+  Sample 2: [t1__ca_ccpa__chunk_0035] (341 tokens)
+  Doc: t1__ca_ccpa
+  ------------------------------------------------------------
+  | (F)
+  | Explanation of how an opt-out preference signal will be processed for the
+  | consumer (i.e., whether the signal applies to the device, browser, consumer
+  | account, and/or offline sales, and in what circumstances) and how the
+  | consumer can use an opt-out preference signal.
+  | 
+  | (G) If the business processes opt-out preference signals in a frictionless manner,
+  | information on how consumers can implement opt-out preference signals for
+  | the business to process in a frictionless manner.
+  | 
+  | (H) Instructions on how an authorized agent can make a request under the CCPA
+  | on the consumer’s behalf.
+  | 
+  | (I)
+  | If the business has actual knowledge that it sells the personal information of
+  | consumers under 16 years of age, a description of the processes required by
+  | sections 7070 and 7071.
+  | 
+  | (J)
+  | A contact for questions or concerns about the business’s privacy policies and
+  | information practices using a method reflecting the manner in which the
+  | business primarily interacts with the consumer.
+  | (4)
+  | Date the privacy policy was last updated.
+  | (5)
+  | If subject to the data reporting requirements set forth in section 7102, the
+  | information required under section 7102, or a link to that information.
+  | Note: Authority cited: Section 1798.185, Civil Code. Reference: Sections 1798.100, 1798.105,
+  | 1798.106, 1798.110, 1798.115, 1798.120, 1798.121, 1798.125, 1798.130, 1798.135, and
+  | 1798.185, Civil Code.
+  | § 7012. Notice at Collection of Personal Information.
+  ------------------------------------------------------------
+
+  Sample 3: [t1__uk_online_safety_act_2023__chunk_0427] (453 tokens)
+  Doc: t1__uk_online_safety_act_2023
+  ------------------------------------------------------------
+  | New Part 3 services which start up when illegal content risk assessment guidance and CAA
+  | guidance are both available
+  | (1) In this paragraph “the first day”, in relation to a Part 3 service, means the first day
+  | on which the service is a Part 3 service (being a new service). (2) If, on the first day, illegal content risk assessment guidance and CAA guidance are
+  | both available, both of the following must be completed within the period of three
+  | months beginning with that day—
+  | the first illegal content risk assessment of the service, and
+  | the first CAA of the service. I483 Sch. 3 para. 3 not in force at Royal Assent, see s. 240(1)
+  | I484 Sch. 3 para. 3 in force at 10.1.2024 by S.I. 2023/1420, reg. 2(z35)
+  | Existing services which become Part 3 services when illegal content risk assessment guidance
+  | and CAA guidance are both available
+  | (1) In this paragraph “the first day”, in relation to a Part 3 service, means the first day on
+  | which the service becomes, or again becomes, a Part 3 service (following a period
+  | during which the service was not a Part 3 service). an illegal content risk assessment of the service, and
+  | a CAA of the service. I485 Sch. 3 para. 4 not in force at Royal Assent, see s. 240(1)
+  | I486 Sch. 3 para. 4 in force at 10.1.2024 by S.I. 2023/1420, reg. 2(z35)
+  | TIMING OF CHILDREN’S RISK ASSESSMENTS AND SECTION 15(2) ASSESSMENTS
+  | (1) In this paragraph “the relevant day”, in relation to a Part 3 service, means—
+  | the first day on which the service is treated as likely to be accessed by
+  | children, or
+  | the first day on which the service is again treated as likely to be accessed by
+  | children (following a period during which the service was not so treated).
+  ------------------------------------------------------------
+
+  Sample 4: [t1__uk_online_safety_act_2023__chunk_0180] (336 tokens)
+  Doc: t1__uk_online_safety_act_2023
+  ------------------------------------------------------------
+  | information; (ii) if the child did not use the service, or the person does not hold any information of the kind required, to notify OFCOM of that fact by a specified date, and (5B) If OFCOM give an information notice to a person under section 101(C1), they may, in response to information received from the investigating authority, extend the period for which the person is required to retain information by a maximum period of six months. (5C) The power conferred by subsection (5B) is exercisable— by giving the person a notice varying the notice under section 101(C1) and stating the further period for which information must be retained and the reason for the extension; any number of times.] (6) An information notice may specify a place at which, and a person to whom, information is to be provided. (7) A person to whom a document is produced in response to an information notice may— take copies of, or extracts from, the document; require the person producing the document, or a person who is or was an officer of that person, or (in the case of a partnership) a person who is or was a partner, to give an explanation of it. (8) A person to whom an information notice is given has a duty— to act in accordance with the requirements of the notice, and to ensure that the information provided is accurate in all material respects. (9) OFCOM may cancel an information notice by notice to the person to whom it was given. [F18(9A) OFCOM must cancel an information notice under section 101(C1) by notice to
+  ------------------------------------------------------------
+
+  Sample 5: [t1__uk_online_safety_act_2023__chunk_0002] (299 tokens)
+  Doc: t1__uk_online_safety_act_2023
+  ------------------------------------------------------------
+  | (4) Part 4 imposes further duties on providers of user-to-user services and search services. (5) Part 5 imposes duties on providers of internet services (including user-to-user services and search services) that publish certain pornographic content. (6) Part 6, which imposes requirements to pay fees to OFCOM, applies to providers of internet services to which the duties in Part 3, 4 or 5 apply (“regulated services”). (7) Part 7 is about OFCOM’s powers and duties in relation to regulated services (including powers to obtain information and enforcement powers). (8) Part 8 is about appeals and complaints relating to regulated services. (9) Part 9 is about the Secretary of State’s functions in relation to regulated services. (10) Part 10 contains communications offences. (11) Parts 11 and 12 contain supplementary provisions including an index of terms defined in this Act (see section 237). I2 S. 2 in force at Royal Assent, see s. 240(4)(a) PART 2 KEY DEFINITIONS “User-to-user service” and “search service” (1) In this Act “user-to-user service” means an internet service by means of which content that is generated directly on the service by a user of the service, or uploaded to or shared on the service by a user of the service, may be encountered by another user, or other users, of the service.
+  ------------------------------------------------------------
+
+── Shortest Chunk ──
+  [t2__us__fed_occ_fdic__supervisory_guidance_model_risk__2011__chunk_0017] (20 tokens)
+  Doc: t2__us__fed_occ_fdic__supervisory_guidance_model_risk__2011
+  ------------------------------------------------------------
+  | IV. MODEL DEVELOPMENT, IMPLEMENTATION, AND USE > Model Use
+  | 
+  | V. MODEL VALIDATION
+  ------------------------------------------------------------
+
+── Longest Chunk ──
+  [t1__nis2_2022_2555__chunk_0170] (794 tokens)
+  Doc: t1__nis2_2022_2555
+  ------------------------------------------------------------
+  | Article 6
+  | –
+  | Article 7(1)
+  | Article 7(1) and (2)
+  | Article 7(2)
+  | Article 7(4)
+  | Article 7(3)
+  | Article 7(3)
+  | Article 8(1) to (5)
+  | Article 8(1) to (5)
+  | Article 8(6)
+  | Article 13(4)
+  | Article 8(7)
+  | Article 8(6)
+  | Article 9(1), (2) and (3)
+  | Article 10(1), (2) and (3)
+  | Article 9(4)
+  | Article 10(9)
+  | Article 9(5)
+  | Article 10(10)
+  | Article 10(1), (2) and (3), first subparagraph
+  | Article 13(1), (2) and (3)
+  | Article 10(3), second subparagraph
+  | Article 23(9)
+  | Article 11(1)
+  | Article 14(1) and (2)
+  | Article 11(2)
+  | Article 14(3)
+  | Article 11(3)
+  | Article 14(4), first subparagraph, points (a) to (q) and (s), and
+  | paragraph (7)
+  | Article 11(4)
+  | Article 14(4), first subparagraph, point (r), and second
+  | subparagraph
+  | Article 11(5)
+  | Article 14(8)
+  | Article 12(1) to (5)
+  | Article 15(1) to (5)
+  | Article 13
+  | Article 17
+  | Article 14(1) and (2)
+  | Article 21(1) to (4)
+  | Article 14(3)
+  | Article 23(1)
+  | Article 14(4)
+  | Article 23(3)
+  | Article 14(5)
+  | Article 23(5), (6) and (8)
+  | 
+  | Directive (EU) 2016/1148
+  | This Directive
+  | Article 14(6)
+  | Article 23(7)
+  | Article 14(7)
+  | Article 23(11)
+  | Article 15(1)
+  | Article 31(1)
+  | Article 15(2), first subparagraph, point (a)
+  | Article 32(2), point (e)
+  | Article 15(2), first subparagraph, point (b)
+  | Article 32(2), point (g)
+  | Article 15(2), second subparagraph
+  | Article 32(3)
+  | Article 15(3)
+  | Article 32(4), point (b)
+  | Article 15(4)
+  | Article 31(3)
+  | Article 16(1) and (2)
+  | Article 21(1) to (4)
+  | Article 16(3)
+  | Article 23(1)
+  | Article 16(4)
+  | Article 23(3)
+  | Article 16(5)
+  | –
+  | Article 16(6)
+  | Article 23(6)
+  | Article 16(7)
+  | Article 23(7)
+  | Article 16(8) and (9)
+  | Article 21(5) and Article 23(11)
+  | Article 16(10)
+  | –
+  | Article 16(11)
+  | Article 2(1), (2) and (3)
+  | Article 17(1)
+  | Article 33(1)
+  | Article 17(2), point (a)
+  | Article 32(2), point (e)
+  | Article 17(2), point (b)
+  | Article 32(4), point (b)
+  | Article 17(3)
+  | Article 37(1), points (a) and (b)
+  | Article 18(1)
+  | Article 26(1), point (b), and paragraph (2)
+  | Article 18(2)
+  | Article 26(3)
+  | Article 18(3)
+  | Article 26(4)
+  | Article 19
+  | Article 25
+  | Article 20
+  | Article 30
+  | Article 21
+  | Article 36
+  | Article 22
+  | Article 39
+  | Article 23
+  | Article 40
+  ------------------------------------------------------------
+
+======================================================================
+STEP 8 — SUMMARY VERDICT
+======================================================================
+
+  QUALITY SCORE: 8.0 / 10
+
+  Issues found (2):
+    • MEDIUM: 18.5% chunks start mid-sentence
+    • MEDIUM: 41.4% chunks end mid-sentence
+
+  VERDICT: Good chunk quality. Minor improvements possible.
