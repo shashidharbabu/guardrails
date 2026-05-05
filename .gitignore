@@ -48,4 +48,10 @@ data/
 *.jsonl
 !config/*.yaml
 
+# Node.js / Frontend
+node_modules/
+dist/
+.vite/
+app/frontend/.env.local
+
 .env

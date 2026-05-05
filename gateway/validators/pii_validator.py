@@ -72,7 +72,7 @@ class CustomPIIValidator(Validator):
     def _pipe(self):
         return CustomPIIValidator._PIPELINE_CACHE.get(self.model_path)
 
-    def _validate(self, value: str, metadata: Dict) -> ValidationResult:
+    def validate(self, value: str, metadata: Dict) -> ValidationResult:
         self._load_model()
 
         ner_results = self._pipe(value)
@@ -100,24 +100,12 @@ class CustomPIIValidator(Validator):
 
         pii_score = max((e["confidence"] for e in pii_entities), default=0.0)
 
-        if not pii_entities:
-            return PassResult(
-                metadata={
-                    "pii_score": 0.0,
-                    "pii_entities": [],
-                    "validator": "custom-pii-ner",
-                }
-            )
-
-        return FailResult(
-            error_message=(
-                f"PII detected ({len(pii_entities)} entities): "
-                f"{[e['entity_type'] for e in pii_entities]}"
-            ),
-            fix_value=value,
+        # Always return PassResult so guardrails doesn't short-circuit the chain.
+        # DecisionEngine reads scores from metadata and makes the final routing decision.
+        return PassResult(
             metadata={
-                "pii_score": round(pii_score, 4),
+                "pii_score":    round(pii_score, 4),
                 "pii_entities": pii_entities,
-                "validator": "custom-pii-ner",
-            },
+                "validator":    "custom-pii-ner",
+            }
         )

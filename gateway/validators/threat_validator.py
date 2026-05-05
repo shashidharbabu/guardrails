@@ -98,28 +98,19 @@ class CustomThreatValidator(Validator):
                 return float(item["score"])
         return 0.0
 
-    def _validate(self, value: str, metadata: Dict) -> ValidationResult:
+    def validate(self, value: str, metadata: Dict) -> ValidationResult:
         self._load_model()
 
         output = self._pipe(value)
         jb_score = self._get_jb_score(output)
         safe_score = max(0.0, 1.0 - jb_score)
 
-        if jb_score < self.jb_threshold:
-            return PassResult(
-                metadata={
-                    "jb_score": round(jb_score, 4),
-                    "safe_score": round(safe_score, 4),
-                    "validator": "custom-threat-classifier",
-                }
-            )
-
-        return FailResult(
-            error_message=f"Jailbreak detected (confidence={jb_score:.3f})",
-            fix_value=value,
+        # Always return PassResult so guardrails doesn't short-circuit the chain.
+        # DecisionEngine reads scores from metadata and makes the final routing decision.
+        return PassResult(
             metadata={
-                "jb_score": round(jb_score, 4),
+                "jb_score":   round(jb_score, 4),
                 "safe_score": round(safe_score, 4),
-                "validator": "custom-threat-classifier",
-            },
+                "validator":  "custom-threat-classifier",
+            }
         )
