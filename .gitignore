@@ -49,3 +49,6 @@ data/
 !config/*.yaml
 
 .env
+dist/
+build/
+*.egg-info/
