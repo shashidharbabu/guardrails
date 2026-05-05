@@ -72,27 +72,28 @@ def retrieve(
     top_k: int = TOP_K_CHUNKS,
 ) -> List[EvidenceChunk]:
     """
-    Real Qdrant semantic retrieval via nvidia/llama-embed-nemotron-8b.
+    Full RAG pipeline: Qdrant retrieval → SLM verification → EvidenceChunks.
 
-    Delegates to rag.retriever which:
+    Delegates to rag.pipeline.retrieve_verified() which:
       1. Embeds the query with Nemotron-8B + instruction prefix
       2. Runs cosine similarity search against ai_governance_chunks_nemotron8b (4,662 chunks)
-      3. Returns top_k EvidenceChunk objects
+      3. Passes candidates to Qwen SLM verifier (via Ollama) for selection + ranking
+      4. Returns verified EvidenceChunk objects
 
-    Falls back to TF-IDF stub if rag.retriever is not importable
-    (e.g. Qdrant env vars not set or qdrant-client not installed).
+    Falls back to TF-IDF stub if rag.pipeline is not importable
+    (e.g. Qdrant env vars not set, qdrant-client not installed, or Ollama down).
     """
     cache_key = (query, top_k)
     if cache_key in _retrieve_cache:
         return _retrieve_cache[cache_key]
 
     try:
-        from rag.retriever import retrieve as _qdrant_retrieve
-        result = _qdrant_retrieve(query, top_k)
+        from rag.pipeline import retrieve_verified
+        result = retrieve_verified(query, top_k)
         _retrieve_cache[cache_key] = result
         return result
     except Exception as e:
-        print(f"[RAG] Qdrant retrieval failed — falling back to TF-IDF stub. Reason: {e}")
+        print(f"[RAG] Full pipeline failed — falling back to TF-IDF stub. Reason: {e}")
 
     # ── Fallback: TF-IDF stub ──────────────────────────────────────────────────
     chunks = _load_chunks()
