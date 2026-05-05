@@ -2,18 +2,20 @@
 api.py — FastAPI service for the MAD pipeline.
 
 Endpoints:
-  POST /mad/verify     — run full MAD pipeline on a query + LLM answer
-  GET  /mad/health     — liveness check
-  GET  /mad/info       — show current config (model, thresholds)
+  POST /mad/verify          — run full MAD pipeline on a query + LLM answer
+  GET  /mad/cse/{query_id}  — retrieve CSE breakdown for a completed run
+  GET  /mad/health          — liveness check
+  GET  /mad/info            — show current config (model, thresholds)
 
 Run with:
   uvicorn multi_agent.api:app --host 0.0.0.0 --port 8001 --reload
 """
 from __future__ import annotations
 
+import sqlite3
 import traceback
 from pathlib import Path
-from typing import List, Optional
+from typing import Any, Dict, List, Optional
 
 from dotenv import load_dotenv
 load_dotenv(Path(__file__).resolve().parent.parent.parent / ".env")
@@ -27,6 +29,7 @@ from multi_agent.config import (
     MAX_CYCLES,
     CONFIDENCE_THRESHOLD_HIGH, CONFIDENCE_THRESHOLD_LOW,
     OLLAMA_BASE_URL,
+    DB_PATH,
 )
 
 app = FastAPI(
@@ -64,6 +67,22 @@ class JudgeVerdictOut(BaseModel):
     reasoning:  str
 
 
+class ComponentScoresOut(BaseModel):
+    f_llm:      float
+    h_llm:      float
+    relevancy:  float
+    judge_eval: float
+
+
+class CSEResultOut(BaseModel):
+    final_score:      float
+    routing_decision: str
+    components:       ComponentScoresOut
+    version:          str
+    hard_blocked:     bool
+    error:            str
+
+
 class MADResponse(BaseModel):
     routing_decision:     str
     aggregate_confidence: float
@@ -71,8 +90,9 @@ class MADResponse(BaseModel):
     claims:               List[ClaimOut]
     judge_verdicts:       List[JudgeVerdictOut]
     debate_transcript:    str
-    query_id:             str   # UUID — use to query SQLite for this run
-    rollout_id:           str   # UUID — for GRPO multi-rollout comparison
+    query_id:             str               # UUID — use to query SQLite for this run
+    rollout_id:           str               # UUID — for GRPO multi-rollout comparison
+    cse_result:           Optional[Dict[str, Any]] = None  # Full CSE breakdown
 
 
 # ── Endpoints ─────────────────────────────────────────────────────────────────
@@ -128,7 +148,52 @@ async def verify(request: MADRequest) -> MADResponse:
         debate_transcript=result.debate_transcript,
         query_id=result.query_id,
         rollout_id=result.rollout_id,
+        cse_result=result.cse_result,
     )
+
+
+@app.get("/mad/cse/{query_id}")
+async def get_cse(query_id: str) -> dict:
+    """
+    Retrieve the full CSE breakdown for a completed MAD run by query_id.
+
+    Returns the four component scores plus the final weighted score,
+    routing decision, and CSE version (v2.0 = full formula, v0.1 = judge-only fallback).
+    """
+    try:
+        con = sqlite3.connect(DB_PATH)
+        con.row_factory = sqlite3.Row
+        row = con.execute(
+            """SELECT query_id, rollout_id, final_cse_score, routing_decision,
+                      cse_f_llm, cse_h_llm, cse_relevancy, cse_judge_eval,
+                      cse_version, timestamp
+               FROM queries
+               WHERE query_id = ?
+               ORDER BY timestamp DESC
+               LIMIT 1""",
+            (query_id,),
+        ).fetchone()
+        con.close()
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"DB error: {exc}")
+
+    if row is None:
+        raise HTTPException(status_code=404, detail=f"query_id {query_id!r} not found")
+
+    return {
+        "query_id":         row["query_id"],
+        "rollout_id":       row["rollout_id"],
+        "final_score":      row["final_cse_score"],
+        "routing_decision": row["routing_decision"],
+        "components": {
+            "f_llm":      row["cse_f_llm"],
+            "h_llm":      row["cse_h_llm"],
+            "relevancy":  row["cse_relevancy"],
+            "judge_eval": row["cse_judge_eval"],
+        },
+        "version":    row["cse_version"],
+        "timestamp":  row["timestamp"],
+    }
 
 
 @app.get("/mad/health")

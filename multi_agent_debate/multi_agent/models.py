@@ -95,3 +95,8 @@ class MADOutput(BaseModel):
     # Storage IDs — needed for feedback loop to join tables
     query_id:            str = ""            # UUID — joins all 4 tables
     rollout_id:          str = ""            # UUID — for GRPO multi-rollout comparison
+    # CSE full breakdown (None if CSE import failed completely)
+    cse_result:          Optional[dict] = None   # CSEResult.as_dict() or None
+
+    class Config:
+        arbitrary_types_allowed = True
