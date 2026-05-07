@@ -50,6 +50,12 @@ data/
 !rlhf/data/
 !rlhf/data/*.json
 
+# Node.js / Frontend
+node_modules/
+dist/
+.vite/
+app/frontend/.env.local
+
 .env
 dist/
 build/

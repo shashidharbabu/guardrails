@@ -41,3 +41,16 @@ QUERY_PREFIX: str = (
 
 # HuggingFace token — required if model is gated
 HF_TOKEN: str = os.getenv("HF_TOKEN", "")
+
+# ── Verifier (SLM retrieval filter) ───────────────────────────────────────────
+# Qwen model via Ollama that selects the best chunks from retrieved candidates.
+# Matches notebook Cell 18-26 logic but runs through Ollama for Metal GPU speed.
+VERIFIER_MODEL: str = os.getenv("VERIFIER_MODEL", "qwen2.5:7b")
+OLLAMA_BASE_URL: str = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434/v1")
+VERIFIER_TIMEOUT: float = float(os.getenv("VERIFIER_TIMEOUT", "120"))
+
+# ── Pipeline retrieval settings ────────────────────────────────────────────────
+# TOP_K_RETRIEVE: candidates fetched from Qdrant before verifier filtering.
+# TOP_K_VERIFIED: max chunks the verifier selects to pass to MAD agents.
+TOP_K_RETRIEVE: int = int(os.getenv("TOP_K_RETRIEVE", "7"))
+TOP_K_VERIFIED: int = int(os.getenv("TOP_K_VERIFIED", "3"))

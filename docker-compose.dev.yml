@@ -1,0 +1,74 @@
+# Local development compose — NOT for production.
+# Production uses Kubernetes/cloud-managed services.
+version: "3.9"
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: guardrails
+      POSTGRES_PASSWORD: guardrails_dev
+      POSTGRES_DB: guardrails
+    ports:
+      - "5432:5432"
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U guardrails"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  backend:
+    build:
+      context: .
+      dockerfile: app/backend/Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      APP_ENV: development
+      DATABASE_URL: postgresql://guardrails:guardrails_dev@postgres:5432/guardrails
+      REDIS_URL: redis://redis:6379/0
+      GATEWAY_URL: http://gateway:8080
+      DISABLE_AUTH: "true"
+      LOG_LEVEL: DEBUG
+      CORS_ALLOWED_ORIGINS: "http://localhost:5173,http://localhost:4173"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./app:/app/app
+    command: uvicorn app.backend.main:app --host 0.0.0.0 --port 8000 --reload
+
+  frontend:
+    build:
+      context: ./app/frontend
+      dockerfile: Dockerfile
+    ports:
+      - "5173:8080"
+    environment:
+      VITE_APP_ENV: development
+
+  gateway:
+    build:
+      context: .
+      dockerfile: gateway/Dockerfile
+    ports:
+      - "8080:8080"
+    environment:
+      APP_ENV: development
+    volumes:
+      - ./gateway:/app/gateway
+
+volumes:
+  pg_data:

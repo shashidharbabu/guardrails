@@ -83,10 +83,11 @@ class GuardrailGateway:
             on_fail="noop",
         )
 
-        self._guard = Guard().use(
-            self._pii_validator,
-            self._threat_validator,
-            self._pi_validator,
+        self._guard = (
+            Guard()
+            .use(self._pii_validator)
+            .use(self._threat_validator)
+            .use(self._pi_validator)
         )
 
         self._engine = DecisionEngine(

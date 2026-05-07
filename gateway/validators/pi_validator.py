@@ -96,28 +96,19 @@ class CustomPIValidator(Validator):
                 return float(item["score"])
         return 0.0
 
-    def _validate(self, value: str, metadata: Dict) -> ValidationResult:
+    def validate(self, value: str, metadata: Dict) -> ValidationResult:
         self._load_model()
 
         output = self._pipe(value)
         pi_score = self._get_pi_score(output)
         safe_score = max(0.0, 1.0 - pi_score)
 
-        if pi_score < self.pi_threshold:
-            return PassResult(
-                metadata={
-                    "pi_score": round(pi_score, 4),
-                    "safe_score": round(safe_score, 4),
-                    "validator": "custom-pi-classifier",
-                }
-            )
-
-        return FailResult(
-            error_message=f"Prompt injection / malicious intent detected (confidence={pi_score:.3f})",
-            fix_value=value,
+        # Always return PassResult so guardrails doesn't short-circuit the chain.
+        # DecisionEngine reads scores from metadata and makes the final routing decision.
+        return PassResult(
             metadata={
-                "pi_score": round(pi_score, 4),
+                "pi_score":   round(pi_score, 4),
                 "safe_score": round(safe_score, 4),
-                "validator": "custom-pi-classifier",
-            },
+                "validator":  "custom-pi-classifier",
+            }
         )

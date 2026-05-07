@@ -53,8 +53,8 @@ def _load_model():
         EMBED_MODEL,
         trust_remote_code=True,
         token=hf_token,
-        torch_dtype=torch.bfloat16,
-        device_map="auto",   # uses MPS on Apple Silicon, CUDA on GPU, CPU fallback
+        dtype=torch.bfloat16,   # `torch_dtype` is deprecated; use `dtype`
+        device_map="auto",      # uses MPS on Apple Silicon, CUDA on GPU, CPU fallback
     )
     _model.eval()
 

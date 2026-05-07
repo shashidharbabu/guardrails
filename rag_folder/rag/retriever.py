@@ -33,6 +33,7 @@ HOW TO ACTIVATE:
 from __future__ import annotations
 
 from typing import List
+from urllib.parse import urlparse
 
 from qdrant_client import QdrantClient
 
@@ -49,16 +50,34 @@ from multi_agent.models import EvidenceChunk
 _client: QdrantClient = None
 
 
+def _make_qdrant_client(url: str, api_key: str, timeout: int) -> QdrantClient:
+    """
+    Build a QdrantClient that works correctly for both Cloud (HTTPS/443)
+    and self-hosted (HTTP/6333) instances.
+
+    When `url` contains `https://`, QdrantClient's default port (6333) is wrong
+    for Qdrant Cloud which expects port 443. Parsing explicitly avoids that.
+    """
+    parsed = urlparse(url)
+    is_https = parsed.scheme == "https"
+    host = parsed.hostname or url
+    port = parsed.port or (443 if is_https else 6333)
+    return QdrantClient(
+        host=host,
+        port=port,
+        https=is_https,
+        api_key=api_key or None,
+        timeout=timeout,
+        check_compatibility=False,  # suppress version-check 404 warning on Cloud
+    )
+
+
 def _get_client() -> QdrantClient:
     """Return the Qdrant client, creating it on first call."""
     global _client
     if _client is None:
         print(f"[RAG] Connecting to Qdrant at {QDRANT_URL} ...")
-        _client = QdrantClient(
-            url=QDRANT_URL,
-            api_key=QDRANT_API_KEY,
-            timeout=QDRANT_TIMEOUT,
-        )
+        _client = _make_qdrant_client(QDRANT_URL, QDRANT_API_KEY, QDRANT_TIMEOUT)
         print(f"[RAG] Connected. Collection: {COLLECTION_NAME}")
     return _client
 
