@@ -426,3 +426,22 @@ export async function getAuditLogs({ sessionId, action, limit = 200 } = {}) {
   if (limit) params.set('limit', limit)
   return apiFetch(`/api/audit/logs?${params}`)
 }
+
+// ---------------------------------------------------------------------------
+// Co-pilot
+// ---------------------------------------------------------------------------
+
+export async function sendCopilotMessage(message, history = [], context = {}) {
+  if (MOCK) {
+    await delay(600)
+    return {
+      reply: "I'm the Guardrails co-pilot (mock mode). Connect to the backend to query live session data, analytics, and system health.",
+      tool_calls: [],
+      model: 'claude-opus-4-5',
+    }
+  }
+  return apiFetch('/api/copilot/chat', {
+    method: 'POST',
+    body: JSON.stringify({ message, history, context }),
+  })
+}
