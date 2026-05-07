@@ -153,6 +153,7 @@ async def _run_mad_background(
             mad_routing = mad_out.routing_decision
             mad_confidence = mad_out.aggregate_confidence
             mad_output = mad_out.model_dump(mode="json")
+            cse_result = getattr(mad_out, "cse_result", None)
             duration_ms = int((time.time() - t0) * 1000)
             db.update_session_mad(
                 session_id=session_id,
@@ -162,6 +163,7 @@ async def _run_mad_background(
                 mad_query_id=getattr(mad_out, "query_id", "") or "",
                 mad_rollout_id=getattr(mad_out, "rollout_id", "") or "",
                 pipeline_duration_ms=duration_ms,
+                cse_result_json=json.dumps(cse_result) if isinstance(cse_result, dict) else None,
             )
             db.insert_session_event(
                 session_id=session_id,

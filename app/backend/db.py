@@ -217,6 +217,7 @@ def update_session_mad(
     pipeline_duration_ms: int,
     mad_query_id: str = "",
     mad_rollout_id: str = "",
+    cse_result_json: Optional[str] = None,
 ):
     new_status = _mad_routing_to_status(mad_routing)
     with engine.begin() as conn:
@@ -231,6 +232,7 @@ def update_session_mad(
                 mad_rollout_id=mad_rollout_id,
                 pipeline_duration_ms=pipeline_duration_ms,
                 status=new_status,
+                cse_result_json=cse_result_json,
             )
         )
 
