@@ -10,14 +10,21 @@ Run from repo root:
 Flags:
     --no-deepeval   Skip DeepEval metrics (judge-only v0.1 mode)
     --verbose       Print full CSE breakdown per case
+
+Each TestCase carries two sets of expectations:
+    expected_routing / expected_range      — used in v0.1 mode (--no-deepeval)
+    expected_routing_v2 / expected_range_v2 — used in full DeepEval v2.0 mode
+
+If expected_routing_v2 is None it falls back to expected_routing (covers
+cases like HARD_BLOCK where mode doesn't change the outcome).
 """
 from __future__ import annotations
 
 import argparse
 import sys
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
-from typing import List, Tuple
+from typing import List, Optional, Tuple
 
 # Ensure all package roots are on sys.path
 _repo = Path(__file__).resolve().parent.parent
@@ -40,8 +47,12 @@ class TestCase:
     rag_chunks:     List[str]
     claims:         List[Claim]
     judge_verdicts: List[JudgeVerdict]
-    expected_routing: str       # DELIVER / RETRY / HUMAN_REVIEW / HARD_BLOCK
-    expected_range:   Tuple[float, float]  # (min, max) for final_score
+    # v0.1 (--no-deepeval) expectations
+    expected_routing: str                    # DELIVER / RETRY / HUMAN_REVIEW / HARD_BLOCK
+    expected_range:   Tuple[float, float]    # (min, max) for final_score
+    # v2.0 (live DeepEval) expectations — None means fall back to v0.1 values above
+    expected_routing_v2:  Optional[str]              = field(default=None)
+    expected_range_v2:    Optional[Tuple[float, float]] = field(default=None)
 
 
 TEST_CASES: List[TestCase] = [
@@ -78,11 +89,12 @@ TEST_CASES: List[TestCase] = [
             JudgeVerdict(claim_id=3, claim_text="AES-256 is the de facto standard for PHI encryption",
                          is_material=False, score=0.5, reasoning="Industry standard but not mandated"),
         ],
-        # In v0.1 (--no-deepeval) mode: neutral defaults give 0.785 → RETRY
-        # In v2.0 (full DeepEval) mode: high faithfulness pushes score → DELIVER
-        # Both are correct — RETRY is the conservative fallback without DeepEval
-        expected_routing="RETRY",
+        # JUDGE_ONLY_FALLBACK: judge_eval=0.85 re-normalised → score ~0.87 → DELIVER
+        # FULL (live DeepEval): high faithfulness from well-supported context → DELIVER
+        expected_routing="DELIVER",
         expected_range=(0.75, 1.0),
+        expected_routing_v2="DELIVER",
+        expected_range_v2=(0.80, 1.0),
     ),
 
     # ── Case 2: Partial support — one material claim uncertain ────────────────
@@ -118,8 +130,11 @@ TEST_CASES: List[TestCase] = [
             JudgeVerdict(claim_id=3, claim_text="Organizations must delete within 24 hours",
                          is_material=True,  score=0.0, reasoning="No 24-hour deadline in GDPR"),
         ],
+        # HARD_BLOCK is mode-independent: is_material claim scored 0.0 always blocks
         expected_routing="HARD_BLOCK",
-        expected_range=(0.0, 0.9),  # hard block regardless of formula score
+        expected_range=(0.0, 0.9),
+        expected_routing_v2="HARD_BLOCK",
+        expected_range_v2=(0.0, 0.9),
     ),
 
     # ── Case 3: Low confidence — vague answer with weak context ───────────────
@@ -137,8 +152,12 @@ TEST_CASES: List[TestCase] = [
                          is_material=False, score=0.5,
                          reasoning="Partially correct but too vague — no specific LCR mention"),
         ],
-        expected_routing="RETRY",
+        # JUDGE_ONLY_FALLBACK: judge_eval=0.5 → score ~0.49 → HUMAN_REVIEW (below 0.55 threshold)
+        # FULL (live DeepEval): weak context + vague answer → low scores → RETRY or HUMAN_REVIEW
+        expected_routing="HUMAN_REVIEW",
         expected_range=(0.2, 0.8),
+        expected_routing_v2="RETRY",
+        expected_range_v2=(0.2, 0.8),
     ),
 
     # ── Case 4: No context (tests neutral defaults path) ──────────────────────
@@ -155,8 +174,12 @@ TEST_CASES: List[TestCase] = [
             JudgeVerdict(claim_id=1, claim_text="CCPA threshold is $25 million gross revenue",
                          is_material=True, score=1.0, reasoning="Correct per CCPA Section 1798.140"),
         ],
+        # No context → DeepEval skipped in both modes (neutral defaults used)
+        # Routing depends entirely on judge_eval = 1.0 → DELIVER in both modes
         expected_routing="DELIVER",
-        expected_range=(0.5, 1.0),  # wider range because DeepEval gets neutral defaults
+        expected_range=(0.5, 1.0),
+        expected_routing_v2="DELIVER",
+        expected_range_v2=(0.5, 1.0),
     ),
 ]
 
@@ -167,10 +190,10 @@ def run_harness(no_deepeval: bool = False, verbose: bool = False) -> None:
     from confidence.scorer import ConfidenceScorer
 
     if no_deepeval:
-        # Monkey-patch _run_deepeval to always return neutral defaults
+        # Monkey-patch _run_deepeval to simulate DeepEval being unavailable.
+        # Returns (None, None, None, reason) — scorer falls back to JUDGE_ONLY_FALLBACK.
         def _neutral(self, *args, **kwargs):
-            from confidence.scorer import _DEFAULT_F_LLM, _DEFAULT_H_LLM, _DEFAULT_RELEVANCY
-            return _DEFAULT_F_LLM, _DEFAULT_H_LLM, _DEFAULT_RELEVANCY, "no_deepeval_flag", "v0.1"
+            return None, None, None, "no_deepeval_flag"
         ConfidenceScorer._run_deepeval = _neutral
 
     scorer   = ConfidenceScorer()
@@ -178,9 +201,12 @@ def run_harness(no_deepeval: bool = False, verbose: bool = False) -> None:
     failed   = 0
     failures = []
 
+    mode_label = "v0.1  (judge-only / --no-deepeval)" if no_deepeval else "v2.0  (live DeepEval)"
+
     header = "=" * 70
     print(f"\n{header}")
     print("  CONFIDENCE SCORING ENGINE — TEST HARNESS")
+    print(f"  Mode: {mode_label}")
     print(header)
 
     for i, tc in enumerate(TEST_CASES, 1):
@@ -199,19 +225,42 @@ def run_harness(no_deepeval: bool = False, verbose: bool = False) -> None:
             print(f"  CSE result: {result}")
             print(f"  Components: {result.components.as_dict()}")
 
-        # ── Assertions ────────────────────────────────────────────────────────
-        score_ok   = tc.expected_range[0] <= result.final_score <= tc.expected_range[1]
-        routing_ok = result.routing_decision == tc.expected_routing
+        # ── Select the right expectations for the current mode ────────────────
+        if no_deepeval or tc.expected_routing_v2 is None:
+            exp_routing = tc.expected_routing
+            exp_range   = tc.expected_range
+        else:
+            exp_routing = tc.expected_routing_v2
+            exp_range   = tc.expected_range_v2
 
-        status = "✅ PASS" if (score_ok and routing_ok) else "❌ FAIL"
+        # ── Assertions ────────────────────────────────────────────────────────
+        score_ok   = exp_range[0] <= result.final_score <= exp_range[1]
+        routing_ok = result.routing_decision == exp_routing
+
+        status = "PASS" if (score_ok and routing_ok) else "FAIL"
         print(f"  Score     : {result.final_score:.4f}  "
-              f"(expected {tc.expected_range[0]}–{tc.expected_range[1]})  "
-              f"{'✓' if score_ok else '✗'}")
+              f"(expected {exp_range[0]}–{exp_range[1]})  "
+              f"{'OK' if score_ok else 'FAIL'}")
         print(f"  Routing   : {result.routing_decision}  "
-              f"(expected {tc.expected_routing})  "
-              f"{'✓' if routing_ok else '✗'}")
+              f"(expected {exp_routing})  "
+              f"{'OK' if routing_ok else 'FAIL'}")
         print(f"  Version   : {result.version}")
-        print(f"  {status}")
+
+        # ── DeepEval value sanity check in FULL mode ──────────────────────────
+        from confidence.cse_types import ScoringMode
+        if not no_deepeval and result.scoring_mode == ScoringMode.FULL.value:
+            comps = result.components
+            stuck = []
+            if comps.f_llm in (0.0, 1.0):
+                stuck.append(f"F_llm={comps.f_llm}")
+            if comps.h_llm in (0.0, 1.0):
+                stuck.append(f"H_llm={comps.h_llm}")
+            if comps.relevancy in (0.0, 1.0):
+                stuck.append(f"relevancy={comps.relevancy}")
+            if stuck:
+                print(f"  [WARN]  Possibly stuck DeepEval scores: {', '.join(stuck)}")
+
+        print(f"  [{status}]")
 
         if score_ok and routing_ok:
             passed += 1
@@ -220,7 +269,7 @@ def run_harness(no_deepeval: bool = False, verbose: bool = False) -> None:
             failures.append(f"Case {i}: {tc.name}")
 
     print(f"\n{header}")
-    print(f"  RESULTS: {passed}/{len(TEST_CASES)} passed")
+    print(f"  RESULTS: {passed}/{len(TEST_CASES)} passed  (mode: {mode_label})")
     if failures:
         print("  FAILURES:")
         for f in failures:

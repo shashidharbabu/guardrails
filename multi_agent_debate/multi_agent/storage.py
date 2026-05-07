@@ -131,6 +131,7 @@ def init_db() -> None:
         _add_column_if_missing(con, "queries", "cse_relevancy",  "REAL")
         _add_column_if_missing(con, "queries", "cse_judge_eval", "REAL")
         _add_column_if_missing(con, "queries", "cse_version",    "TEXT")
+        _add_column_if_missing(con, "queries", "cse_breakdown",  "TEXT")
 
         # ── TABLE 2: claims ───────────────────────────────────────────────────
         # Three rows per claim: post_step_A, post_cycle1, post_cycle2.
@@ -409,6 +410,7 @@ def update_query_cse(
     routing_decision: str,
     cse_components:   Optional[dict] = None,
     cse_version:      str = "v0.1",
+    cse_breakdown:    Optional[dict] = None,
 ) -> None:
     """
     TABLE 1 — Update final_cse_score, routing_decision, and CSE component scores.
@@ -416,8 +418,10 @@ def update_query_cse(
     MAD pipeline calls this at the end of mad_pipeline.run_mad().
 
     cse_components should be a dict with keys: f_llm, h_llm, relevancy, judge_eval.
+    cse_breakdown is the full CSEResult.as_dict() stored as a JSON blob for auditing.
     """
     comp = cse_components or {}
+    breakdown_json = json.dumps(cse_breakdown) if isinstance(cse_breakdown, dict) else cse_breakdown
     with _conn() as con:
         con.execute(
             """UPDATE queries
@@ -427,7 +431,8 @@ def update_query_cse(
                    cse_h_llm        = ?,
                    cse_relevancy    = ?,
                    cse_judge_eval   = ?,
-                   cse_version      = ?
+                   cse_version      = ?,
+                   cse_breakdown    = ?
                WHERE query_id = ? AND rollout_id = ?""",
             (
                 cse_score,
@@ -437,6 +442,7 @@ def update_query_cse(
                 comp.get("relevancy"),
                 comp.get("judge_eval"),
                 cse_version,
+                breakdown_json,
                 query_id,
                 rollout_id,
             )

@@ -179,8 +179,9 @@ def run_mad(query: str, llm_answer: str) -> MADOutput:
         rollout_id=rollout_id,
         cse_score=aggregate,
         routing_decision=routing,
-        cse_components=cse_result.components.as_dict() if cse_result else None,
+        cse_components=cse_result.components.as_dict() if (cse_result and cse_result.components) else None,
         cse_version=cse_result.version if cse_result else "v0.1",
+        cse_breakdown=cse_result.as_dict() if cse_result else None,
     )
 
     # ── 10. BUILD TRANSCRIPT + RETURN ─────────────────────────────────────────
@@ -279,13 +280,27 @@ def _print_judge_verdicts(verdicts: List[JudgeVerdict]) -> None:
               f"v={jv.score}  \"{jv.claim_text[:60]}\"")
 
 
-def _print_cse_result(result: "CSEResult") -> None:  # type: ignore[name-defined]
-    c = result.components
+def _print_cse_result(result) -> None:
     print(f"  ─ CSE {result.version} ───────────────────────────────────────")
-    print(f"    F_llm         : {c.f_llm:.4f}  (faithfulness)")
-    print(f"    H_llm         : {c.h_llm:.4f}  (hallucination — lower is better)")
-    print(f"    Relevancy     : {c.relevancy:.4f}")
-    print(f"    Judge eval    : {c.judge_eval:.4f}")
+    sb = getattr(result, "score_breakdown", None)
+    if sb is not None:
+        def _fmt(v):
+            return f"{v:.4f}" if v is not None else "N/A"
+        print(f"    F_llm         : {_fmt(getattr(sb, 'faithfulness_score', None))}  (faithfulness)")
+        print(f"    H_llm_inv     : {_fmt(getattr(sb, 'hallucination_risk_inverse', None))}  (hallucination inverse)")
+        print(f"    Relevancy     : {_fmt(getattr(sb, 'contextual_relevancy_score', None))}")
+        print(f"    Judge eval    : {_fmt(getattr(sb, 'judge_eval_score', None))}")
+    elif result.components is not None:
+        c = result.components
+        print(f"    F_llm         : {c.f_llm:.4f}  (faithfulness)")
+        print(f"    H_llm         : {c.h_llm:.4f}  (hallucination — lower is better)")
+        print(f"    Relevancy     : {c.relevancy:.4f}")
+        print(f"    Judge eval    : {c.judge_eval:.4f}")
+    else:
+        print("    Component scores: unavailable")
     print(f"    ── Final score: {result.final_score:.4f}  → {result.routing_decision}")
+    explanation = getattr(result, "explanation", None)
+    if explanation:
+        print(f"    Explanation   : {explanation}")
     if result.error:
         print(f"    ⚠  fallback reason: {result.error[:120]}")

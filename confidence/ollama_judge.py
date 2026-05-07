@@ -18,7 +18,11 @@ from typing import Any
 import httpx
 from deepeval.models.base_model import DeepEvalBaseLLM
 
-OLLAMA_BASE_URL: str = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
+# OLLAMA_BASE_URL may be set to http://localhost:11434/v1 for the OpenAI-compat API
+# (used by MAD agents). Strip the /v1 suffix here — the native /api/generate endpoint
+# lives at http://localhost:11434/api/generate, not /v1/api/generate.
+_raw_base: str       = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
+OLLAMA_BASE_URL: str = _raw_base.rstrip("/").removesuffix("/v1")
 OLLAMA_MODEL:    str = os.getenv("VERIFIER_MODEL", "qwen2.5:7b")
 OLLAMA_TIMEOUT:  float = float(os.getenv("VERIFIER_TIMEOUT", "120"))
 

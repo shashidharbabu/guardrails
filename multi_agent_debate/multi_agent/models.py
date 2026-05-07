@@ -39,6 +39,7 @@ class Claim(BaseModel):
     claim_id:       int
     claim_text:     str
     is_material:    bool = True          # True = regulatory obligation / penalty / threshold
+    severity:       Optional[str] = None # "critical" | "material" | "minor" | None
     confidence:     float = Field(default=0.7, ge=0.0, le=1.0)  # Agent A's calibrated belief
     verdict:        Optional[Verdict] = None
     evidence_chunks: List[str] = []     # chunk_ids used as evidence
@@ -98,5 +99,3 @@ class MADOutput(BaseModel):
     # CSE full breakdown (None if CSE import failed completely)
     cse_result:          Optional[dict] = None   # CSEResult.as_dict() or None
 
-    class Config:
-        arbitrary_types_allowed = True

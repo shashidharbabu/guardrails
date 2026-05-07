@@ -12,6 +12,7 @@ Run with:
 """
 from __future__ import annotations
 
+import json
 import sqlite3
 import traceback
 from pathlib import Path
@@ -166,7 +167,7 @@ async def get_cse(query_id: str) -> dict:
         row = con.execute(
             """SELECT query_id, rollout_id, final_cse_score, routing_decision,
                       cse_f_llm, cse_h_llm, cse_relevancy, cse_judge_eval,
-                      cse_version, timestamp
+                      cse_version, cse_breakdown, timestamp
                FROM queries
                WHERE query_id = ?
                ORDER BY timestamp DESC
@@ -180,6 +181,13 @@ async def get_cse(query_id: str) -> dict:
     if row is None:
         raise HTTPException(status_code=404, detail=f"query_id {query_id!r} not found")
 
+    breakdown = None
+    if row["cse_breakdown"]:
+        try:
+            breakdown = json.loads(row["cse_breakdown"])
+        except (json.JSONDecodeError, TypeError):
+            breakdown = None
+
     return {
         "query_id":         row["query_id"],
         "rollout_id":       row["rollout_id"],
@@ -191,8 +199,9 @@ async def get_cse(query_id: str) -> dict:
             "relevancy":  row["cse_relevancy"],
             "judge_eval": row["cse_judge_eval"],
         },
-        "version":    row["cse_version"],
-        "timestamp":  row["timestamp"],
+        "version":      row["cse_version"],
+        "timestamp":    row["timestamp"],
+        "cse_breakdown": breakdown,
     }
 
 

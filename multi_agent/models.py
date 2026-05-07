@@ -22,7 +22,6 @@ class ChallengeType(str, Enum):
     CHUNK_CURRENCY     = "CHUNK_CURRENCY"       # Is the cited chunk current / not superseded?
     JURISDICTION_SCOPE = "JURISDICTION_SCOPE"   # Does this regulation apply to this jurisdiction?
     EXCEPTION_EXISTENCE= "EXCEPTION_EXISTENCE"  # Does an exception / carve-out apply?
-    TIER_OVERRIDE      = "TIER_OVERRIDE"        # Does a higher-tier source contradict this?
     GAP_FINDING        = "GAP_FINDING"          # Missing regulatory context Agent A overlooked
 
 
@@ -40,6 +39,7 @@ class Claim(BaseModel):
     claim_id:       int
     claim_text:     str
     is_material:    bool = True          # True = regulatory obligation / penalty / threshold
+    severity:       Optional[str] = None # "critical" | "material" | "minor" | None
     confidence:     float = Field(default=0.7, ge=0.0, le=1.0)  # Agent A's calibrated belief
     verdict:        Optional[Verdict] = None
     evidence_chunks: List[str] = []     # chunk_ids used as evidence
@@ -93,3 +93,8 @@ class MADOutput(BaseModel):
     routing_decision:    str                 # RoutingDecision value
     aggregate_confidence: float
     debate_transcript:   str                 # Human-readable full transcript
+    # Storage IDs — needed for feedback loop to join tables
+    query_id:            str = ""            # UUID — joins all 4 tables
+    rollout_id:          str = ""            # UUID — for GRPO multi-rollout comparison
+    # CSE full breakdown (None if CSE import failed completely)
+    cse_result:          Optional[dict] = None   # CSEResult.as_dict() or None
