@@ -51,3 +51,6 @@ data/
 !rlhf/data/*.json
 
 .env
+dist/
+build/
+*.egg-info/

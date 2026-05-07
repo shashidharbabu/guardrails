@@ -2,17 +2,24 @@
 api.py — FastAPI service for the MAD pipeline.
 
 Endpoints:
-  POST /mad/verify     — run full MAD pipeline on a query + LLM answer
-  GET  /mad/health     — liveness check
-  GET  /mad/info       — show current config (model, thresholds)
+  POST /mad/verify          — run full MAD pipeline on a query + LLM answer
+  GET  /mad/cse/{query_id}  — retrieve CSE breakdown for a completed run
+  GET  /mad/health          — liveness check
+  GET  /mad/info            — show current config (model, thresholds)
 
 Run with:
   uvicorn multi_agent.api:app --host 0.0.0.0 --port 8001 --reload
 """
 from __future__ import annotations
 
+import json
+import sqlite3
 import traceback
-from typing import List, Optional
+from pathlib import Path
+from typing import Any, Dict, List, Optional
+
+from dotenv import load_dotenv
+load_dotenv(Path(__file__).resolve().parent.parent / ".env")
 
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
@@ -23,6 +30,7 @@ from multi_agent.config import (
     MAX_CYCLES,
     CONFIDENCE_THRESHOLD_HIGH, CONFIDENCE_THRESHOLD_LOW,
     OLLAMA_BASE_URL,
+    DB_PATH,
 )
 
 app = FastAPI(
@@ -61,12 +69,15 @@ class JudgeVerdictOut(BaseModel):
 
 
 class MADResponse(BaseModel):
-    routing_decision:    str
+    routing_decision:     str
     aggregate_confidence: float
-    correction_signal:   Optional[str]
-    claims:              List[ClaimOut]
-    judge_verdicts:      List[JudgeVerdictOut]
-    debate_transcript:   str
+    correction_signal:    Optional[str]
+    claims:               List[ClaimOut]
+    judge_verdicts:       List[JudgeVerdictOut]
+    debate_transcript:    str
+    query_id:             str
+    rollout_id:           str
+    cse_result:           Optional[Dict[str, Any]] = None
 
 
 # ── Endpoints ─────────────────────────────────────────────────────────────────
@@ -120,7 +131,63 @@ async def verify(request: MADRequest) -> MADResponse:
             for jv in result.judge_verdicts
         ],
         debate_transcript=result.debate_transcript,
+        query_id=result.query_id,
+        rollout_id=result.rollout_id,
+        cse_result=result.cse_result,
     )
+
+
+@app.get("/mad/cse/{query_id}")
+async def get_cse(query_id: str) -> dict:
+    """
+    Retrieve the full CSE breakdown for a completed MAD run by query_id.
+
+    Returns four component scores, the final weighted score, routing decision,
+    CSE version, and the full cse_breakdown JSON blob (scoring_mode, explanation,
+    triggered_flags, top_failed_claims) when available.
+    """
+    try:
+        con = sqlite3.connect(DB_PATH)
+        con.row_factory = sqlite3.Row
+        row = con.execute(
+            """SELECT query_id, rollout_id, final_cse_score, routing_decision,
+                      cse_f_llm, cse_h_llm, cse_relevancy, cse_judge_eval,
+                      cse_version, cse_breakdown, timestamp
+               FROM queries
+               WHERE query_id = ?
+               ORDER BY timestamp DESC
+               LIMIT 1""",
+            (query_id,),
+        ).fetchone()
+        con.close()
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"DB error: {exc}")
+
+    if row is None:
+        raise HTTPException(status_code=404, detail=f"query_id {query_id!r} not found")
+
+    breakdown = None
+    if row["cse_breakdown"]:
+        try:
+            breakdown = json.loads(row["cse_breakdown"])
+        except (json.JSONDecodeError, TypeError):
+            breakdown = None
+
+    return {
+        "query_id":         row["query_id"],
+        "rollout_id":       row["rollout_id"],
+        "final_score":      row["final_cse_score"],
+        "routing_decision": row["routing_decision"],
+        "components": {
+            "f_llm":      row["cse_f_llm"],
+            "h_llm":      row["cse_h_llm"],
+            "relevancy":  row["cse_relevancy"],
+            "judge_eval": row["cse_judge_eval"],
+        },
+        "version":      row["cse_version"],
+        "timestamp":    row["timestamp"],
+        "cse_breakdown": breakdown,
+    }
 
 
 @app.get("/mad/health")
@@ -131,10 +198,10 @@ async def health() -> dict:
 @app.get("/mad/info")
 async def info() -> dict:
     return {
-        "agent_model":          AGENT_MODEL,
-        "judge_model":          JUDGE_MODEL,
-        "ollama_base_url":      OLLAMA_BASE_URL,
-        "max_cycles":           MAX_CYCLES,
-        "threshold_high":       CONFIDENCE_THRESHOLD_HIGH,
-        "threshold_low":        CONFIDENCE_THRESHOLD_LOW,
+        "agent_model":     AGENT_MODEL,
+        "judge_model":     JUDGE_MODEL,
+        "ollama_base_url": OLLAMA_BASE_URL,
+        "max_cycles":      MAX_CYCLES,
+        "threshold_high":  CONFIDENCE_THRESHOLD_HIGH,
+        "threshold_low":   CONFIDENCE_THRESHOLD_LOW,
     }
