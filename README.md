@@ -40,6 +40,19 @@ For detailed setup instructions, see:
 - **[Full Documentation](docs/README.md)** - Complete project documentation
 - **[MAD Setup Guide](MAD_SETUP_GUIDE.md)** - Multi-Agent Debate service setup
 
+### Local docker-only observability (recommended)
+
+Run Gateway + MAD + Langfuse (self-hosted) + Datadog Agent with a single Compose:
+
+```bash
+cp .env.example .env
+# Fill in at least DD_API_KEY + LANGFUSE_* keys (or use the local bootstrap defaults in docs)
+docker compose up -d --build
+./scripts/smoke_observability.sh
+```
+
+Runbook: `docs/LOCAL_OBSERVABILITY_RUNBOOK.md`
+
 ## ✅ Active Pipelines
 
 ### PII NER Pipeline

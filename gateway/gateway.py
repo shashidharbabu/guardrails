@@ -119,6 +119,31 @@ class GuardrailGateway:
             pi_score = 0.0
             pii_entities = []
 
+            # Local/docker smoke tests should not depend on downloading large HF models.
+            # When enabled, we skip guardrails validators and emit deterministic scores.
+            if os.getenv("GATEWAY_STUB_VALIDATORS", "false").lower() in ("1", "true", "yes"):
+                text = user_input.lower()
+                jb_score = 0.9 if "jailbreak" in text or "ignore previous" in text else 0.05
+                pi_score = 0.85 if "prompt injection" in text or "system prompt" in text else 0.05
+                pii_score = 0.95 if "ssn" in text or "social security" in text else 0.02
+                pii_entities = [{"entity_type": "SSN", "text": "stub", "confidence": 0.95}] if pii_score >= 0.9 else []
+                gw_telemetry.tag_current_span(
+                    stub_mode=True,
+                    pii_score=pii_score,
+                    jb_score=jb_score,
+                    pi_score=pi_score,
+                    pii_entity_count=len(pii_entities),
+                )
+                result = self._engine.decide(
+                    raw_input=user_input,
+                    pii_score=pii_score,
+                    jb_score=jb_score,
+                    pi_score=pi_score,
+                    pii_entities=pii_entities,
+                )
+                event_logger.log_event(result)
+                return result
+
             with gw_telemetry.span("gateway.validators", trace_id=tid):
                 try:
                     self._guard.parse(user_input)

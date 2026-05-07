@@ -105,6 +105,9 @@ def validate_input(request: ValidateRequest):
             decision=result.decision.value,
             gateway_score=result.gateway_score,
             allowed=result.is_allowed,
+            pii_score=result.pii_score,
+            jb_score=result.jb_score,
+            pi_score=result.pi_score,
         )
         return resp
 
@@ -123,6 +126,17 @@ def health():
             or bool(CustomPIValidator._CAUSAL_CACHE),
         },
     }
+
+
+@app.get("/health/trace-ping")
+def trace_ping():
+    """
+    Always emits a gateway trace span.
+    Use this when validating Datadog APM wiring without running heavy model inference.
+    """
+    with gw_telemetry.span("gateway.observability.ping", trace_id="gateway-ping"):
+        gw_telemetry.tag_current_span(ping=True)
+    return {"ok": True, "emitted": "gateway.observability.ping"}
 
 
 @app.get("/health/observability")

@@ -91,7 +91,7 @@ def run_mad(query: str, llm_answer: str) -> MADOutput:
             "answer_chars": len(llm_answer),
             "max_cycles": MAX_CYCLES,
         },
-    ):
+    ) as root_obs:
         _banner("MAD PIPELINE")
         print(f"  query_id  : {query_id}")
         print(f"  rollout_id: {rollout_id}")
@@ -191,8 +191,20 @@ def run_mad(query: str, llm_answer: str) -> MADOutput:
             "span",
             "mad.routing",
             input_payload={"query_id": query_id, "rollout_id": rollout_id},
-        ):
+        ) as routing_obs:
             routing, aggregate = _compute_routing(final_claims, judge_verdicts)
+            if routing_obs is not None:
+                try:
+                    routing_obs.update(
+                        output={
+                            "routing_decision": routing,
+                            "aggregate_confidence": aggregate,
+                            "threshold_high": CONFIDENCE_THRESHOLD_HIGH,
+                            "threshold_low": CONFIDENCE_THRESHOLD_LOW,
+                        }
+                    )
+                except Exception:
+                    pass
         print(f"           Aggregate confidence: {aggregate:.4f}")
         print(f"           Routing decision    : {routing}")
         if correction_signal:
@@ -219,6 +231,20 @@ def run_mad(query: str, llm_answer: str) -> MADOutput:
             judge_verdicts=judge_verdicts,
             correction_signal=correction_signal or "",
         )
+
+        if root_obs is not None:
+            try:
+                root_obs.update(
+                    output={
+                        "routing_decision": routing,
+                        "aggregate_confidence": aggregate,
+                        "claims_count": len(final_claims),
+                        "judge_verdicts_count": len(judge_verdicts),
+                        "correction_signal_present": bool(correction_signal),
+                    }
+                )
+            except Exception:
+                pass
 
         return MADOutput(
             query=query,

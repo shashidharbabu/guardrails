@@ -1,0 +1,18 @@
+# Gateway API runtime deps (docker)
+# Intentionally excludes dev UI + test deps.
+ddtrace>=2.8.0
+guardrails-ai>=0.5.0
+fastapi>=0.110.0
+uvicorn>=0.29.0
+pydantic>=2.0
+sqlalchemy>=2.0
+python-dotenv>=1.0
+
+# ML stack (CPU)
+# transformers 5.x requires newer torch; pin to 4.x for local/prod stability.
+transformers>=4.40.0,<5
+accelerate>=0.27.0
+peft>=0.11.0
+
+# torch<2.4 wheels are not compatible with numpy>=2
+numpy<2
