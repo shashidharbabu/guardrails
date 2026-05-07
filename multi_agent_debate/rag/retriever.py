@@ -36,14 +36,13 @@ from typing import List
 
 from qdrant_client import QdrantClient
 
-from rag.config import (
+from .config import (
     QDRANT_URL, QDRANT_API_KEY, QDRANT_TIMEOUT,
     COLLECTION_NAME,
 )
-from rag.embedder import embed_query
+from .embedder import embed_query
 
-# Import EvidenceChunk from multi_agent — same schema, no duplication
-from multi_agent.models import EvidenceChunk
+from ..multi_agent.models import EvidenceChunk
 
 # ── Singleton Qdrant client ────────────────────────────────────────────────────
 _client: QdrantClient = None

@@ -8,18 +8,21 @@ Wires together:
 
 Models are lazy-loaded on first .process() call.
 Environment variables (loaded from .env at repo root):
-  PII_MODEL_PATH               — NER PII model
-  THREAT_MODEL_PATH            — JailBreak binary classifier
-  PROMPT_INJECTION_MODEL_PATH  — Llama Prompt Guard 2 86M
-  HF_TOKEN                     — HuggingFace auth token (required for Llama Prompt Guard)
+  PII_MODEL_PATH               — NER PII model (or LoRA adapter id if PII_USE_PEFT=true)
+  THREAT_MODEL_PATH            — JailBreak classifier (or adapter if THREAT_USE_PEFT=true)
+  PROMPT_INJECTION_MODEL_PATH — Prompt-injection model or adapter (see PI_USE_PEFT / PI_PEFT_ARCH)
+  HF_TOKEN                     — HuggingFace auth token for gated / private repos
+  PII_USE_PEFT, THREAT_USE_PEFT, PI_USE_PEFT — load base+adapter via PEFT (see .env.example)
 """
 
 import os
+from typing import Optional
 
 from dotenv import load_dotenv
 from guardrails import Guard
 
 from gateway import logger as event_logger
+from gateway import telemetry as gw_telemetry
 from gateway.decision_engine import Decision, DecisionEngine, GatewayResult
 from gateway.validators.pi_validator import CustomPIValidator
 from gateway.validators.pii_validator import CustomPIIValidator
@@ -83,10 +86,13 @@ class GuardrailGateway:
             on_fail="noop",
         )
 
-        self._guard = Guard().use(
-            self._pii_validator,
-            self._threat_validator,
-            self._pi_validator,
+        # guardrails-ai 0.6+: use Guard.for_string + parse(); .use() no longer accepts multiple validators.
+        self._guard = Guard.for_string(
+            [
+                self._pii_validator,
+                self._threat_validator,
+                self._pi_validator,
+            ],
         )
 
         self._engine = DecisionEngine(
@@ -99,68 +105,86 @@ class GuardrailGateway:
 
         event_logger.init_db()
 
-    def process(self, user_input: str) -> GatewayResult:
+    def process(self, user_input: str, trace_id: Optional[str] = None) -> GatewayResult:
         """
         Run user input through the full gateway pipeline.
         Always returns a GatewayResult — never raises.
+
+        trace_id — optional correlator propagated from HTTP/session for Datadog/JSON logs.
         """
-        pii_score = 0.0
-        jb_score = 0.0
-        pi_score = 0.0
-        pii_entities = []
+        tid = trace_id
+        with gw_telemetry.span("gateway.process", trace_id=tid, text_len=len(user_input)):
+            pii_score = 0.0
+            jb_score = 0.0
+            pi_score = 0.0
+            pii_entities = []
 
-        try:
-            self._guard.validate(user_input)
-        except Exception as exc:
-            print(f"[Gateway] Warning: validation error: {exc}")
+            with gw_telemetry.span("gateway.validators", trace_id=tid):
+                try:
+                    self._guard.parse(user_input)
+                except Exception as exc:
+                    print(f"[Gateway] Warning: validation error: {exc}")
+                    gw_telemetry.tag_current_span(validator_error=str(exc))
 
-        try:
-            last_call = self._guard.history[-1]
-            validator_logs = getattr(last_call, "validator_logs", None)
-            if validator_logs is None:
-                validator_logs = getattr(last_call.inputs, "validator_logs", [])
+            with gw_telemetry.span("gateway.score_extraction", trace_id=tid):
+                try:
+                    last_call = self._guard.history[-1]
+                    validator_logs = getattr(last_call, "validator_logs", None)
+                    if validator_logs is None:
+                        validator_logs = getattr(last_call.inputs, "validator_logs", [])
 
-            for vlog in validator_logs:
-                vname = (getattr(vlog, "validator_name", "") or "").lower()
-                result = getattr(vlog, "validation_result", None)
-                meta = getattr(result, "metadata", {}) or {}
-                validator_id = str(meta.get("validator", "")).lower()
+                    for vlog in validator_logs:
+                        vname = (getattr(vlog, "validator_name", "") or "").lower()
+                        result = getattr(vlog, "validation_result", None)
+                        meta = getattr(result, "metadata", {}) or {}
+                        validator_id = str(meta.get("validator", "")).lower()
 
-                if (
-                    "custompiivalidator" in vname
-                    or "custom-pii-ner" in vname
-                    or validator_id == "custom-pii-ner"
-                ):
-                    pii_score = float(meta.get("pii_score", 0.0))
-                    pii_entities = meta.get("pii_entities", [])
+                        if (
+                            "custompiivalidator" in vname
+                            or "custom-pii-ner" in vname
+                            or validator_id == "custom-pii-ner"
+                        ):
+                            pii_score = float(meta.get("pii_score", 0.0))
+                            pii_entities = meta.get("pii_entities", [])
 
-                elif (
-                    "customthreatvalidator" in vname
-                    or "custom-threat-classifier" in vname
-                    or validator_id == "custom-threat-classifier"
-                ):
-                    jb_score = float(meta.get("jb_score", 0.0))
+                        elif (
+                            "customthreatvalidator" in vname
+                            or "custom-threat-classifier" in vname
+                            or validator_id == "custom-threat-classifier"
+                        ):
+                            jb_score = float(meta.get("jb_score", 0.0))
 
-                elif (
-                    "custompivalidator" in vname
-                    or "custom-pi-classifier" in vname
-                    or validator_id == "custom-pi-classifier"
-                ):
-                    pi_score = float(meta.get("pi_score", 0.0))
+                        elif (
+                            "custompivalidator" in vname
+                            or "custom-pi-classifier" in vname
+                            or validator_id == "custom-pi-classifier"
+                        ):
+                            pi_score = float(meta.get("pi_score", 0.0))
 
-        except (IndexError, AttributeError) as exc:
-            print(f"[Gateway] Warning: could not read validator scores: {exc}")
+                except (IndexError, AttributeError) as exc:
+                    print(f"[Gateway] Warning: could not read validator scores: {exc}")
+                    gw_telemetry.tag_current_span(score_extraction_error=str(exc))
 
-        result = self._engine.decide(
-            raw_input=user_input,
-            pii_score=pii_score,
-            jb_score=jb_score,
-            pi_score=pi_score,
-            pii_entities=pii_entities,
-        )
+                gw_telemetry.tag_current_span(
+                    pii_score=pii_score,
+                    jb_score=jb_score,
+                    pi_score=pi_score,
+                    pii_entity_count=len(pii_entities),
+                )
 
-        event_logger.log_event(result)
-        return result
+            with gw_telemetry.span("gateway.decision_engine", trace_id=tid):
+                result = self._engine.decide(
+                    raw_input=user_input,
+                    pii_score=pii_score,
+                    jb_score=jb_score,
+                    pi_score=pi_score,
+                    pii_entities=pii_entities,
+                )
+
+            with gw_telemetry.span("gateway.audit_log", trace_id=tid):
+                event_logger.log_event(result)
+
+            return result
 
     def summary(self, result: GatewayResult) -> str:
         """One-line human-readable summary for logs and demos."""

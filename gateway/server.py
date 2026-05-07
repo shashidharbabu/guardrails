@@ -6,11 +6,21 @@ Start with: uvicorn gateway.server:app --reload --port 8080
 """
 
 import os
+import uuid
 from pathlib import Path
 from typing import List, Optional
 
 from dotenv import load_dotenv
+
 load_dotenv(Path(__file__).resolve().parent.parent / ".env")
+
+# Optional APM: ddtrace.auto can fail on some Python/ddtrace pairs (e.g. 3.9 + recent ddtrace).
+if os.getenv("DD_TRACE_AUTO_INSTRUMENT", "true").lower() in ("1", "true", "yes"):
+    if os.getenv("DD_TRACE_ENABLED", "true").lower() in ("1", "true", "yes"):
+        try:
+            import ddtrace.auto  # noqa: F401 — FastAPI/Starlette patches when ddtrace is installed
+        except Exception as exc:
+            print(f"[Gateway] ddtrace.auto not loaded (APM optional): {exc}", flush=True)
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -18,6 +28,7 @@ from pydantic import BaseModel, Field
 
 from gateway import logger as event_logger
 from gateway.gateway import GuardrailGateway
+from gateway import telemetry as gw_telemetry
 
 app = FastAPI(
     title="Guardrail Gateway",
@@ -68,20 +79,34 @@ class ValidateResponse(BaseModel):
 @app.post("/validate", response_model=ValidateResponse)
 def validate_input(request: ValidateRequest):
     """Main gateway endpoint."""
-    result = _gateway.process(request.text)
-    return ValidateResponse(
-        decision=result.decision.value,
-        allowed=result.is_allowed,
-        gateway_score=result.gateway_score,
-        scores=ScoreBreakdown(
-            pii=result.pii_score,
-            jailbreak=result.jb_score,
-            prompt_injection=result.pi_score,
-        ),
-        pii_entities=result.pii_entities,
-        threat_types=result.threat_types,
-        blocked_reason=result.blocked_reason,
-    )
+    trace_hint = request.session_id or request.user_id or str(uuid.uuid4())
+    with gw_telemetry.span(
+        "gateway.http.validate",
+        trace_id=trace_hint,
+        session_id=request.session_id or "",
+        user_id=request.user_id or "",
+        text_len=len(request.text),
+    ):
+        result = _gateway.process(request.text, trace_id=trace_hint)
+        resp = ValidateResponse(
+            decision=result.decision.value,
+            allowed=result.is_allowed,
+            gateway_score=result.gateway_score,
+            scores=ScoreBreakdown(
+                pii=result.pii_score,
+                jailbreak=result.jb_score,
+                prompt_injection=result.pi_score,
+            ),
+            pii_entities=result.pii_entities,
+            threat_types=result.threat_types,
+            blocked_reason=result.blocked_reason,
+        )
+        gw_telemetry.tag_current_span(
+            decision=result.decision.value,
+            gateway_score=result.gateway_score,
+            allowed=result.is_allowed,
+        )
+        return resp
 
 
 @app.get("/health")
@@ -94,8 +119,37 @@ def health():
         "models_loaded": {
             "pii": bool(CustomPIIValidator._PIPELINE_CACHE),
             "jailbreak": bool(CustomThreatValidator._PIPELINE_CACHE),
-            "prompt_injection": bool(CustomPIValidator._PIPELINE_CACHE),
+            "prompt_injection": bool(CustomPIValidator._PIPELINE_CACHE)
+            or bool(CustomPIValidator._CAUSAL_CACHE),
         },
+    }
+
+
+@app.get("/health/observability")
+def health_observability():
+    """Datadog-oriented diagnostics when APM traces do not appear in the UI."""
+    try:
+        import ddtrace
+
+        dd_version = getattr(ddtrace, "__version__", "unknown")
+    except ImportError:
+        dd_version = None
+    return {
+        "dd_service": os.getenv("DD_SERVICE", "gateway"),
+        "dd_env": os.getenv("DD_ENV", ""),
+        "dd_trace_enabled": os.getenv("DD_TRACE_ENABLED", "true"),
+        "dd_trace_auto_instrument": os.getenv("DD_TRACE_AUTO_INSTRUMENT", "true"),
+        "dd_agent_host": os.getenv("DD_AGENT_HOST", ""),
+        "dd_trace_agent_url": os.getenv("DD_TRACE_AGENT_URL", ""),
+        "gateway_telemetry_stdout": os.getenv("GATEWAY_TELEMETRY_STDOUT", "false"),
+        "manual_tracer_active": gw_telemetry.ddtrace_active(),
+        "ddtrace_version": dd_version,
+        "hint": (
+            "APM needs the Datadog Agent listening for traces (usually localhost:8126). "
+            "Start the gateway with: ddtrace-run python -m uvicorn gateway.server:app --host 127.0.0.1 --port 8080. "
+            "In Datadog: APM → Traces, filter service:<DD_SERVICE> env:<DD_ENV>. "
+            "If still empty, set DD_TRACE_AGENT_URL=http://127.0.0.1:8126 or run DD_TRACE_AGENT_URL with your Agent URL."
+        ),
     }
 
 

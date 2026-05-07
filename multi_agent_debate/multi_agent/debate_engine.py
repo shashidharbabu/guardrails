@@ -39,8 +39,9 @@ from __future__ import annotations
 
 from typing import Dict, List, Tuple
 
-from multi_agent import agent_a, agent_b, storage
-from multi_agent.models import (
+from . import agent_a, agent_b, storage
+from . import mad_tracing as lf
+from .models import (
     Claim, Challenge, DebateCycle, EvidenceChunk, JudgeVerdict, Verdict,
 )
 
@@ -180,8 +181,18 @@ def run_debate(
         _log_claims(a_revised, f"Agent A revised (cycle {cycle_num})")
 
         # ── Confidence signal for this cycle ──────────────────────────────────
-        conf_signal = _confidence_signal(a_revised)
-        print(f"\n  [Cycle {cycle_num}] Confidence signal: {conf_signal:.4f}")
+        with lf.observe(
+            "span",
+            "mad.debate.post_cycle",
+            input_payload={"cycle": cycle_num, "claims_revised": len(a_revised)},
+        ) as cycle_obs:
+            conf_signal = _confidence_signal(a_revised)
+            print(f"\n  [Cycle {cycle_num}] Confidence signal: {conf_signal:.4f}")
+            if cycle_obs is not None:
+                try:
+                    cycle_obs.update(output={"confidence_signal": conf_signal})
+                except Exception:
+                    pass
 
         cycles.append(DebateCycle(
             cycle_number=cycle_num,

@@ -48,4 +48,8 @@ data/
 *.jsonl
 !config/*.yaml
 
+# SQLite / WAL / SHM (MAD runs)
+*.db-wal
+*.db-shm
+
 .env

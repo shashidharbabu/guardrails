@@ -20,6 +20,8 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import Dict, List, Optional
 
+from gateway import telemetry as gw_telemetry
+
 
 class Decision(str, Enum):
     PASS = "PASS"
@@ -122,7 +124,7 @@ class DecisionEngine:
 
         # Hard overrides — single high-confidence signal → immediate BLOCK
         if jb_score >= self.jb_override_threshold:
-            return GatewayResult(
+            res = GatewayResult(
                 decision=Decision.BLOCK,
                 gateway_score=min(1.0, jb_score),
                 pii_score=pii_score,
@@ -136,9 +138,15 @@ class DecisionEngine:
                 ),
                 raw_input=raw_input,
             )
+            gw_telemetry.tag_current_span(
+                decision="BLOCK",
+                override_branch="jb_hard",
+                gateway_score=res.gateway_score,
+            )
+            return res
 
         if pi_score >= self.pi_override_threshold:
-            return GatewayResult(
+            res = GatewayResult(
                 decision=Decision.BLOCK,
                 gateway_score=min(1.0, pi_score),
                 pii_score=pii_score,
@@ -152,9 +160,15 @@ class DecisionEngine:
                 ),
                 raw_input=raw_input,
             )
+            gw_telemetry.tag_current_span(
+                decision="BLOCK",
+                override_branch="pi_hard",
+                gateway_score=res.gateway_score,
+            )
+            return res
 
         if pii_score >= self.pii_override_threshold:
-            return GatewayResult(
+            res = GatewayResult(
                 decision=Decision.BLOCK,
                 gateway_score=min(1.0, pii_score),
                 pii_score=pii_score,
@@ -168,6 +182,12 @@ class DecisionEngine:
                 ),
                 raw_input=raw_input,
             )
+            gw_telemetry.tag_current_span(
+                decision="BLOCK",
+                override_branch="pii_hard",
+                gateway_score=res.gateway_score,
+            )
+            return res
 
         # Composite weighted score
         gateway_score = (
@@ -193,7 +213,7 @@ class DecisionEngine:
                 f"Threats: {', '.join(threat_types)}"
             )
 
-        return GatewayResult(
+        res = GatewayResult(
             decision=decision,
             gateway_score=gateway_score,
             pii_score=pii_score,
@@ -204,3 +224,9 @@ class DecisionEngine:
             blocked_reason=reason,
             raw_input=raw_input,
         )
+        gw_telemetry.tag_current_span(
+            decision=decision.value,
+            override_branch="composite",
+            gateway_score=gateway_score,
+        )
+        return res

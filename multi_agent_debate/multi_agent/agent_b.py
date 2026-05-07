@@ -62,12 +62,12 @@ from typing import Dict, List, Tuple
 
 from openai import OpenAI
 
-from multi_agent.config import (
+from .config import (
     OLLAMA_BASE_URL, OLLAMA_API_KEY, AGENT_MODEL,
     TOP_K_CHALLENGE_CHUNKS,
 )
-from multi_agent.models import Claim, Challenge, ChallengeType, EvidenceChunk, Verdict
-from multi_agent import rag_stub
+from .models import Claim, Challenge, ChallengeType, EvidenceChunk, Verdict
+from . import rag_stub
 
 client = OpenAI(base_url=OLLAMA_BASE_URL, api_key=OLLAMA_API_KEY)
 

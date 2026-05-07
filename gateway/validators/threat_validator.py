@@ -15,6 +15,7 @@ Model path: gateway/models/threat_classifier_model/
 import os
 from typing import Any, Callable, ClassVar, Dict, Optional
 
+import torch
 from guardrails.validators import (
     FailResult,
     PassResult,
@@ -23,6 +24,8 @@ from guardrails.validators import (
     register_validator,
 )
 from transformers import pipeline
+
+from gateway.hf_peft_loader import load_text_classification_peft_pipeline
 
 
 @register_validator(name="custom-threat-classifier", data_type="string")
@@ -68,26 +71,46 @@ class CustomThreatValidator(Validator):
         )
         self.model_path = model_path
         self.jb_threshold = jb_threshold
+        self._use_peft = os.getenv("THREAT_USE_PEFT", "false").lower() in (
+            "1",
+            "true",
+            "yes",
+        )
+        self._peft_base = os.environ.get("THREAT_PEFT_BASE", "").strip() or None
+        self._cache_key = (
+            f"peft:jb:{model_path}:{self._peft_base or ''}"
+            if self._use_peft
+            else model_path
+        )
 
     def _load_model(self):
-        if self.model_path not in CustomThreatValidator._PIPELINE_CACHE:
+        if self._cache_key not in CustomThreatValidator._PIPELINE_CACHE:
             hf_token = os.environ.get("HF_TOKEN") or os.environ.get("HUGGING_FACE_HUB_TOKEN")
             print(f"[JB Validator] Loading model from: {self.model_path}")
-            CustomThreatValidator._PIPELINE_CACHE[self.model_path] = pipeline(
-                task="text-classification",
-                model=self.model_path,
-                tokenizer=self.model_path,
-                top_k=None,
-                device="cpu",
-                truncation=True,
-                max_length=512,
-                token=hf_token,
-            )
+            if self._use_peft:
+                CustomThreatValidator._PIPELINE_CACHE[self._cache_key] = (
+                    load_text_classification_peft_pipeline(
+                        self.model_path,
+                        explicit_base=self._peft_base,
+                        device="cuda" if torch.cuda.is_available() else "cpu",
+                    )
+                )
+            else:
+                CustomThreatValidator._PIPELINE_CACHE[self._cache_key] = pipeline(
+                    task="text-classification",
+                    model=self.model_path,
+                    tokenizer=self.model_path,
+                    top_k=None,
+                    device="cpu",
+                    truncation=True,
+                    max_length=512,
+                    token=hf_token,
+                )
             print("[JB Validator] Model ready")
 
     @property
     def _pipe(self):
-        return CustomThreatValidator._PIPELINE_CACHE.get(self.model_path)
+        return CustomThreatValidator._PIPELINE_CACHE.get(self._cache_key)
 
     def _get_jb_score(self, pipeline_output: list) -> float:
         """Extract jailbreak class probability from pipeline output."""

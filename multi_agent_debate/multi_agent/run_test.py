@@ -7,24 +7,24 @@ Uses Healthcare domain examples (your paper's primary eval domain).
 
 Usage:
   # Default HIPAA encryption example:
-  python -m multi_agent.run_test
+  PYTHONPATH=. python -m multi_agent_debate.multi_agent.run_test
 
   # Choose a specific example:
-  python -m multi_agent.run_test --example hipaa_phi_sharing
+  PYTHONPATH=. python -m multi_agent_debate.multi_agent.run_test --example hipaa_phi_sharing
 
   # Custom query:
-  python -m multi_agent.run_test \\
+  PYTHONPATH=. python -m multi_agent_debate.multi_agent.run_test \\
     --query "Can we email patient lab results directly?" \\
     --answer "Yes, HIPAA allows emailing lab results to patients directly."
 
   # Save full JSON output:
-  python -m multi_agent.run_test --output-json results.json
+  PYTHONPATH=. python -m multi_agent_debate.multi_agent.run_test --output-json results.json
 
   # Verify storage was written correctly (checks SQLite tables):
-  python -m multi_agent.run_test --verify-storage
+  PYTHONPATH=. python -m multi_agent_debate.multi_agent.run_test --verify-storage
 
   # List all examples:
-  python -m multi_agent.run_test --list
+  PYTHONPATH=. python -m multi_agent_debate.multi_agent.run_test --list
 """
 from __future__ import annotations
 
@@ -35,8 +35,8 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
-from multi_agent.mad_pipeline import run_mad
-from multi_agent.config import DB_PATH
+from .mad_pipeline import run_mad
+from .config import DB_PATH
 
 # ── Healthcare test cases ──────────────────────────────────────────────────────
 # These mirror your 200-example synthetic evaluation dataset structure.

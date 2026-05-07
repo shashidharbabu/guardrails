@@ -22,11 +22,12 @@ from typing import List, Optional, Tuple
 
 from openai import OpenAI
 
-from multi_agent.config import (
+from . import mad_tracing as lf
+from .config import (
     OLLAMA_BASE_URL, OLLAMA_API_KEY,
     JUDGE_MODEL, JUDGE_PROVIDER, ANTHROPIC_API_KEY,
 )
-from multi_agent.models import Claim, EvidenceChunk, JudgeVerdict
+from .models import Claim, EvidenceChunk, JudgeVerdict
 
 # ── Client setup ───────────────────────────────────────────────────────────────
 _ollama_client = OpenAI(base_url=OLLAMA_BASE_URL, api_key=OLLAMA_API_KEY)
@@ -128,7 +129,18 @@ def judge_claims(
         evidence_pool_json=evidence_json,
     )
 
-    raw = _call_judge(prompt)
+    with lf.observe(
+        "generation",
+        "mad.judge.llm",
+        model=JUDGE_MODEL,
+        input_payload={
+            "provider": JUDGE_PROVIDER,
+            "claim_count": len(final_claims),
+            "evidence_chunk_count": len(evidence_pool),
+            "prompt_chars": len(prompt),
+        },
+    ):
+        raw = _call_judge(prompt)
 
     try:
         data = json.loads(raw)

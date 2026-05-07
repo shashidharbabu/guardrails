@@ -53,16 +53,17 @@ from typing import List, Optional, Tuple
 from dotenv import load_dotenv
 load_dotenv(Path(__file__).resolve().parent.parent.parent / ".env")
 
-from multi_agent import storage
-from multi_agent.claim_extractor import extract_claims
-from multi_agent.config import (
+from . import storage
+from . import mad_tracing as lf
+from .claim_extractor import extract_claims
+from .config import (
     MAX_CYCLES,
     CONFIDENCE_THRESHOLD_HIGH,
     CONFIDENCE_THRESHOLD_LOW,
 )
-from multi_agent.debate_engine import run_debate, build_transcript
-from multi_agent.judge import judge_claims
-from multi_agent.models import Claim, JudgeVerdict, MADOutput
+from .debate_engine import run_debate, build_transcript
+from .judge import judge_claims
+from .models import Claim, JudgeVerdict, MADOutput
 
 
 def run_mad(query: str, llm_answer: str) -> MADOutput:
@@ -80,109 +81,159 @@ def run_mad(query: str, llm_answer: str) -> MADOutput:
     rollout_id = str(uuid.uuid4())
     query_id   = str(uuid.uuid4())
 
-    _banner("MAD PIPELINE")
-    print(f"  query_id  : {query_id}")
-    print(f"  rollout_id: {rollout_id}")
-    print(f"  Query     : {query}")
-    print(f"  Answer    : {llm_answer[:120]}{'...' if len(llm_answer) > 120 else ''}")
+    with lf.observe(
+        "span",
+        "mad.pipeline",
+        input_payload={
+            "query_id": query_id,
+            "rollout_id": rollout_id,
+            "query_chars": len(query),
+            "answer_chars": len(llm_answer),
+            "max_cycles": MAX_CYCLES,
+        },
+    ):
+        _banner("MAD PIPELINE")
+        print(f"  query_id  : {query_id}")
+        print(f"  rollout_id: {rollout_id}")
+        print(f"  Query     : {query}")
+        print(f"  Answer    : {llm_answer[:120]}{'...' if len(llm_answer) > 120 else ''}")
 
-    # ── 2. INITIALISE STORAGE ──────────────────────────────────────────────────
-    storage.init_db()
+        # ── 2. INITIALISE STORAGE ───────────────────────────────────────────────
+        storage.init_db()
 
-    # ── 3. EXTRACT CLAIMS ──────────────────────────────────────────────────────
-    print("\n[Step 1/4] Extracting atomic claims...")
-    claims  = extract_claims(query, llm_answer)
-    n_mat   = sum(1 for c in claims if c.is_material)
-    print(f"           {len(claims)} claims ({n_mat} material, "
-          f"{len(claims)-n_mat} contextual)")
+        # ── 3. EXTRACT CLAIMS ───────────────────────────────────────────────────
+        print("\n[Step 1/4] Extracting atomic claims...")
+        with lf.observe(
+            "span",
+            "mad.claim_extraction",
+            input_payload={"query_id": query_id, "rollout_id": rollout_id},
+        ):
+            claims = extract_claims(query, llm_answer)
+        n_mat = sum(1 for c in claims if c.is_material)
+        print(f"           {len(claims)} claims ({n_mat} material, "
+              f"{len(claims)-n_mat} contextual)")
 
-    # ── 4. WRITE QUERY ROW (TABLE 1) ───────────────────────────────────────────
-    # Written BEFORE debate starts. final_cse_score + routing_decision = NULL.
-    # Updated at end of pipeline with actual values.
-    storage.write_query(
-        query_id=query_id,
-        rollout_id=rollout_id,
-        query_text=query,
-        llm_answer=llm_answer,
-        chunk_ids=[],  # populated after debate once evidence_pool is known
-    )
+        # ── 4. WRITE QUERY ROW (TABLE 1) ─────────────────────────────────────────
+        # Written BEFORE debate starts. final_cse_score + routing_decision = NULL.
+        # Updated at end of pipeline with actual values.
+        with lf.observe(
+            "span",
+            "mad.storage.write_query",
+            input_payload={"query_id": query_id, "rollout_id": rollout_id},
+        ):
+            storage.write_query(
+                query_id=query_id,
+                rollout_id=rollout_id,
+                query_text=query,
+                llm_answer=llm_answer,
+                chunk_ids=[],  # populated after debate once evidence_pool is known
+            )
 
-    # ── 5. RUN DEBATE ──────────────────────────────────────────────────────────
-    # debate_engine handles all internal storage writes:
-    #   - claims table: post_step_A, post_cycle1, post_cycle2
-    #   - attacks table: p_before at challenge time, p_after after revision
-    print(f"\n[Step 2/4] Running {MAX_CYCLES}-cycle debate...")
-    cycles, final_claims, evidence_pool = run_debate(
-        query=query,
-        claims=claims,
-        query_id=query_id,
-        rollout_id=rollout_id,
-        max_cycles=MAX_CYCLES,
-    )
+        # ── 5. RUN DEBATE ──────────────────────────────────────────────────────────
+        # debate_engine handles all internal storage writes:
+        #   - claims table: post_step_A, post_cycle1, post_cycle2
+        #   - attacks table: p_before at challenge time, p_after after revision
+        print(f"\n[Step 2/4] Running {MAX_CYCLES}-cycle debate...")
+        with lf.observe(
+            "span",
+            "mad.debate",
+            input_payload={"query_id": query_id, "rollout_id": rollout_id},
+        ):
+            cycles, final_claims, evidence_pool = run_debate(
+                query=query,
+                claims=claims,
+                query_id=query_id,
+                rollout_id=rollout_id,
+                max_cycles=MAX_CYCLES,
+            )
 
-    # ── 6. JUDGE EVALUATION ────────────────────────────────────────────────────
-    # Judge is PARTIALLY BLIND:
-    #   SEES:     final verdicts + evidence pool + user query
-    #   DOES NOT SEE: confidence scores (stripped to prevent anchoring)
-    #                 Agent B's challenge framing
-    print("\n[Step 3/4] Judge evaluation (partially blind)...")
-    judge_verdicts, correction_signal = judge_claims(
-        query=query,
-        final_claims=final_claims,
-        evidence_pool=evidence_pool,
-    )
-    _print_judge_verdicts(judge_verdicts)
+        # ── 6. JUDGE EVALUATION ────────────────────────────────────────────────────
+        # Judge is PARTIALLY BLIND:
+        #   SEES:     final verdicts + evidence pool + user query
+        #   DOES NOT SEE: confidence scores (stripped to prevent anchoring)
+        #                 Agent B's challenge framing
+        print("\n[Step 3/4] Judge evaluation (partially blind)...")
+        with lf.observe(
+            "span",
+            "mad.judge",
+            input_payload={
+                "query_id": query_id,
+                "rollout_id": rollout_id,
+                "evidence_chunks": len(evidence_pool),
+            },
+        ):
+            judge_verdicts, correction_signal = judge_claims(
+                query=query,
+                final_claims=final_claims,
+                evidence_pool=evidence_pool,
+            )
+        _print_judge_verdicts(judge_verdicts)
 
-    # ── 7. WRITE JUDGE VERDICTS (TABLE 4) ─────────────────────────────────────
-    # Last thing MAD writes. After this, data passes to CSE.
-    # v_label (1.0/0.5/0.0) is what the feedback loop uses for Brier reward.
-    pool_ids = [c.chunk_id for c in evidence_pool]
-    storage.write_judge_verdicts(
-        query_id=query_id,
-        rollout_id=rollout_id,
-        judge_verdicts=judge_verdicts,
-        evidence_pool_ids=pool_ids,
-    )
+        # ── 7. WRITE JUDGE VERDICTS (TABLE 4) ─────────────────────────────────────
+        # Last thing MAD writes. After this, data passes to CSE.
+        # v_label (1.0/0.5/0.0) is what the feedback loop uses for Brier reward.
+        pool_ids = [c.chunk_id for c in evidence_pool]
+        with lf.observe(
+            "span",
+            "mad.storage.write_judge_verdicts",
+            input_payload={"query_id": query_id, "rollout_id": rollout_id},
+        ):
+            storage.write_judge_verdicts(
+                query_id=query_id,
+                rollout_id=rollout_id,
+                judge_verdicts=judge_verdicts,
+                evidence_pool_ids=pool_ids,
+            )
 
-    # ── 8. COMPUTE ROUTING ─────────────────────────────────────────────────────
-    print("\n[Step 4/4] Routing decision...")
-    routing, aggregate = _compute_routing(final_claims, judge_verdicts)
-    print(f"           Aggregate confidence: {aggregate:.4f}")
-    print(f"           Routing decision    : {routing}")
-    if correction_signal:
-        print(f"           Correction signal   : {correction_signal[:90]}...")
+        # ── 8. COMPUTE ROUTING ─────────────────────────────────────────────────────
+        print("\n[Step 4/4] Routing decision...")
+        with lf.observe(
+            "span",
+            "mad.routing",
+            input_payload={"query_id": query_id, "rollout_id": rollout_id},
+        ):
+            routing, aggregate = _compute_routing(final_claims, judge_verdicts)
+        print(f"           Aggregate confidence: {aggregate:.4f}")
+        print(f"           Routing decision    : {routing}")
+        if correction_signal:
+            print(f"           Correction signal   : {correction_signal[:90]}...")
 
-    # ── 9. UPDATE QUERY WITH FINAL RESULTS (TABLE 1) ──────────────────────────
-    storage.update_query_cse(
-        query_id=query_id,
-        rollout_id=rollout_id,
-        cse_score=aggregate,
-        routing_decision=routing,
-    )
+        # ── 9. UPDATE QUERY WITH FINAL RESULTS (TABLE 1) ───────────────────────────
+        with lf.observe(
+            "span",
+            "mad.storage.update_query_cse",
+            input_payload={"query_id": query_id, "rollout_id": rollout_id},
+        ):
+            storage.update_query_cse(
+                query_id=query_id,
+                rollout_id=rollout_id,
+                cse_score=aggregate,
+                routing_decision=routing,
+            )
 
-    # ── 10. BUILD TRANSCRIPT + RETURN ─────────────────────────────────────────
-    transcript = build_transcript(
-        query=query,
-        llm_answer=llm_answer,
-        cycles=cycles,
-        judge_verdicts=judge_verdicts,
-        correction_signal=correction_signal or "",
-    )
+        # ── 10. BUILD TRANSCRIPT + RETURN ─────────────────────────────────────────
+        transcript = build_transcript(
+            query=query,
+            llm_answer=llm_answer,
+            cycles=cycles,
+            judge_verdicts=judge_verdicts,
+            correction_signal=correction_signal or "",
+        )
 
-    return MADOutput(
-        query=query,
-        llm_answer=llm_answer,
-        claims=final_claims,
-        debate_cycles=cycles,
-        evidence_pool=evidence_pool,
-        judge_verdicts=judge_verdicts,
-        correction_signal=correction_signal,
-        routing_decision=routing,
-        aggregate_confidence=aggregate,
-        debate_transcript=transcript,
-        query_id=query_id,
-        rollout_id=rollout_id,
-    )
+        return MADOutput(
+            query=query,
+            llm_answer=llm_answer,
+            claims=final_claims,
+            debate_cycles=cycles,
+            evidence_pool=evidence_pool,
+            judge_verdicts=judge_verdicts,
+            correction_signal=correction_signal,
+            routing_decision=routing,
+            aggregate_confidence=aggregate,
+            debate_transcript=transcript,
+            query_id=query_id,
+            rollout_id=rollout_id,
+        )
 
 
 # ── Routing logic ──────────────────────────────────────────────────────────────

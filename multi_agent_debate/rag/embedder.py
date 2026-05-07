@@ -26,7 +26,7 @@ from typing import List, Optional
 import torch
 from transformers import AutoTokenizer, AutoModel
 
-from rag.config import EMBED_MODEL, EMBED_MAX_LENGTH, QUERY_PREFIX, HF_TOKEN
+from .config import EMBED_MODEL, EMBED_MAX_LENGTH, QUERY_PREFIX, HF_TOKEN
 
 # ── Singleton state ────────────────────────────────────────────────────────────
 _tokenizer = None

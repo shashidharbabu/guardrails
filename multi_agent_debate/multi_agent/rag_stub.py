@@ -35,8 +35,8 @@ import re
 from pathlib import Path
 from typing import Dict, List
 
-from multi_agent.config import CHUNKS_JSONL_PATH, TOP_K_CHUNKS
-from multi_agent.models import EvidenceChunk
+from .config import CHUNKS_JSONL_PATH, TOP_K_CHUNKS
+from .models import EvidenceChunk
 
 # ── Module-level cache — loaded once per process ───────────────────────────────
 _chunk_cache: List[Dict] = []
@@ -87,7 +87,7 @@ def retrieve(
         return _retrieve_cache[cache_key]
 
     try:
-        from rag.retriever import retrieve as _qdrant_retrieve
+        from multi_agent_debate.rag.retriever import retrieve as _qdrant_retrieve
         result = _qdrant_retrieve(query, top_k)
         _retrieve_cache[cache_key] = result
         return result
