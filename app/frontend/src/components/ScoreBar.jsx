@@ -1,34 +1,59 @@
-// colorMode: 'threat' (red=high), 'confidence' (green=high), 'neutral' (blue always)
-function getColor(value, colorMode) {
-  if (colorMode === 'neutral') return 'bg-blue-500'
-  if (colorMode === 'confidence') {
-    if (value >= 0.8) return 'bg-green-500'
-    if (value >= 0.4) return 'bg-amber-500'
-    return 'bg-red-500'
-  }
-  // threat mode (default)
-  if (value >= 0.7) return 'bg-red-500'
-  if (value >= 0.3) return 'bg-amber-500'
-  return 'bg-green-500'
+/**
+ * ScoreBar — consolidated score bar component used in both SessionTrace
+ * sidebar and Gateway Live Test results.
+ *
+ * colorMode: 'semantic' uses red/amber/green by threshold
+ *            'category' uses the fixed threat-type colors (pii/jb/pi/comp)
+ *            'fixed' uses the provided `color` CSS value
+ *
+ * Usage:
+ *   <ScoreBar label="PII" value={0.78} colorMode="category" category="pii" />
+ *   <ScoreBar label="Jailbreak" value={0.4} colorMode="semantic" />
+ *   <ScoreBar label="Overall" value={0.9} colorMode="fixed" color="var(--teal)" />
+ */
+
+const CATEGORY_COLORS = {
+  pii:    'var(--blue)',
+  jb:     'var(--pink)',
+  pi:     'var(--amber)',
+  comp:   'var(--teal)',
+  threat: 'var(--red)',
 }
 
-export default function ScoreBar({ value, label, colorMode = 'threat', showValue = true }) {
-  const pct = Math.min(100, Math.max(0, Math.round((value ?? 0) * 100)))
-  const color = getColor(value ?? 0, colorMode)
+function semanticColor(value) {
+  if (value >= 0.7) return 'var(--red)'
+  if (value >= 0.4) return 'var(--amber)'
+  return 'var(--teal)'
+}
+
+export default function ScoreBar({ label, value, colorMode = 'semantic', category, color, style }) {
+  const pct = Math.min(100, Math.max(0, (value ?? 0) * 100))
+
+  let barColor = color
+  if (!barColor) {
+    if (colorMode === 'category' && category) {
+      barColor = CATEGORY_COLORS[category] ?? 'var(--teal)'
+    } else if (colorMode === 'semantic') {
+      barColor = semanticColor(value ?? 0)
+    } else {
+      barColor = 'var(--teal)'
+    }
+  }
+
+  const displayVal = value != null ? value.toFixed(2) : '—'
 
   return (
-    <div className="flex items-center gap-2">
-      {label && (
-        <span className="w-28 shrink-0 text-xs text-gray-500 font-mono truncate">{label}</span>
-      )}
-      <div className="flex-1 h-1.5 bg-gray-200 rounded-full overflow-hidden">
-        <div className={`h-full rounded-full transition-all ${color}`} style={{ width: `${pct}%` }} />
+    <div className="s-row" style={style}>
+      <div className="s-meta">
+        <span className="s-key">{label}</span>
+        <span className="s-val">{displayVal}</span>
       </div>
-      {showValue && (
-        <span className="w-10 shrink-0 text-right text-xs font-mono text-gray-600">
-          {(value ?? 0).toFixed(3)}
-        </span>
-      )}
+      <div className="s-track">
+        <div
+          className="s-fill"
+          style={{ width: `${pct}%`, background: barColor }}
+        />
+      </div>
     </div>
   )
 }

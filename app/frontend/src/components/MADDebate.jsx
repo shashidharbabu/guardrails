@@ -1,16 +1,29 @@
 import { useState } from 'react'
 import Badge from './Badge'
 
+const VERDICT_STYLES = {
+  SUPPORTED:      { color: 'var(--green-hi)',  bg: 'var(--green-dim)',  border: 'var(--green-mid)' },
+  NEEDS_CAVEAT:   { color: 'var(--amber-hi)',  bg: 'var(--amber-dim)',  border: 'var(--amber-mid)' },
+  MISSING_CAVEAT: { color: 'var(--amber-hi)',  bg: 'var(--amber-dim)',  border: 'var(--amber-mid)' },
+  UNSUPPORTED:    { color: 'var(--red-hi)',    bg: 'var(--red-dim)',    border: 'var(--red-mid)'   },
+}
+
 function VerdictPill({ verdict }) {
-  const map = {
-    SUPPORTED: 'bg-green-50 text-green-700 border-green-200',
-    NEEDS_CAVEAT: 'bg-amber-50 text-amber-700 border-amber-200',
-    MISSING_CAVEAT: 'bg-amber-50 text-amber-700 border-amber-200',
-    UNSUPPORTED: 'bg-red-50 text-red-700 border-red-200',
-  }
-  const cls = map[verdict] || 'bg-gray-50 text-gray-600 border-gray-200'
+  const s = VERDICT_STYLES[verdict] || { color: 'var(--text-muted)', bg: 'var(--bg-hover)', border: 'var(--border)' }
   return (
-    <span className={`inline-block border rounded px-1.5 py-0.5 text-xs font-mono ${cls}`}>
+    <span style={{
+      display: 'inline-block',
+      border: `1px solid ${s.border}`,
+      borderRadius: 'var(--r-sm)',
+      padding: '2px 8px',
+      fontSize: 9,
+      fontFamily: 'var(--font-mono)',
+      fontWeight: 700,
+      letterSpacing: '0.06em',
+      textTransform: 'uppercase',
+      color: s.color,
+      background: s.bg,
+    }}>
       {verdict ?? 'UNKNOWN'}
     </span>
   )
@@ -18,17 +31,24 @@ function VerdictPill({ verdict }) {
 
 function ClaimCard({ claim }) {
   return (
-    <div className="border border-gray-100 rounded-lg p-3">
-      <div className="flex items-start justify-between gap-2 mb-1">
-        <p className="text-xs text-gray-800 leading-relaxed flex-1">{claim.claim_text}</p>
+    <div style={{
+      border: '1px solid var(--border)',
+      borderRadius: 'var(--r-md)',
+      padding: '10px 12px',
+      background: 'var(--bg-base)',
+    }}>
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8, marginBottom: 6 }}>
+        <p style={{ fontFamily: 'var(--font-ui)', fontSize: 12, color: 'var(--text-primary)', lineHeight: 1.6, flex: 1 }}>
+          {claim.claim_text}
+        </p>
         <VerdictPill verdict={claim.verdict} />
       </div>
-      <div className="flex items-center gap-2 mt-1.5">
-        <span className="text-xs font-mono text-gray-400">
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--text-muted)' }}>
           conf {((claim.confidence ?? 0) * 100).toFixed(0)}%
         </span>
         {claim.supporting_chunks?.length > 0 && (
-          <span className="text-xs font-mono text-gray-400">
+          <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--text-muted)' }}>
             · {claim.supporting_chunks.length} chunk{claim.supporting_chunks.length !== 1 ? 's' : ''}
           </span>
         )}
@@ -39,14 +59,41 @@ function ClaimCard({ claim }) {
 
 function ChallengeCard({ challenge }) {
   return (
-    <div className="border border-amber-100 bg-amber-50 rounded-lg p-3">
-      <div className="flex items-center gap-2 mb-1">
+    <div style={{
+      border: '1px solid var(--amber-mid)',
+      borderRadius: 'var(--r-md)',
+      padding: '10px 12px',
+      background: 'var(--amber-dim)',
+    }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
         <Badge value={challenge.challenge_type} />
-        {challenge.suggested_verdict && (
-          <VerdictPill verdict={challenge.suggested_verdict} />
-        )}
+        {challenge.suggested_verdict && <VerdictPill verdict={challenge.suggested_verdict} />}
       </div>
-      <p className="text-xs text-amber-800 leading-relaxed mt-1">{challenge.challenge_text}</p>
+      <p style={{ fontFamily: 'var(--font-ui)', fontSize: 12, color: 'var(--amber-hi)', lineHeight: 1.6 }}>
+        {challenge.challenge_text}
+      </p>
+    </div>
+  )
+}
+
+function AgentSection({ label, color, items, renderItem }) {
+  if (!items?.length) return null
+  return (
+    <div>
+      <p style={{
+        fontFamily: 'var(--font-ui)',
+        fontSize: 10,
+        fontWeight: 700,
+        letterSpacing: '0.08em',
+        textTransform: 'uppercase',
+        color,
+        marginBottom: 8,
+      }}>
+        {label}
+      </p>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+        {items.map(renderItem)}
+      </div>
     </div>
   )
 }
@@ -54,57 +101,52 @@ function ChallengeCard({ challenge }) {
 function DebateCycle({ cycle, index }) {
   const [open, setOpen] = useState(index === 0)
   return (
-    <div className="border border-gray-200 rounded-xl overflow-hidden">
+    <div style={{ border: '1px solid var(--border-md)', borderRadius: 'var(--r-md)', overflow: 'hidden' }}>
       <button
         onClick={() => setOpen(o => !o)}
-        className="w-full flex items-center justify-between px-4 py-3 bg-gray-50 hover:bg-gray-100 transition-colors text-left"
+        style={{
+          width: '100%',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          padding: '10px 14px',
+          background: 'var(--bg-card)',
+          border: 'none',
+          cursor: 'pointer',
+          textAlign: 'left',
+        }}
       >
-        <span className="text-xs font-medium text-gray-700">Cycle {cycle.cycle_index + 1}</span>
-        <div className="flex items-center gap-2">
-          <span className="text-xs font-mono text-gray-400">
+        <span style={{ fontFamily: 'var(--font-ui)', fontSize: 12, fontWeight: 600, color: 'var(--text-primary)' }}>
+          Cycle {cycle.cycle_index + 1}
+        </span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--text-muted)' }}>
             conf {((cycle.confidence_signal ?? 0) * 100).toFixed(0)}%
           </span>
-          <span className="text-gray-400 text-xs">{open ? '▲' : '▼'}</span>
+          <span style={{ color: 'var(--text-muted)', fontSize: 10 }}>{open ? '▲' : '▼'}</span>
         </div>
       </button>
 
       {open && (
-        <div className="p-4 space-y-4 bg-white">
-          {/* Agent A initial */}
-          {cycle.agent_a_report?.length > 0 && (
-            <div>
-              <p className="text-xs font-semibold text-blue-700 mb-2">Agent A — Initial Report</p>
-              <div className="space-y-2">
-                {cycle.agent_a_report.map((c, i) => (
-                  <ClaimCard key={c.claim_id ?? i} claim={c} />
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Agent B challenges */}
-          {cycle.agent_b_challenges?.length > 0 && (
-            <div>
-              <p className="text-xs font-semibold text-amber-700 mb-2">Agent B — Challenges</p>
-              <div className="space-y-2">
-                {cycle.agent_b_challenges.map((ch, i) => (
-                  <ChallengeCard key={`${ch.claim_id}-${i}`} challenge={ch} />
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Agent A revised */}
-          {cycle.agent_a_revised?.length > 0 && (
-            <div>
-              <p className="text-xs font-semibold text-green-700 mb-2">Agent A — Revised</p>
-              <div className="space-y-2">
-                {cycle.agent_a_revised.map((c, i) => (
-                  <ClaimCard key={`rev-${c.claim_id ?? i}`} claim={c} />
-                ))}
-              </div>
-            </div>
-          )}
+        <div style={{ padding: 14, display: 'flex', flexDirection: 'column', gap: 14, background: 'var(--bg-surface)' }}>
+          <AgentSection
+            label="Agent A — Initial Report"
+            color="var(--blue-hi)"
+            items={cycle.agent_a_report}
+            renderItem={(c, i) => <ClaimCard key={c.claim_id ?? i} claim={c} />}
+          />
+          <AgentSection
+            label="Agent B — Challenges"
+            color="var(--amber-hi)"
+            items={cycle.agent_b_challenges}
+            renderItem={(ch, i) => <ChallengeCard key={`${ch.claim_id}-${i}`} challenge={ch} />}
+          />
+          <AgentSection
+            label="Agent A — Revised"
+            color="var(--green-hi)"
+            items={cycle.agent_a_revised}
+            renderItem={(c, i) => <ClaimCard key={`rev-${c.claim_id ?? i}`} claim={c} />}
+          />
         </div>
       )}
     </div>
@@ -116,8 +158,16 @@ export default function MADDebate({ madOutput }) {
 
   if (!madOutput) {
     return (
-      <div className="bg-white rounded-xl border border-gray-200 p-4 text-xs text-gray-400">
-        No MAD output (query was blocked at gateway).
+      <div style={{
+        border: '1px solid var(--border)',
+        borderRadius: 'var(--r-lg)',
+        padding: 16,
+        background: 'var(--bg-card)',
+        fontFamily: 'var(--font-ui)',
+        fontSize: 12,
+        color: 'var(--text-muted)',
+      }}>
+        No MAD output — query was blocked at gateway.
       </div>
     )
   }
@@ -125,45 +175,75 @@ export default function MADDebate({ madOutput }) {
   const { debate_cycles = [], debate_transcript, routing_decision, confidence_score } = madOutput
 
   return (
-    <div className="space-y-3">
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
       {/* Summary bar */}
-      <div className="bg-white rounded-xl border border-gray-200 p-4 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <Badge value={routing_decision} />
-          <span className="text-xs font-mono text-gray-500">
-            confidence {((confidence_score ?? 0) * 100).toFixed(0)}%
+      <div className="panel">
+        <div className="panel-body" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <Badge value={routing_decision} size="lg" />
+            <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--text-sec)' }}>
+              confidence {((confidence_score ?? 0) * 100).toFixed(0)}%
+            </span>
+          </div>
+          <span style={{ fontFamily: 'var(--font-ui)', fontSize: 11, color: 'var(--text-muted)' }}>
+            {debate_cycles.length} debate cycle{debate_cycles.length !== 1 ? 's' : ''}
           </span>
         </div>
-        <span className="text-xs text-gray-400">
-          {debate_cycles.length} debate cycle{debate_cycles.length !== 1 ? 's' : ''}
-        </span>
       </div>
 
       {/* Debate cycles */}
       {debate_cycles.length > 0 ? (
-        <div className="space-y-2">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           {debate_cycles.map((cycle, i) => (
             <DebateCycle key={cycle.cycle_index ?? i} cycle={cycle} index={i} />
           ))}
         </div>
       ) : (
-        <div className="bg-white rounded-xl border border-gray-200 p-4 text-xs text-gray-400">
+        <div style={{
+          border: '1px solid var(--border)',
+          borderRadius: 'var(--r-lg)',
+          padding: 16,
+          background: 'var(--bg-card)',
+          fontFamily: 'var(--font-ui)',
+          fontSize: 12,
+          color: 'var(--text-muted)',
+        }}>
           No debate cycles recorded.
         </div>
       )}
 
       {/* Raw transcript (collapsible debug) */}
       {debate_transcript && (
-        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+        <div style={{ border: '1px solid var(--border)', borderRadius: 'var(--r-md)', overflow: 'hidden' }}>
           <button
             onClick={() => setShowTranscript(o => !o)}
-            className="w-full flex items-center justify-between px-4 py-2.5 text-xs text-gray-400 hover:bg-gray-50 transition-colors"
+            style={{
+              width: '100%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              padding: '8px 14px',
+              background: 'var(--bg-card)',
+              border: 'none',
+              cursor: 'pointer',
+              fontFamily: 'var(--font-ui)',
+              fontSize: 11,
+              color: 'var(--text-muted)',
+            }}
           >
             <span>Raw transcript (debug)</span>
             <span>{showTranscript ? '▲' : '▼'}</span>
           </button>
           {showTranscript && (
-            <pre className="px-4 pb-4 text-xs font-mono text-gray-500 whitespace-pre-wrap leading-relaxed">
+            <pre style={{
+              padding: '4px 14px 14px',
+              fontFamily: 'var(--font-mono)',
+              fontSize: 11,
+              color: 'var(--text-sec)',
+              whiteSpace: 'pre-wrap',
+              lineHeight: 1.7,
+              background: 'var(--bg-base)',
+            }}>
               {debate_transcript}
             </pre>
           )}

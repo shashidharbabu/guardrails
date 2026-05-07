@@ -344,3 +344,85 @@ export async function getAnalytics() {
   }
   return apiFetch('/api/analytics/summary')
 }
+
+// ---------------------------------------------------------------------------
+// Session events / audit timeline
+// ---------------------------------------------------------------------------
+
+export async function getSessionEvents(id) {
+  if (MOCK) {
+    await delay()
+    return []
+  }
+  return apiFetch(`/api/sessions/${id}/events`)
+}
+
+export async function getSessionCSE(id) {
+  if (MOCK) {
+    await delay()
+    return null
+  }
+  return apiFetch(`/api/sessions/${id}/cse`)
+}
+
+// ---------------------------------------------------------------------------
+// System health
+// ---------------------------------------------------------------------------
+
+export async function getSystemHealth() {
+  if (MOCK) {
+    await delay()
+    return {
+      status: 'healthy',
+      version: '1.0.0',
+      environment: 'development',
+      timestamp: new Date().toISOString(),
+      components: {
+        database: { name: 'database', status: 'healthy', latency_ms: 3 },
+        gateway: { name: 'gateway', status: 'healthy', latency_ms: 12 },
+        llm_runtime: { name: 'llm_runtime', status: 'healthy', latency_ms: 45 },
+        cse_config: { name: 'cse_config', status: 'healthy', latency_ms: 0 },
+      },
+    }
+  }
+  return apiFetch('/api/system/health')
+}
+
+// ---------------------------------------------------------------------------
+// Human Review
+// ---------------------------------------------------------------------------
+
+export async function getReviewQueue() {
+  if (MOCK) {
+    await delay()
+    return MOCK_SESSIONS.filter(s => s.mad_routing === 'HUMAN_REVIEW')
+  }
+  return apiFetch('/api/human-review/queue')
+}
+
+export async function submitReviewAction(sessionId, decision, notes = '') {
+  if (MOCK) {
+    await delay(400)
+    return { session_id: sessionId, decision, new_session_status: 'HUMAN_REVIEW_APPROVED' }
+  }
+  return apiFetch(`/api/human-review/sessions/${sessionId}/action`, {
+    method: 'POST',
+    body: JSON.stringify({ decision, notes }),
+  })
+}
+
+// ---------------------------------------------------------------------------
+// Audit logs
+// ---------------------------------------------------------------------------
+
+export async function getAuditLogs({ sessionId, action, limit = 200 } = {}) {
+  if (MOCK) {
+    await delay()
+    return []
+  }
+  const params = new URLSearchParams()
+  if (sessionId) params.set('session_id', sessionId)
+  if (action) params.set('action', action)
+  if (limit) params.set('limit', limit)
+  return apiFetch(`/api/audit/logs?${params}`)
+}

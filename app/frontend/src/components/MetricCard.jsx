@@ -1,18 +1,48 @@
-export default function MetricCard({ label, value, sub, accent }) {
-  const accentMap = {
-    green:  'border-t-green-400',
-    amber:  'border-t-amber-400',
-    red:    'border-t-red-400',
-    blue:   'border-t-blue-400',
-    purple: 'border-t-purple-400',
-  }
-  const border = accentMap[accent] || 'border-t-gray-300'
-
+/**
+ * MetricCard — enterprise KPI card with label, value, sub-text,
+ * optional top accent strip, optional icon, and optional delta.
+ *
+ * accent: 'blue' | 'teal' | 'green' | 'red' | 'amber'
+ * delta: { value: '+12%', dir: 'up' | 'down' | 'neutral' }
+ * icon: JSX element (SVG, 16x16 recommended)
+ */
+export default function MetricCard({
+  label,
+  value,
+  sub,
+  accent,
+  delta,
+  valueColor,
+  icon,
+  className = '',
+}) {
   return (
-    <div className={`bg-white rounded-xl border border-gray-200 border-t-2 ${border} p-4`}>
-      <p className="text-xs tracking-widest uppercase text-gray-400 mb-1">{label}</p>
-      <p className="text-2xl font-semibold text-gray-800 font-mono">{value ?? '—'}</p>
-      {sub && <p className="text-xs text-gray-400 mt-0.5">{sub}</p>}
+    <div className={`stat-card${accent ? ` accent-${accent}` : ''} ${className}`}>
+      {icon && (
+        <div className={`sc-icon ${accent || 'blue'}`}>
+          {icon}
+        </div>
+      )}
+      <div className="sl">{label}</div>
+      <div className="sv" style={valueColor ? { color: valueColor } : {}}>
+        {value}
+      </div>
+      {sub && <div className="ss">{sub}</div>}
+      {delta && (
+        <div className={`stat-delta ${delta.dir || 'neutral'}`}>
+          {delta.dir === 'up' && (
+            <svg width="9" height="9" viewBox="0 0 9 9" fill="none">
+              <path d="M4.5 8V1M1.5 4l3-3 3 3" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+          )}
+          {delta.dir === 'down' && (
+            <svg width="9" height="9" viewBox="0 0 9 9" fill="none">
+              <path d="M4.5 1v7M1.5 5l3 3 3-3" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+          )}
+          {delta.value}
+        </div>
+      )}
     </div>
   )
 }

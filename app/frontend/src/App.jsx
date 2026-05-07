@@ -8,6 +8,9 @@ import Evaluation from './pages/Evaluation'
 import Feedback from './pages/Feedback'
 import Settings from './pages/Settings'
 import Gateway from './pages/Gateway'
+import SystemHealth from './pages/SystemHealth'
+import HumanReview from './pages/HumanReview'
+import AuditLogs from './pages/AuditLogs'
 
 export default function App() {
   return (
@@ -21,6 +24,9 @@ export default function App() {
           <Route path="analytics" element={<Analytics />} />
           <Route path="evaluation" element={<Evaluation />} />
           <Route path="feedback" element={<Feedback />} />
+          <Route path="human-review" element={<HumanReview />} />
+          <Route path="system-health" element={<SystemHealth />} />
+          <Route path="audit" element={<AuditLogs />} />
           <Route path="settings" element={<Settings />} />
         </Route>
       </Routes>

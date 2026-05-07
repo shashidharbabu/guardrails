@@ -1,5 +1,8 @@
 import { useEffect, useState } from 'react'
+import PageHeader from '../components/PageHeader'
+import SectionHeader from '../components/SectionHeader'
 
+/* ─── Service health hook ────────────────────────────────────── */
 function useServiceHealth(url) {
   const [status, setStatus] = useState('checking')
   useEffect(() => {
@@ -10,52 +13,104 @@ function useServiceHealth(url) {
   return status
 }
 
-function StatusDot({ status }) {
-  const color =
-    status === 'ok'       ? 'var(--green)'  :
-    status === 'error'    ? 'var(--red)'    :
-    status === 'checking' ? 'var(--amber)'  : 'var(--text-muted)'
-  return (
-    <span style={{
-      display: 'inline-block', width: 7, height: 7, borderRadius: '50%',
-      background: color, marginRight: 6, flexShrink: 0,
-    }} />
-  )
-}
-
-function StatusLabel({ status }) {
-  const label =
-    status === 'ok'       ? 'running' :
-    status === 'error'    ? 'unreachable' :
-    status === 'checking' ? 'checking…'   : 'unknown'
-  const color =
-    status === 'ok'    ? 'var(--green)' :
-    status === 'error' ? 'var(--red)'   : 'var(--amber)'
-  return <span style={{ color, fontSize: '10px' }}>{label}</span>
-}
-
-function ThresholdRow({ label, defaultValue, color }) {
+/* ─── Threshold slider ───────────────────────────────────────── */
+function ThresholdRow({ label, defaultValue, color, hint }) {
   const [val, setVal] = useState(defaultValue)
   return (
-    <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', fontFamily: 'var(--font-mono)', marginBottom: '6px' }}>
-        <span style={{ color: 'var(--text-sec)' }}>{label}</span>
-        <span style={{ color }}>{val.toFixed(2)}</span>
+    <div className="slider-wrap">
+      <div className="slider-label">
+        <span className="slider-name">{label}</span>
+        <span className="slider-value" style={{ color }}>{val.toFixed(2)}</span>
       </div>
       <input
-        type="range" min="0" max="1" step="0.05"
+        type="range"
+        min="0" max="1" step="0.05"
         value={val}
         onChange={e => setVal(parseFloat(e.target.value))}
-        style={{ width: '100%', accentColor: color }}
+        className="slider"
+        style={{ accentColor: color.includes('red') ? 'var(--red)' : color.includes('green') ? 'var(--green)' : 'var(--blue)' }}
       />
+      {hint && <div className="slider-hint">{hint}</div>}
     </div>
   )
 }
 
+/* ─── KV detail row ──────────────────────────────────────────── */
+function KvRow({ label, value }) {
+  return (
+    <div className="lt-row">
+      <span className="lt-s">{label}</span>
+      <span className="lt-v" style={{ fontSize: 11, color: 'var(--teal-hi)', fontFamily: 'var(--font-mono)', textAlign: 'right', maxWidth: '55%', wordBreak: 'break-all' }}>
+        {value}
+      </span>
+    </div>
+  )
+}
+
+/* ─── Service integration row ────────────────────────────────── */
+function IntItem({ name, status, note }) {
+  const statusConfig = {
+    ok:       { dot: 'var(--green)',       label: 'Running',         cls: 'b-pass',   glow: '0 0 5px rgba(34,197,94,0.4)' },
+    error:    { dot: 'var(--red)',         label: 'Unreachable',     cls: 'b-block',  glow: 'none' },
+    checking: { dot: 'var(--amber)',       label: 'Checking…',       cls: 'b-esc',    glow: 'none' },
+    manual:   { dot: 'var(--text-muted)', label: note || 'Manual',  cls: 'b-gray',   glow: 'none' },
+  }
+  const cfg = statusConfig[status] || statusConfig.manual
+
+  return (
+    <div className="int-item">
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <div style={{
+          width: 7,
+          height: 7,
+          borderRadius: '50%',
+          background: cfg.dot,
+          flexShrink: 0,
+          boxShadow: cfg.glow,
+        }} />
+        <div className="int-name">{name}</div>
+      </div>
+      <div className="int-status">
+        <span className={`badge ${cfg.cls}`} style={{ fontSize: 10 }}>
+          {status === 'checking' ? (
+            <span className="pulsing">{cfg.label}</span>
+          ) : cfg.label}
+        </span>
+      </div>
+    </div>
+  )
+}
+
+/* ─── Config panel ───────────────────────────────────────────── */
+function ConfigPanel({ title, children, footer }) {
+  return (
+    <div className="panel">
+      <div className="panel-hdr">
+        <div className="panel-title">{title}</div>
+      </div>
+      <div className="panel-body">
+        {children}
+      </div>
+      {footer && (
+        <div style={{
+          padding: '10px 20px',
+          borderTop: '1px solid var(--border)',
+          fontSize: 11,
+          fontFamily: 'var(--font-ui)',
+          color: 'var(--text-muted)',
+          lineHeight: 1.7,
+        }}>
+          {footer}
+        </div>
+      )}
+    </div>
+  )
+}
+
+/* ─── Main page ──────────────────────────────────────────────── */
 export default function Settings() {
   const backendHealth = useServiceHealth('/api/health')
   const gatewayHealth = useServiceHealth('/api/gateway/health')
-
   const [gatewayConfig, setGatewayConfig] = useState(null)
 
   useEffect(() => {
@@ -67,86 +122,99 @@ export default function Settings() {
 
   return (
     <div>
-      <div className="ph">
-        <div className="pt">Settings</div>
-        <div className="ps">Thresholds · models · integrations</div>
-      </div>
+      <PageHeader
+        title="Settings"
+        sub="Routing thresholds · model configuration · service integrations · system overview"
+      />
 
-      <div className="two-col">
-        <div className="card">
-          <div className="sec-lbl">Routing thresholds</div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+      {/* ─── Gateway Configuration ──────────────── */}
+      <SectionHeader label="Gateway Configuration" />
+      <div className="settings-grid" style={{ marginBottom: 28 }}>
+        <ConfigPanel
+          title="Routing Thresholds"
+          footer={
+            <>
+              Composite score = PII×{gatewayConfig?.pii_weight ?? 0.3} + JB×{gatewayConfig?.jailbreak_weight ?? 0.4} + PI×{gatewayConfig?.injection_weight ?? 0.3}.
+              {' '}For per-validator control, use{' '}
+              <a href="/gateway" style={{ color: 'var(--blue-hi)', textDecoration: 'none' }}>
+                Gateway → Model Config
+              </a>.
+            </>
+          }
+        >
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
             <ThresholdRow
               label="Pass threshold"
-              defaultValue={gatewayConfig?.pass_threshold ?? 0.30}
-              color="var(--green)"
+              defaultValue={gatewayConfig?.thresholds?.pass_threshold ?? 0.30}
+              color="var(--green-hi)"
+              hint="Composite score below this → PASS"
             />
             <ThresholdRow
               label="Block threshold"
-              defaultValue={gatewayConfig?.block_threshold ?? 0.70}
-              color="var(--red)"
+              defaultValue={gatewayConfig?.thresholds?.block_threshold ?? 0.70}
+              color="var(--red-hi)"
+              hint="Composite score above this → BLOCK"
             />
-            <div style={{ fontSize: '11px', fontFamily: 'var(--font-mono)', color: 'var(--text-muted)', padding: '8px', background: 'var(--bg-surface)', borderRadius: '4px', border: '1px solid var(--border)' }}>
-              Composite: PII×{gatewayConfig?.pii_weight ?? 0.3} + JB×{gatewayConfig?.jailbreak_weight ?? 0.4} + PI×{gatewayConfig?.injection_weight ?? 0.3}
-            </div>
           </div>
-        </div>
+        </ConfigPanel>
 
-        <div className="card">
-          <div className="sec-lbl">Integrations</div>
-          <div className="lat-tbl">
-            <div className="lt-row">
-              <span className="lt-s" style={{ display: 'flex', alignItems: 'center' }}>
-                <StatusDot status={gatewayHealth} />Gateway FastAPI (:8080)
-              </span>
-              <StatusLabel status={gatewayHealth} />
-            </div>
-            <div className="lt-row">
-              <span className="lt-s" style={{ display: 'flex', alignItems: 'center' }}>
-                <StatusDot status={backendHealth} />App Backend (:8000)
-              </span>
-              <StatusLabel status={backendHealth} />
-            </div>
-            <div className="lt-row">
-              <span className="lt-s">Ollama (local :11434)</span>
-              <span style={{ color: 'var(--text-muted)', fontSize: '10px' }}>not checked</span>
-            </div>
-            <div className="lt-row">
-              <span className="lt-s">Qdrant Cloud (GCP)</span>
-              <span style={{ color: 'var(--text-muted)', fontSize: '10px' }}>key required</span>
-            </div>
-            <div className="lt-row">
-              <span className="lt-s">Langfuse</span>
-              <span style={{ color: 'var(--text-muted)', fontSize: '10px' }}>not configured</span>
-            </div>
-          </div>
-        </div>
+        <ConfigPanel title="Service Integrations">
+          <IntItem name="App Backend (:8000)"           status={backendHealth} />
+          <IntItem name="Gateway FastAPI (:8080)"       status={gatewayHealth} />
+          <IntItem name="Ollama (local :11434)"         status="manual" note="Not checked" />
+          <IntItem name="Qdrant Cloud (GCP us-east4)"   status="manual" note="Key required" />
+          <IntItem name="Langfuse"                      status="manual" note="Not configured" />
+        </ConfigPanel>
       </div>
 
-      <div className="two-col" style={{ marginTop: '14px' }}>
-        <div className="card">
-          <div className="sec-lbl">Active models</div>
+      {/* ─── System Overview ────────────────────── */}
+      <SectionHeader label="System Overview" />
+      <div className="settings-grid">
+        <ConfigPanel title="Active Models">
           <div className="lat-tbl">
-            <div className="lt-row"><span className="lt-s">PII detection</span><span className="lt-v" style={{ fontSize: '10px' }}>shashidharbabu/deberta-pii-guardrails</span></div>
-            <div className="lt-row"><span className="lt-s">Jailbreak</span><span className="lt-v" style={{ fontSize: '10px' }}>shashidharbabu/roberta-jailbreak-guardrails</span></div>
-            <div className="lt-row"><span className="lt-s">Prompt injection</span><span className="lt-v" style={{ fontSize: '10px' }}>shashidharbabu/llama-prompt-guard-guardrails</span></div>
-            <div className="lt-row"><span className="lt-s">Embedder</span><span className="lt-v" style={{ fontSize: '10px' }}>nvidia/llama-embed-nemotron-8b</span></div>
-            <div className="lt-row"><span className="lt-s">LLM</span><span className="lt-v" style={{ fontSize: '10px' }}>qwen2.5:7b (Ollama)</span></div>
-            <div className="lt-row"><span className="lt-s">MAD agents</span><span className="lt-v" style={{ fontSize: '10px' }}>qwen2.5:7b (Ollama)</span></div>
+            <KvRow label="PII detection"    value="shashidharbabu/deberta-pii-guardrails" />
+            <KvRow label="Jailbreak"        value="shashidharbabu/roberta-jailbreak-guardrails" />
+            <KvRow label="Prompt injection" value="shashidharbabu/llama-prompt-guard-guardrails" />
+            <KvRow label="Embedder"         value="nvidia/llama-embed-nemotron-8b" />
+            <KvRow label="LLM"             value="qwen2.5:7b (Ollama)" />
+            <KvRow label="MAD agents"       value="qwen2.5:7b (Ollama)" />
           </div>
-        </div>
+        </ConfigPanel>
 
-        <div className="card">
-          <div className="sec-lbl">System</div>
+        <ConfigPanel title="Infrastructure">
           <div className="lat-tbl">
-            <div className="lt-row"><span className="lt-s">Database</span><span className="lt-v" style={{ fontSize: '10px' }}>SQLite (app_sessions.db)</span></div>
-            <div className="lt-row"><span className="lt-s">Vector store</span><span className="lt-v" style={{ fontSize: '10px' }}>Qdrant Cloud · GCP us-east4</span></div>
-            <div className="lt-row"><span className="lt-s">Corpus chunks</span><span className="lt-v" style={{ fontSize: '10px' }}>4,664</span></div>
-            <div className="lt-row"><span className="lt-s">Collection</span><span className="lt-v" style={{ fontSize: '10px' }}>ai_governance_chunks_nemotron8b</span></div>
-            <div className="lt-row"><span className="lt-s">Embed dim</span><span className="lt-v" style={{ fontSize: '10px' }}>4096 (Nemotron-8B)</span></div>
-            <div className="lt-row"><span className="lt-s">Similarity</span><span className="lt-v" style={{ fontSize: '10px' }}>cosine · HNSW</span></div>
+            <KvRow label="Database"       value="SQLite (app_sessions.db)" />
+            <KvRow label="Vector store"   value="Qdrant Cloud · GCP us-east4" />
+            <KvRow label="Corpus chunks"  value="4,664" />
+            <KvRow label="Collection"     value="ai_governance_chunks_nemotron8b" />
+            <KvRow label="Embed dim"      value="4096 (Nemotron-8B)" />
+            <KvRow label="Similarity"     value="cosine · HNSW" />
           </div>
-        </div>
+        </ConfigPanel>
+      </div>
+
+      {/* ─── Pipeline Config ────────────────────── */}
+      <SectionHeader label="Pipeline Configuration" />
+      <div className="settings-grid">
+        <ConfigPanel title="MAD Debate Settings">
+          <div className="lat-tbl">
+            <KvRow label="Cycles"         value="2 (configurable)" />
+            <KvRow label="Agent A"        value="qwen2.5:7b" />
+            <KvRow label="Agent B"        value="qwen2.5:7b" />
+            <KvRow label="Judge model"    value="qwen2.5:7b" />
+            <KvRow label="Routing"        value="DELIVER · RETRY · HARD_BLOCK · HUMAN_REVIEW" />
+          </div>
+        </ConfigPanel>
+
+        <ConfigPanel title="RAG Settings">
+          <div className="lat-tbl">
+            <KvRow label="Top-K"          value="5 chunks" />
+            <KvRow label="Score threshold" value="0.35 cosine" />
+            <KvRow label="Domain"         value="AI governance · compliance" />
+            <KvRow label="Corpus tiers"   value="T0 (security) · T1-T3 (regulation)" />
+            <KvRow label="Index"          value="HNSW" />
+          </div>
+        </ConfigPanel>
       </div>
     </div>
   )

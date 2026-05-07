@@ -1,16 +1,17 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
+import { motion, useReducedMotion } from 'framer-motion'
 import { getSessions, submitFeedback } from '../api/client'
+import PageHeader from '../components/PageHeader'
+import SectionHeader from '../components/SectionHeader'
+import EmptyState, { InboxClearIcon, ErrorState } from '../components/EmptyState'
+import LoadingSkeleton from '../components/LoadingSkeleton'
+import StatusBadge from '../components/StatusBadge'
 
-function piiScore(s) {
-  return s.gateway_payload?.scores?.pii ?? s.gateway_payload?.pii_score ?? 0
-}
-function jbScore(s) {
-  return s.gateway_payload?.scores?.jailbreak ?? s.gateway_payload?.jailbreak_score ?? 0
-}
-function piScore(s) {
-  return s.gateway_payload?.scores?.prompt_injection ?? s.gateway_payload?.injection_score ?? 0
-}
+/* ─── Score helpers ──────────────────────────────────────────── */
+function piiScore(s) { return s.gateway_payload?.scores?.pii ?? s.gateway_payload?.pii_score ?? 0 }
+function jbScore(s)  { return s.gateway_payload?.scores?.jailbreak ?? s.gateway_payload?.jailbreak_score ?? 0 }
+function piScore(s)  { return s.gateway_payload?.scores?.prompt_injection ?? s.gateway_payload?.injection_score ?? 0 }
 
 function timeSince(iso) {
   const diff = Date.now() - new Date(iso).getTime()
@@ -21,10 +22,45 @@ function timeSince(iso) {
   return hrs < 24 ? `${hrs}h ago` : `${Math.floor(hrs / 24)}d ago`
 }
 
+/* ─── Queue stat card ───────────────────────────────────────── */
+function QueueStatCard({ title, children }) {
+  return (
+    <div className="panel" style={{ marginBottom: 12 }}>
+      <div className="panel-hdr">
+        <div className="panel-title">{title}</div>
+      </div>
+      <div className="panel-body">
+        {children}
+      </div>
+    </div>
+  )
+}
+
+function StatRow({ label, value, color }) {
+  return (
+    <div style={{
+      display: 'flex',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      padding: '7px 0',
+      borderBottom: '1px solid var(--border)',
+      fontSize: 13,
+      fontFamily: 'var(--font-ui)',
+    }}>
+      <span style={{ color: 'var(--text-sec)' }}>{label}</span>
+      <span style={{ color: color || 'var(--text-primary)', fontWeight: 600, fontFamily: 'var(--font-mono)' }}>
+        {value}
+      </span>
+    </div>
+  )
+}
+
+/* ─── Individual feedback card ───────────────────────────────── */
 function FbItem({ item, onMark }) {
   const [marked, setMarked] = useState(null)
   const [note, setNote]     = useState('')
   const [saving, setSaving] = useState(false)
+  const shouldReduceMotion  = useReducedMotion()
 
   const pii  = piiScore(item)
   const jb   = jbScore(item)
@@ -32,7 +68,6 @@ function FbItem({ item, onMark }) {
   const comp = item.gateway_score
 
   const itemClass = item.gateway_decision === 'BLOCK' ? 'fb-item fb-block' : 'fb-item fb-esc'
-  const decBadge  = item.gateway_decision === 'BLOCK' ? 'b-block' : 'b-esc'
 
   async function handleMark(label) {
     setMarked(label)
@@ -49,45 +84,77 @@ function FbItem({ item, onMark }) {
     }
   }
 
+  if (marked) {
+    return (
+      <motion.div
+        className={itemClass}
+        initial={shouldReduceMotion ? false : { opacity: 1 }}
+        exit={shouldReduceMotion ? {} : { opacity: 0, height: 0, marginBottom: 0, overflow: 'hidden' }}
+        transition={{ duration: 0.25 }}
+        style={{ borderLeftColor: marked === 'c' ? 'var(--green)' : 'var(--text-muted)', opacity: 0.5 }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontFamily: 'var(--font-ui)', fontSize: 12 }}>
+          <span className={marked === 'c' ? 'badge b-pass' : 'badge b-gray'}>
+            {marked === 'c' ? '✓ Confirmed correct' : '✕ Marked false positive'}
+          </span>
+          <span style={{ color: 'var(--text-muted)' }}>{item.query.slice(0, 60)}…</span>
+        </div>
+      </motion.div>
+    )
+  }
+
   return (
     <div className={itemClass}>
       <div className="fb-top">
         <div className="fb-q">{item.query}</div>
         <div className="fb-bd">
-          <span className={`badge ${decBadge}`}>{item.gateway_decision}</span>
+          <StatusBadge type="decision" value={item.gateway_decision} />
           {item.mad_routing && (
-            <span className="badge b-gray">MAD: {item.mad_routing}</span>
+            <StatusBadge type="mad" value={item.mad_routing} />
           )}
-          <span className="badge b-gray" style={{ color: 'var(--text-muted)' }}>{timeSince(item.created_at)}</span>
+          <span style={{ fontSize: 11, fontFamily: 'var(--font-ui)', color: 'var(--text-muted)', marginTop: 2 }}>
+            {timeSince(item.created_at)}
+          </span>
         </div>
       </div>
+
       <div className="fb-r">
-        Composite {comp.toFixed(2)} · gateway score in {item.gateway_decision === 'BLOCK' ? 'block' : 'escalation'} zone
+        Composite score {comp.toFixed(2)} · {item.gateway_decision === 'BLOCK' ? 'block' : 'escalation'} zone
       </div>
-      <div style={{ display: 'flex', gap: '4px', marginBottom: '10px' }}>
+
+      <div style={{ display: 'flex', gap: 4, marginBottom: 12, flexWrap: 'wrap' }}>
         <span className="sc">PII {pii.toFixed(2)}</span>
         <span className="sc">JB {jb.toFixed(2)}</span>
         <span className="sc">PI {pi.toFixed(2)}</span>
-        <span className="sc">∑ {comp.toFixed(2)}</span>
+        <span className="sc" style={{ fontWeight: 600, color: 'var(--text-primary)' }}>∑ {comp.toFixed(2)}</span>
       </div>
+
       <div className="fb-acts">
         <button
+          type="button"
           className={`fb-btn${marked === 'c' ? ' correct' : ''}`}
           onClick={() => handleMark('c')}
           disabled={!!marked || saving}
         >
-          ✓ Correct
+          <svg width="11" height="11" viewBox="0 0 11 11" fill="none" style={{ marginRight: 4 }}>
+            <path d="M1.5 5.5l3 3 5-5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
+          Confirmed correct
         </button>
         <button
+          type="button"
           className={`fb-btn${marked === 'f' ? ' fp' : ''}`}
           onClick={() => handleMark('f')}
           disabled={!!marked || saving}
         >
-          ✕ False positive
+          <svg width="11" height="11" viewBox="0 0 11 11" fill="none" style={{ marginRight: 4 }}>
+            <path d="M2 2l7 7M9 2L2 9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+          </svg>
+          False positive
         </button>
         <input
           className="fb-note"
-          placeholder="Add analyst note..."
+          placeholder="Add analyst note…"
           value={note}
           onChange={e => setNote(e.target.value)}
           disabled={!!marked}
@@ -100,13 +167,16 @@ function FbItem({ item, onMark }) {
   )
 }
 
+/* ─── Main page ──────────────────────────────────────────────── */
 export default function Feedback() {
-  const [sessions, setSessions] = useState([])
-  const [loading, setLoading]   = useState(true)
-  const [error, setError]       = useState(null)
-  const [resolved, setResolved] = useState([])
+  const [sessions, setSessions]   = useState([])
+  const [loading, setLoading]     = useState(true)
+  const [error, setError]         = useState(null)
+  const [resolved, setResolved]   = useState([])
 
-  useEffect(() => {
+  function load() {
+    setLoading(true)
+    setError(null)
     getSessions()
       .then(all => {
         const queue = all.filter(s =>
@@ -116,54 +186,86 @@ export default function Feedback() {
       })
       .catch(e => setError(e.message))
       .finally(() => setLoading(false))
-  }, [])
+  }
+
+  useEffect(() => { load() }, [])
 
   function handleMark(id, label) {
     setResolved(r => [...r, { id, label }])
     setSessions(prev => prev.filter(s => s.id !== id))
   }
 
-  const confirmed   = resolved.filter(r => r.label === 'c').length
-  const falsePos    = resolved.filter(r => r.label === 'f').length
-  const fpRate      = resolved.length ? ((falsePos / resolved.length) * 100).toFixed(0) : '—'
+  const confirmed = resolved.filter(r => r.label === 'c').length
+  const falsePos  = resolved.filter(r => r.label === 'f').length
+  const fpRate    = resolved.length ? ((falsePos / resolved.length) * 100).toFixed(0) : '—'
+  const blocked   = sessions.filter(s => s.gateway_decision === 'BLOCK').length
+  const escalated = sessions.filter(s => s.gateway_decision === 'ESCALATE').length
 
   return (
     <div>
-      <div className="ph">
-        <div className="pt">Feedback</div>
-        <div className="ps">Analyst review queue · escalated and blocked sessions for human review</div>
-      </div>
+      <PageHeader
+        title="Review Queue"
+        sub="Human analyst review — blocked and escalated sessions pending disposition"
+        actions={
+          sessions.length > 0 && !loading && (
+            <span className="badge b-esc" style={{ fontSize: 11 }}>
+              {sessions.length} pending
+            </span>
+          )
+        }
+      />
 
       <div className="fb-layout">
+        {/* ── Queue ─────────────────────────────── */}
         <div>
-          {loading && (
-            <div style={{ textAlign: 'center', padding: '40px', fontFamily: 'var(--font-mono)', fontSize: '12px', color: 'var(--text-muted)' }}>
-              Loading review queue…
-            </div>
-          )}
+          {loading && <LoadingSkeleton type="cards" count={3} />}
+
           {error && (
-            <div style={{ padding: '12px', background: 'var(--red-dim)', border: '1px solid var(--red-mid)', borderRadius: '6px', fontFamily: 'var(--font-mono)', fontSize: '12px', color: 'var(--red)' }}>
-              {error}
-            </div>
+            <ErrorState
+              title="Failed to load review queue"
+              message={error}
+              onRetry={load}
+            />
           )}
+
           {!loading && !error && (
             <>
-              <div className="sec-lbl">Pending review · {sessions.length} items</div>
+              <SectionHeader label="Pending Review" count={sessions.length} />
+
               {sessions.length === 0 ? (
-                <div style={{ padding: '20px', textAlign: 'center', fontFamily: 'var(--font-mono)', fontSize: '12px', color: 'var(--text-muted)' }}>
-                  No sessions pending review. Submit a query from New Query to populate this queue.
+                <div className="panel" style={{ marginTop: 4 }}>
+                  <EmptyState
+                    icon={<InboxClearIcon />}
+                    title="Review queue is clear"
+                    description="No sessions pending review. Submit queries from Test Query — blocked or escalated sessions will appear here."
+                  />
                 </div>
               ) : (
-                sessions.map(item => (
-                  <FbItem key={item.id} item={item} onMark={handleMark} />
-                ))
+                <div style={{ display: 'flex', flexDirection: 'column' }}>
+                  {sessions.map(item => (
+                    <FbItem key={item.id} item={item} onMark={handleMark} />
+                  ))}
+                </div>
               )}
 
               {resolved.length > 0 && (
-                <div style={{ marginTop: '20px' }}>
-                  <div className="sec-lbl">Resolved this session · {resolved.length} items</div>
-                  <div className="card-sm" style={{ fontSize: '12px', fontFamily: 'var(--font-mono)', color: 'var(--text-sec)', textAlign: 'center' }}>
-                    {confirmed} confirmed correct &nbsp;·&nbsp; {falsePos} false positive
+                <div style={{ marginTop: 24 }}>
+                  <SectionHeader label="Resolved This Session" count={resolved.length} />
+                  <div
+                    className="panel"
+                    style={{ display: 'flex', gap: 20, padding: '14px 18px', flexWrap: 'wrap' }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <span className="badge b-pass">{confirmed} confirmed</span>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <span className="badge b-block">{falsePos} false positive{falsePos !== 1 ? 's' : ''}</span>
+                    </div>
+                    {resolved.length > 0 && (
+                      <div style={{ marginLeft: 'auto', fontSize: 12, fontFamily: 'var(--font-ui)', color: 'var(--text-sec)' }}>
+                        FP rate this session: <strong style={{ fontFamily: 'var(--font-mono)' }}>{fpRate}{resolved.length ? '%' : ''}</strong>
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
@@ -171,25 +273,49 @@ export default function Feedback() {
           )}
         </div>
 
+        {/* ── Sidebar ───────────────────────────── */}
         <div>
-          <div className="card" style={{ marginBottom: '12px' }}>
-            <div className="ts-title">Review stats</div>
-            <div className="lat-tbl">
-              <div className="lt-row"><span className="lt-s">Pending</span><span className="lt-v" style={{ color: 'var(--amber)' }}>{sessions.length}</span></div>
-              <div className="lt-row"><span className="lt-s">Confirmed</span><span className="lt-v" style={{ color: 'var(--green)' }}>{confirmed}</span></div>
-              <div className="lt-row"><span className="lt-s">False positives</span><span className="lt-v" style={{ color: 'var(--red)' }}>{falsePos}</span></div>
-              <div className="lt-row"><span className="lt-s">FP rate</span><span className="lt-v">{fpRate}{resolved.length ? '%' : ''}</span></div>
-            </div>
-          </div>
+          <QueueStatCard title="Queue Summary">
+            <StatRow label="Pending total"  value={sessions.length} color={sessions.length > 0 ? 'var(--amber-hi)' : 'var(--green-hi)'} />
+            <StatRow label="Blocked"        value={blocked}   color={blocked > 0 ? 'var(--red-hi)' : 'var(--text-primary)'} />
+            <StatRow label="Escalated"      value={escalated} color={escalated > 0 ? 'var(--amber-hi)' : 'var(--text-primary)'} />
+          </QueueStatCard>
 
-          <div className="card">
-            <div className="ts-title">Feedback → training</div>
-            <div style={{ fontSize: '11px', fontFamily: 'var(--font-mono)', color: 'var(--text-muted)', lineHeight: 1.7, marginBottom: '12px' }}>
-              Marking a decision as "False positive" logs it to the synthetic eval dataset for gateway retraining.
+          <QueueStatCard title="Session Progress">
+            <StatRow label="Confirmed correct"  value={confirmed} color={confirmed > 0 ? 'var(--green-hi)' : 'var(--text-primary)'} />
+            <StatRow label="False positives"    value={falsePos}  color={falsePos > 0 ? 'var(--red-hi)' : 'var(--text-primary)'} />
+            <StatRow label="FP rate"            value={resolved.length ? `${fpRate}%` : '—'} />
+          </QueueStatCard>
+
+          <div className="panel">
+            <div className="panel-hdr">
+              <div className="panel-title">Feedback → Training</div>
             </div>
-            <div className="ph-card" style={{ padding: '10px' }}>
-              <div style={{ fontSize: '11px', fontFamily: 'var(--font-mono)', color: 'var(--text-sec)' }}>FP cases ready for export</div>
-              <div style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', color: 'var(--text-muted)', marginTop: '3px' }}>{falsePos} case{falsePos !== 1 ? 's' : ''} this session</div>
+            <div className="panel-body">
+              <div style={{ fontSize: 12, fontFamily: 'var(--font-ui)', color: 'var(--text-sec)', lineHeight: 1.7, marginBottom: 14 }}>
+                Marking a decision as "False positive" logs it to the synthetic eval dataset for gateway retraining.
+              </div>
+              <div style={{
+                padding: '10px 14px',
+                background: 'var(--bg-surface)',
+                border: '1px solid var(--border)',
+                borderRadius: 'var(--r-md)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+              }}>
+                <div style={{ fontSize: 12, fontFamily: 'var(--font-ui)', color: 'var(--text-sec)' }}>
+                  FP cases ready
+                </div>
+                <div style={{
+                  fontFamily: 'var(--font-mono)',
+                  fontSize: 18,
+                  fontWeight: 700,
+                  color: falsePos > 0 ? 'var(--red-hi)' : 'var(--text-muted)',
+                }}>
+                  {falsePos}
+                </div>
+              </div>
             </div>
           </div>
         </div>

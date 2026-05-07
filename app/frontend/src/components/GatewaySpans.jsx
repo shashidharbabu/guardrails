@@ -5,41 +5,67 @@ export default function GatewaySpans({ payload, decision }) {
   if (!payload) return null
 
   const {
-    threat_score = 0,
-    pii_score = 0,
+    threat_score    = 0,
+    pii_score       = 0,
     jailbreak_score = 0,
     injection_score = 0,
-    entities = [],
+    entities        = [],
   } = payload
 
   return (
-    <div className="space-y-4">
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
       {/* Decision + scores */}
-      <div className="bg-white rounded-xl border border-gray-200 p-4">
-        <div className="flex items-center justify-between mb-4">
-          <p className="text-xs tracking-widest uppercase text-gray-400">Gateway Decision</p>
+      <div className="panel">
+        <div className="panel-hdr">
+          <div className="panel-title">Gateway Decision</div>
           <Badge value={decision} />
         </div>
-        <div className="space-y-2">
-          <ScoreBar label="Threat (overall)" value={threat_score} colorMode="threat" />
-          <ScoreBar label="PII" value={pii_score} colorMode="threat" />
-          <ScoreBar label="Jailbreak" value={jailbreak_score} colorMode="threat" />
-          <ScoreBar label="Prompt inject" value={injection_score} colorMode="threat" />
+        <div className="panel-body">
+          <div className="score-block">
+            <ScoreBar label="Threat (overall)"  value={threat_score}    colorMode="semantic" />
+            <ScoreBar label="PII"               value={pii_score}       colorMode="fixed" color="var(--blue)" />
+            <ScoreBar label="Jailbreak"         value={jailbreak_score} colorMode="fixed" color="var(--pink)" />
+            <ScoreBar label="Prompt injection"  value={injection_score} colorMode="fixed" color="var(--amber)" />
+          </div>
         </div>
       </div>
 
       {/* PII entities */}
       {entities.length > 0 && (
-        <div className="bg-white rounded-xl border border-gray-200 p-4">
-          <p className="text-xs tracking-widest uppercase text-gray-400 mb-3">Detected Entities</p>
-          <div className="flex flex-wrap gap-2">
+        <div className="panel">
+          <div className="panel-hdr">
+            <div className="panel-title">Detected Entities</div>
+            <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--text-muted)' }}>
+              {entities.length} found
+            </span>
+          </div>
+          <div className="panel-body" style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
             {entities.map((ent, i) => (
               <div
                 key={i}
-                className="bg-amber-50 border border-amber-200 rounded-lg px-2.5 py-1.5"
+                style={{
+                  background: 'var(--amber-dim)',
+                  border: '1px solid var(--amber-mid)',
+                  borderRadius: 'var(--r-md)',
+                  padding: '5px 10px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6,
+                }}
               >
-                <span className="text-xs font-mono text-amber-800 font-semibold">{ent.type}</span>
-                <span className="text-xs text-amber-600 ml-1.5">{ent.text}</span>
+                <span style={{
+                  fontFamily: 'var(--font-mono)',
+                  fontSize: 9,
+                  fontWeight: 700,
+                  color: 'var(--amber-hi)',
+                  letterSpacing: '0.06em',
+                  textTransform: 'uppercase',
+                }}>
+                  {ent.type}
+                </span>
+                <span style={{ fontFamily: 'var(--font-ui)', fontSize: 11, color: 'var(--amber-hi)', opacity: 0.8 }}>
+                  {ent.text}
+                </span>
               </div>
             ))}
           </div>

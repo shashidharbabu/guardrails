@@ -1,29 +1,49 @@
 export default function RAGSpans({ evidencePool = [] }) {
   if (!evidencePool.length) {
     return (
-      <div className="bg-white rounded-xl border border-gray-200 p-4 text-xs text-gray-400">
+      <div style={{
+        border: '1px solid var(--border)',
+        borderRadius: 'var(--r-lg)',
+        padding: 16,
+        background: 'var(--bg-card)',
+        fontFamily: 'var(--font-ui)',
+        fontSize: 12,
+        color: 'var(--text-muted)',
+      }}>
         No evidence retrieved.
       </div>
     )
   }
 
   return (
-    <div className="bg-white rounded-xl border border-gray-200 p-4">
-      <p className="text-xs tracking-widest uppercase text-gray-400 mb-3">
-        Evidence Pool ({evidencePool.length} chunks)
-      </p>
-      <div className="space-y-3">
+    <div className="panel">
+      <div className="panel-hdr">
+        <div className="panel-title">Evidence Pool</div>
+        <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--text-muted)' }}>
+          {evidencePool.length} chunk{evidencePool.length !== 1 ? 's' : ''}
+        </span>
+      </div>
+      <div className="panel-body" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
         {evidencePool.map((chunk, i) => (
-          <div key={chunk.chunk_id ?? i} className="border border-gray-100 rounded-lg p-3">
-            <div className="flex items-start justify-between gap-2 mb-1.5">
-              <p className="text-xs font-mono text-blue-600 truncate">{chunk.source}</p>
-              <span className="shrink-0 text-xs font-mono text-gray-400">
-                {chunk.relevance_score != null
-                  ? `${(chunk.relevance_score * 100).toFixed(0)}% rel`
-                  : ''}
-              </span>
+          <div key={chunk.chunk_id ?? i} style={{
+            border: '1px solid var(--border)',
+            borderRadius: 'var(--r-md)',
+            padding: '10px 12px',
+            background: 'var(--bg-base)',
+          }}>
+            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8, marginBottom: 6 }}>
+              <p style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--blue-hi)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
+                {chunk.source}
+              </p>
+              {chunk.relevance_score != null && (
+                <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--text-muted)', flexShrink: 0 }}>
+                  {(chunk.relevance_score * 100).toFixed(0)}% rel
+                </span>
+              )}
             </div>
-            <p className="text-xs text-gray-600 leading-relaxed">{chunk.text}</p>
+            <p style={{ fontFamily: 'var(--font-ui)', fontSize: 12, color: 'var(--text-sec)', lineHeight: 1.6 }}>
+              {chunk.text}
+            </p>
           </div>
         ))}
       </div>
