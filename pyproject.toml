@@ -1,54 +1,112 @@
 [build-system]
-requires = ["setuptools>=68", "wheel"]
-build-backend = "setuptools.backends.legacy:build"
+requires = ["setuptools>=61", "wheel"]
+build-backend = "setuptools.build_meta"
 
+# ──────────────────────────────────────────────────────────────────────────────
+# Project metadata
+# ──────────────────────────────────────────────────────────────────────────────
 [project]
 name = "guardrails-enterprise"
 version = "0.2.0"
-description = "Model-agnostic three-layer enterprise AI guardrail system: input gateway (PII/jailbreak/prompt-injection) + RAG evidence retrieval + MAD output verification."
+description = "Enterprise AI guardrails: input gateway, multi-agent debate output verification, confidence scoring, and RAG pipeline — all in one SDK."
 readme = "README.md"
-requires-python = ">=3.11"
+requires-python = ">=3.9"
 license = { text = "MIT" }
-authors = [
-  { name = "SJSU CS298B Team 3" }
+keywords = [
+    "guardrails", "llm", "enterprise", "rag", "multi-agent",
+    "confidence-scoring", "hallucination", "pii", "prompt-injection",
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "License :: OSI Approved :: MIT License",
 ]
 
+# ── Core dependencies (always installed) ─────────────────────────────────────
+# Kept minimal: only what the public API actually needs at import time.
+# Heavy ML deps live in optional extras below.
 dependencies = [
-  "httpx>=0.27",
-  "pydantic>=2.7",
-  "python-dotenv>=1.0",
+    "httpx>=0.27",
+    "requests>=2.31",
+    "python-dotenv>=1.0",
+    "pydantic>=2.0",
 ]
 
+# ── Optional dependency groups ────────────────────────────────────────────────
 [project.optional-dependencies]
-# Full stack (app backend + gateway + MAD)
-full = [
-  "fastapi>=0.115",
-  "uvicorn[standard]>=0.30",
-  "guardrails-ai>=0.5",
-  "transformers>=4.41",
-  "torch>=2.3",
-  "openai>=1.30",
-  "aiosqlite>=0.20",
-]
-# Development / testing
-dev = [
-  "pytest>=8.0",
-  "pytest-asyncio>=0.23",
-  "httpx>=0.27",
-  "ruff>=0.4",
+
+# Input guardrail — PII / jailbreak / prompt-injection validators
+gateway = [
+    "guardrails-ai>=0.5",
+    "transformers>=4.40",
+    "torch>=2.2",
+    "spacy>=3.7",
 ]
 
-[tool.setuptools.packages.find]
-where = [".", "rag_folder"]
-include = ["guardrails_enterprise*", "rag*"]
+# RAG pipeline — Qdrant retrieval + Nvidia embedding model
+rag = [
+    "qdrant-client>=1.9",
+    "transformers>=4.40",
+    "torch>=2.2",
+    "huggingface-hub>=0.23",
+]
 
-[tool.ruff]
-line-length = 100
-target-version = "py311"
+# Confidence scoring with DeepEval LLM judge
+eval = [
+    "deepeval>=3.0",
+]
 
-[tool.ruff.lint]
-select = ["E", "F", "W", "I"]
-ignore = ["E501"]
+# Everything — full library mode (no servers needed except Ollama)
+all = [
+    "guardrails-ai>=0.5",
+    "transformers>=4.40",
+    "torch>=2.2",
+    "spacy>=3.7",
+    "qdrant-client>=1.9",
+    "huggingface-hub>=0.23",
+    "deepeval>=3.0",
+    "ragas>=0.1",
+]
 
-[tool.pytest.ini_options]
-asyncio_mode = "auto"
+[project.urls]
+Homepage   = "https://github.com/shashidharbabu/guardrails-enterprise"
+Repository = "https://github.com/shashidharbabu/guardrails-enterprise"
+Issues     = "https://github.com/shashidharbabu/guardrails-enterprise/issues"
+
+# ── CLI entry points ──────────────────────────────────────────────────────────
+[project.scripts]
+guardrails-run = "guardrails_enterprise.cli:main"
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Package discovery
+# ──────────────────────────────────────────────────────────────────────────────
+[tool.setuptools]
+# Include non-Python data files (model configs, etc.)
+include-package-data = true
+# Explicitly enumerate every package that ships in the wheel.
+# Using an explicit list (not find) avoids accidental inclusion of the
+# source directory structure from the package-dir mapping.
+packages = [
+    # Public SDK
+    "guardrails_enterprise",
+    # Bundled internal packages
+    "gateway",
+    "gateway.validators",
+    "gateway.tests",
+    "confidence",
+    "multi_agent",  # remapped from multi_agent_debate/multi_agent/ via package-dir
+]
+
+# multi_agent in the wheel maps to multi_agent_debate/multi_agent/ on disk.
+# pip install resolves this transparently — `from multi_agent.X import Y` works.
+[tool.setuptools.package-dir]
+"multi_agent" = "multi_agent_debate/multi_agent"
+
+[tool.setuptools.package-data]
+"*" = ["*.json", "*.yaml", "*.yml", "*.txt", "py.typed"]

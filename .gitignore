@@ -47,6 +47,8 @@ data/
 *.parquet
 *.jsonl
 !config/*.yaml
+!rlhf/data/
+!rlhf/data/*.json
 
 # Node.js / Frontend
 node_modules/
@@ -55,3 +57,6 @@ dist/
 app/frontend/.env.local
 
 .env
+dist/
+build/
+*.egg-info/
