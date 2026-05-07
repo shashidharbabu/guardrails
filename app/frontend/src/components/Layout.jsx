@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { NavLink, Outlet, useLocation } from 'react-router-dom'
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion'
+import CopilotPanel from './CopilotPanel'
 
 const NAV = [
   {
@@ -109,10 +110,32 @@ const NAV = [
   },
 ]
 
+function derivePageName(pathname) {
+  if (pathname === '/') return 'conversations'
+  if (pathname.startsWith('/sessions/')) return 'session_trace'
+  if (pathname === '/analytics') return 'analytics'
+  if (pathname === '/human-review') return 'human_review'
+  if (pathname === '/audit') return 'audit_logs'
+  if (pathname === '/system-health') return 'system_health'
+  if (pathname === '/gateway') return 'gateway'
+  if (pathname === '/feedback') return 'feedback'
+  if (pathname === '/evaluation') return 'evaluation'
+  if (pathname === '/new') return 'test_query'
+  if (pathname === '/settings') return 'settings'
+  return 'unknown'
+}
+
 export default function Layout() {
   const [clock, setClock] = useState('')
+  const [copilotOpen, setCopilotOpen] = useState(false)
   const location = useLocation()
   const shouldReduceMotion = useReducedMotion()
+
+  const sessionIdMatch = location.pathname.match(/^\/sessions\/([^/]+)$/)
+  const pageContext = {
+    page: derivePageName(location.pathname),
+    session_id: sessionIdMatch ? sessionIdMatch[1] : undefined,
+  }
 
   useEffect(() => {
     const tick = () =>
@@ -221,6 +244,36 @@ export default function Layout() {
           </motion.div>
         </AnimatePresence>
       </main>
+
+      {/* ─── Co-pilot FAB ────────────────────────────────────── */}
+      <button
+        type="button"
+        className={`copilot-fab${copilotOpen ? ' copilot-fab-open' : ''}`}
+        onClick={() => setCopilotOpen(o => !o)}
+        aria-label={copilotOpen ? 'Close AI co-pilot' : 'Open AI co-pilot'}
+        aria-expanded={copilotOpen}
+      >
+        {copilotOpen ? (
+          <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+            <path d="M5 5l10 10M15 5L5 15" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
+          </svg>
+        ) : (
+          <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+            <path d="M10 2.5l2 4 4.5 1.5L13 11l.8 4.5-3.8-2-3.8 2L7 11l-3.5-3L8 6.5z"
+              stroke="currentColor" strokeWidth="1.5" fill="rgba(255,255,255,0.08)" strokeLinejoin="round"/>
+          </svg>
+        )}
+      </button>
+
+      {/* ─── Co-pilot Panel ──────────────────────────────────── */}
+      <AnimatePresence>
+        {copilotOpen && (
+          <CopilotPanel
+            onClose={() => setCopilotOpen(false)}
+            pageContext={pageContext}
+          />
+        )}
+      </AnimatePresence>
     </div>
   )
 }
