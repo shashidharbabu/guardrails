@@ -71,11 +71,11 @@ start_gateway() {
 
 # ── Start MAD API ─────────────────────────────────────────────────────────────
 start_mad() {
-  info "Starting MAD API on :8001 ..."
-  # cd into multi_agent_debate so its multi_agent package shadows the top-level stub
-  cd "$REPO_ROOT/multi_agent_debate"
-  PYTHONPATH="$REPO_ROOT/multi_agent_debate:$REPO_ROOT/rag_folder:$REPO_ROOT" \
-    "$UVICORN" multi_agent.api:app --host 0.0.0.0 --port 8001 \
+  info "Starting MAD API on :8001 (full_FinalMAD_with_judge) ..."
+  # Must run from the full_FinalMAD_with_judge dir so `configs` and `src` resolve
+  cd "$REPO_ROOT/multi_agent_debate/full_FinalMAD_with_judge"
+  PYTHONPATH="$REPO_ROOT/multi_agent_debate/full_FinalMAD_with_judge:$REPO_ROOT/multi_agent_debate:$REPO_ROOT" \
+    "$UVICORN" api:app --host 0.0.0.0 --port 8001 \
     --log-level info > "$REPO_ROOT/logs/mad.log" 2>&1 &
   echo $! >> "$PIDS_FILE"
   cd "$REPO_ROOT"
@@ -103,6 +103,17 @@ start_frontend() {
   cd "$REPO_ROOT"
 }
 
+# ── Start feedback loop ───────────────────────────────────────────────────────
+start_feedback() {
+  info "Starting Feedback Loop API on :8002 ..."
+  cd "$REPO_ROOT"
+  PYTHONPATH="$REPO_ROOT:$REPO_ROOT/multi_agent_debate" \
+    "$UVICORN" rlhf.feedback_loop.api:app --host 0.0.0.0 --port 8002 \
+    --log-level info > "$REPO_ROOT/logs/feedback.log" 2>&1 &
+  echo $! >> "$PIDS_FILE"
+  success "Feedback Loop PID $! → logs/feedback.log"
+}
+
 # ── Main ──────────────────────────────────────────────────────────────────────
 CMD="${1:-all}"
 
@@ -126,6 +137,9 @@ case "$CMD" in
   frontend)
     start_frontend
     ;;
+  feedback)
+    start_feedback
+    ;;
   all)
     start_gateway
     sleep 3  # wait for gateway model load to begin
@@ -138,20 +152,23 @@ case "$CMD" in
 
     start_frontend
 
+    start_feedback
+
     echo ""
     success "All services started."
     echo ""
-    echo "  Gateway   → http://localhost:8080/docs"
-    echo "  MAD API   → http://localhost:8001/docs"
-    echo "  Backend   → http://localhost:8000/docs"
-    echo "  Frontend  → http://localhost:5173"
+    echo "  Gateway       → http://localhost:8080/docs"
+    echo "  MAD API       → http://localhost:8001/docs"
+    echo "  Backend       → http://localhost:8000/docs"
+    echo "  Feedback Loop → http://localhost:8002/docs"
+    echo "  Frontend      → http://localhost:5173"
     echo ""
     echo "  Logs in: $REPO_ROOT/logs/"
     echo "  Stop all: ./start.sh stop"
     ;;
   *)
     error "Unknown command: $CMD"
-    echo "Usage: $0 [all|gateway|mad|backend|frontend|stop]"
+    echo "Usage: $0 [all|gateway|mad|backend|frontend|feedback|stop]"
     exit 1
     ;;
 esac

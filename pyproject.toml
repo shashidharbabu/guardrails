@@ -79,34 +79,40 @@ Homepage   = "https://github.com/shashidharbabu/guardrails-enterprise"
 Repository = "https://github.com/shashidharbabu/guardrails-enterprise"
 Issues     = "https://github.com/shashidharbabu/guardrails-enterprise/issues"
 
-# ── CLI entry points ──────────────────────────────────────────────────────────
-[project.scripts]
-guardrails-run = "guardrails_enterprise.cli:main"
-
 # ──────────────────────────────────────────────────────────────────────────────
 # Package discovery
 # ──────────────────────────────────────────────────────────────────────────────
 [tool.setuptools]
-# Include non-Python data files (model configs, etc.)
 include-package-data = true
-# Explicitly enumerate every package that ships in the wheel.
-# Using an explicit list (not find) avoids accidental inclusion of the
-# source directory structure from the package-dir mapping.
 packages = [
-    # Public SDK
-    "guardrails_enterprise",
-    # Bundled internal packages
+    # Input guardrail service
     "gateway",
     "gateway.validators",
-    "gateway.tests",
+    # Confidence Scoring Engine
     "confidence",
-    "multi_agent",  # remapped from multi_agent_debate/multi_agent/ via package-dir
+    # RLHF feedback loop
+    "rlhf",
+    "rlhf.feedback_loop",
+    # MAD service (legacy — kept for backward-compat imports)
+    "mad",
 ]
 
-# multi_agent in the wheel maps to multi_agent_debate/multi_agent/ on disk.
-# pip install resolves this transparently — `from multi_agent.X import Y` works.
 [tool.setuptools.package-dir]
-"multi_agent" = "multi_agent_debate/multi_agent"
+# Legacy alias so `from mad.X import Y` still works
+"mad" = "multi_agent_debate/multi_agent"
 
 [tool.setuptools.package-data]
 "*" = ["*.json", "*.yaml", "*.yml", "*.txt", "py.typed"]
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Pytest configuration
+# ──────────────────────────────────────────────────────────────────────────────
+[tool.pytest.ini_options]
+asyncio_mode = "strict"
+testpaths = ["tests", "rlhf/tests", "confidence/tests", "gateway/tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+markers = [
+    "smoke: live-service health probes — requires ./start.sh all (deselect with -m 'not smoke')",
+]

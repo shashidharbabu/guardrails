@@ -1,3 +1,4 @@
+from __future__ import annotations
 """
 Full MAD debate pipeline: decomposer -> round0 -> round1 -> judge (optional).
 
