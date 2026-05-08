@@ -288,7 +288,7 @@ export default function SessionTrace() {
         <div className="inline-err" style={{ marginBottom: 12 }}>
           {error || 'Session not found.'}
         </div>
-        <Link to="/" className="back-btn">← Back to conversations</Link>
+        <Link to="/conversations" className="back-btn">← Back to conversations</Link>
       </div>
     )
   }
@@ -308,7 +308,7 @@ export default function SessionTrace() {
 
   return (
     <div>
-      <Link to="/" className="back-btn">
+      <Link to="/conversations" className="back-btn">
         <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
           <path d="M8 2L4 6l4 4" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
         </svg>
