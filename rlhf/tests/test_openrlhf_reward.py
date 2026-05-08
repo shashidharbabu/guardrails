@@ -1,6 +1,12 @@
 import pytest
 
-from openrlhf.reward_fn.healthcare_reward import extract_confidence, scalar_reward
+healthcare_reward = pytest.importorskip(
+    "openrlhf.reward_fn.healthcare_reward",
+    reason="openrlhf package not installed — skipping",
+)
+
+extract_confidence = healthcare_reward.extract_confidence
+scalar_reward = healthcare_reward.scalar_reward
 
 
 def test_extract_confidence():

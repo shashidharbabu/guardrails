@@ -59,14 +59,19 @@ def review_next() -> Dict[str, Any]:
         row = con.execute(
             """
             SELECT r.query_id, r.rollout_id, r.claim_id, r.auto_reward,
-                   r.final_reward, r.human_reviewed, c.agent_a_prompt,
-                   q.query_text
+                   r.final_reward, r.human_reviewed,
+                   q.user_query      AS query_text,
+                   ao.reasoning      AS agent_a_context
             FROM rewards r
             JOIN claims c
-              ON c.query_id = r.query_id AND c.rollout_id = r.rollout_id
-             AND c.claim_id = r.claim_id AND c.checkpoint = 'post_cycle2'
+              ON c.claim_id = r.claim_id
             JOIN queries q
-              ON q.query_id = r.query_id AND q.rollout_id = r.rollout_id
+              ON q.query_id = c.query_id
+             AND q.run_id = r.rollout_id
+            LEFT JOIN agent_outputs ao
+              ON ao.claim_id = r.claim_id
+             AND ao.agent_role = 'agent_a'
+             AND ao.round_num = 1
             WHERE r.human_reviewed = 0
               AND r.auto_reward >= ? AND r.auto_reward <= ?
             ORDER BY r.scored_at ASC
@@ -84,7 +89,7 @@ def review_next() -> Dict[str, Any]:
         "auto_reward": row["auto_reward"],
         "triage_band": [low, high],
         "prompt": row["query_text"],
-        "agent_a_context": row["agent_a_prompt"],
+        "agent_a_context": row["agent_a_context"],
     }
 
 

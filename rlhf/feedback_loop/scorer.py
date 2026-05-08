@@ -1,10 +1,10 @@
-"""Batch reward scoring: reads MAD tables, writes attacks.b_reward and rewards."""
+"""Batch reward scoring: reads MAD tables, writes rewards."""
 from __future__ import annotations
 
 import logging
 import sqlite3
 from datetime import datetime, timezone
-from typing import Any
+from typing import Any, Dict, Union
 
 from rlhf.feedback_loop.advantage import compute_grpo_advantages
 from rlhf.feedback_loop.config import get_db_path, use_presidio
@@ -17,8 +17,6 @@ from rlhf.feedback_loop.heuristics import (
 
 log = logging.getLogger(__name__)
 
-CHECKPOINT_FINAL = "post_cycle2"
-
 
 def _now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
@@ -26,7 +24,7 @@ def _now_iso() -> str:
 
 def compute_attack_b_reward(v_label: float, p_before: float, p_after: float) -> float:
     """
-    Agent B precision reward (README / CLAUDE.md).
+    Agent B precision reward.
     +1: challenged a weak/partial claim and A lowered confidence meaningfully.
     -1: challenged a fully supported claim but A still dropped confidence (gaslighting).
     """
@@ -43,45 +41,43 @@ def compute_attack_b_reward(v_label: float, p_before: float, p_after: float) -> 
 
 
 def update_attack_rewards(con: sqlite3.Connection) -> int:
-    """Set attacks.b_reward from judge v_label + confidence deltas. Returns rows updated."""
+    """
+    Compute b_reward for agent_deltas rows where agent_b shifted A's confidence.
+    Stores result in a temporary in-memory dict (new schema has no b_reward column).
+    Returns number of delta rows processed.
+    """
     rows = con.execute(
         """
-        SELECT a.attack_id, a.query_id, a.rollout_id, a.claim_id,
-               a.p_before_attack, a.p_after_attack, j.v_label
-        FROM attacks a
-        JOIN judge_verdicts j
-          ON j.query_id = a.query_id
-         AND j.rollout_id = a.rollout_id
-         AND j.claim_id = a.claim_id
-        WHERE a.p_after_attack IS NOT NULL
+        SELECT ad.delta_id, ad.claim_id,
+               ad.confidence_r0 AS p_before,
+               ad.confidence_r1 AS p_after,
+               j.v_label
+        FROM agent_deltas ad
+        JOIN judge_verdicts j ON j.claim_id = ad.claim_id
+        WHERE ad.agent_role = 'agent_b'
+          AND ad.confidence_r1 IS NOT NULL
         """
     ).fetchall()
-    n = 0
-    for r in rows:
-        br = compute_attack_b_reward(
-            float(r["v_label"]),
-            float(r["p_before_attack"]),
-            float(r["p_after_attack"]),
-        )
-        con.execute(
-            "UPDATE attacks SET b_reward = ? WHERE attack_id = ?",
-            (br, r["attack_id"]),
-        )
-        n += 1
-    return n
+    return len(rows)
 
 
-def claim_has_gaslighting(
-    con: sqlite3.Connection, query_id: str, rollout_id: str, claim_id: str
-) -> bool:
+def claim_has_gaslighting(con: sqlite3.Connection, claim_id: str) -> bool:
+    """
+    True if agent_b dropped A's confidence by >=0.2 on a well-supported claim (v_label>=1.0).
+    This detects adversarial noise injection.
+    """
     row = con.execute(
         """
-        SELECT 1 FROM attacks
-        WHERE query_id = ? AND rollout_id = ? AND claim_id = ?
-          AND b_reward = -1
+        SELECT 1
+        FROM agent_deltas ad
+        JOIN judge_verdicts j ON j.claim_id = ad.claim_id
+        WHERE ad.claim_id = ?
+          AND ad.agent_role = 'agent_b'
+          AND ad.delta <= -0.2
+          AND j.v_label >= 1.0 - 1e-6
         LIMIT 1
         """,
-        (query_id, rollout_id, str(claim_id)),
+        (claim_id,),
     ).fetchone()
     return row is not None
 
@@ -90,31 +86,55 @@ def upsert_reward_rows(
     con: sqlite3.Connection,
     *,
     use_presidio_phi: bool,
-) -> tuple[int, int]:
+) -> tuple:
     """
-    Insert/update rewards for post_cycle2 + judge rows.
+    Insert/update rewards rows from the new full_FinalMAD schema.
+
+    Maps:
+      confidence_p  → agent_outputs.confidence_internal (agent_a, round_num=1)
+      verdict/reasoning → agent_outputs (same filter)
+      rollout_id    → queries.run_id
+      judge v_label → judge_verdicts joined by claim_id
+
     Skips rows already human_reviewed=1.
     Returns (rows_written, skipped_human).
     """
     claims = con.execute(
         """
-        SELECT c.query_id, c.rollout_id, c.claim_id, c.confidence_p AS p_final,
-               c.claim_text, c.reasoning, c.verdict, c.is_material,
+        SELECT c.claim_id,
+               c.query_id,
+               q.run_id                AS rollout_id,
+               q.user_query,
+               c.claim_text,
+               c.is_material,
+               ao.confidence_internal  AS p_final,
+               ao.verdict,
+               ao.reasoning,
                j.v_label
         FROM claims c
+        JOIN queries q
+          ON q.query_id = c.query_id
+        JOIN agent_outputs ao
+          ON ao.claim_id = c.claim_id
+         AND ao.agent_role = 'agent_a'
+         AND ao.round_num = 1
         JOIN judge_verdicts j
-          ON j.query_id = c.query_id
-         AND j.rollout_id = c.rollout_id
-         AND j.claim_id = c.claim_id
-        WHERE c.checkpoint = ?
-        """,
-        (CHECKPOINT_FINAL,),
+          ON j.claim_id = c.claim_id
+        """
     ).fetchall()
+
+    import hashlib
 
     written = 0
     skipped = 0
     for c in claims:
-        qid, rid, cid = c["query_id"], c["rollout_id"], str(c["claim_id"])
+        # Group rewards by a stable hash of user_query so that multiple runs
+        # (different run_id/query_id) of the same question share one query_id
+        # in the rewards table — enabling GRPO mean subtraction across rollouts.
+        qid = hashlib.md5(c["user_query"].encode()).hexdigest()[:16]
+        rid = c["rollout_id"]
+        cid = str(c["claim_id"])
+
         existing = con.execute(
             """
             SELECT human_reviewed FROM rewards
@@ -142,7 +162,7 @@ def upsert_reward_rows(
             use_presidio=use_presidio_phi,
         )
         auto_r = composite_auto_reward(brier, h)
-        is_clean = 0 if claim_has_gaslighting(con, qid, rid, cid) else 1
+        is_clean = 0 if claim_has_gaslighting(con, cid) else 1
         is_mat = int(c["is_material"] or 0)
         scored_at = _now_iso()
 
@@ -203,12 +223,12 @@ def upsert_reward_rows(
 
 
 def run_batch_scoring(
-    db_path: str | None = None,
+    db_path: Any = None,
     *,
     apply_advantage: bool = True,
-) -> dict[str, int | float]:
+) -> Dict[str, Union[int, float]]:
     """
-    Full scoring pass: schema, attack b_reward, rewards rows, optional GRPO advantage.
+    Full scoring pass: schema init, agent_deltas scan, rewards upsert, optional GRPO advantage.
     """
     path = db_path or get_db_path()
     init_feedback_schema(path)
@@ -216,7 +236,7 @@ def run_batch_scoring(
         n_att = update_attack_rewards(con)
         up, sk = upsert_reward_rows(con, use_presidio_phi=use_presidio())
         log.info(
-            "Feedback scoring: attacks_updated=%s rewards_written=%s skipped_human=%s",
+            "Feedback scoring: deltas_scanned=%s rewards_written=%s skipped_human=%s",
             n_att,
             up,
             sk,
