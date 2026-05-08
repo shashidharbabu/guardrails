@@ -208,7 +208,10 @@ async def _call_gateway(query: str) -> dict:
 
 
 async def _call_llm(query: str, model: str) -> str:
-    llm_url = f"{settings.LLM_PROVIDER_URL}/v1/chat/completions"
+    base = settings.LLM_PROVIDER_URL.rstrip("/")
+    if base.endswith("/v1"):
+        base = base[:-3]
+    llm_url = f"{base}/v1/chat/completions"
     payload = {
         "model": model,
         "messages": [
