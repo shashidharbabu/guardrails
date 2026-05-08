@@ -71,11 +71,11 @@ start_gateway() {
 
 # ── Start MAD API ─────────────────────────────────────────────────────────────
 start_mad() {
-  info "Starting MAD API on :8001 ..."
-  # cd into multi_agent_debate so its multi_agent package shadows the top-level stub
-  cd "$REPO_ROOT/multi_agent_debate"
-  PYTHONPATH="$REPO_ROOT/multi_agent_debate:$REPO_ROOT/rag_folder:$REPO_ROOT" \
-    "$UVICORN" multi_agent.api:app --host 0.0.0.0 --port 8001 \
+  info "Starting MAD API on :8001 (full_FinalMAD_with_judge) ..."
+  # Must run from the full_FinalMAD_with_judge dir so `configs` and `src` resolve
+  cd "$REPO_ROOT/multi_agent_debate/full_FinalMAD_with_judge"
+  PYTHONPATH="$REPO_ROOT/multi_agent_debate/full_FinalMAD_with_judge:$REPO_ROOT/multi_agent_debate:$REPO_ROOT" \
+    "$UVICORN" api:app --host 0.0.0.0 --port 8001 \
     --log-level info > "$REPO_ROOT/logs/mad.log" 2>&1 &
   echo $! >> "$PIDS_FILE"
   cd "$REPO_ROOT"
