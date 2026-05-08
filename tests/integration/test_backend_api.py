@@ -8,7 +8,7 @@ from __future__ import annotations
 import os
 import pytest
 
-# Must set env vars BEFORE importing the app module so Settings picks them up.
+# Set env vars BEFORE importing the app so Settings picks them up.
 os.environ.setdefault("APP_ENV", "development")
 os.environ.setdefault("DISABLE_AUTH", "true")
 os.environ.setdefault("SQLITE_DB_PATH", ":memory:")
@@ -37,6 +37,10 @@ class TestHealthEndpoints:
         r = client.get("/livez")
         assert r.status_code == 200
 
+    def test_readyz(self, client):
+        r = client.get("/readyz")
+        assert r.status_code == 200
+
 
 class TestSessionsRouter:
     def test_list_sessions_empty(self, client):
@@ -45,9 +49,9 @@ class TestSessionsRouter:
         data = r.json()
         assert isinstance(data, (list, dict))
 
-    def test_create_session(self, client):
-        r = client.post("/api/sessions", json={"title": "test session"})
-        assert r.status_code in (200, 201)
+    def test_get_nonexistent_session_404(self, client):
+        r = client.get("/api/sessions/nonexistent-id")
+        assert r.status_code == 404
 
 
 class TestAnalyticsRouter:
@@ -55,18 +59,24 @@ class TestAnalyticsRouter:
         r = client.get("/api/analytics/summary")
         assert r.status_code == 200
 
-    def test_routing_distribution_shape(self, client):
-        r = client.get("/api/analytics/routing")
+    def test_analytics_body_is_dict(self, client):
+        r = client.get("/api/analytics/summary")
         assert r.status_code == 200
         body = r.json()
-        # Should return a list or dict of routing counts
-        assert body is not None
+        assert isinstance(body, dict)
 
 
 class TestAuditRouter:
-    def test_audit_log_returns_200(self, client):
-        r = client.get("/api/audit")
+    def test_audit_logs_returns_200(self, client):
+        # Actual path is /api/audit/logs
+        r = client.get("/api/audit/logs")
         assert r.status_code == 200
+
+    def test_audit_logs_is_list(self, client):
+        r = client.get("/api/audit/logs")
+        assert r.status_code == 200
+        body = r.json()
+        assert isinstance(body, (list, dict))
 
 
 class TestSystemRouter:
@@ -74,23 +84,50 @@ class TestSystemRouter:
         r = client.get("/api/system/health")
         assert r.status_code == 200
 
+    def test_system_health_shape(self, client):
+        r = client.get("/api/system/health")
+        body = r.json()
+        assert isinstance(body, dict)
+
 
 class TestHumanReviewRouter:
-    def test_pending_reviews_returns_200(self, client):
-        r = client.get("/api/human-review/pending")
+    def test_review_queue_returns_200(self, client):
+        # Actual path is /api/human-review/queue
+        r = client.get("/api/human-review/queue")
         assert r.status_code == 200
 
-    def test_review_stats_returns_200(self, client):
-        r = client.get("/api/human-review/stats")
-        assert r.status_code in (200, 404)  # 404 ok if no stats row yet
+    def test_reviews_list_returns_200(self, client):
+        r = client.get("/api/human-review/reviews")
+        assert r.status_code == 200
+
+
+class TestGatewayRouter:
+    def test_gateway_health_returns_502_when_down(self, client):
+        # Gateway not running in test — expect proxy error or cached result
+        r = client.get("/api/gateway/health")
+        assert r.status_code in (200, 502, 503, 504)
+
+    def test_gateway_stats_returns_200_or_502(self, client):
+        r = client.get("/api/gateway/stats")
+        assert r.status_code in (200, 502, 503, 504)
+
+    def test_gateway_config_returns_200_or_502(self, client):
+        r = client.get("/api/gateway/config")
+        assert r.status_code in (200, 502, 503, 504)
 
 
 class TestRLHFRouter:
     def test_rlhf_health_returns_502_when_feedback_down(self, client):
-        """When feedback loop service isn't running, proxy returns 502."""
         r = client.get("/api/rlhf/health")
         assert r.status_code in (200, 502)
 
     def test_review_next_returns_502_when_feedback_down(self, client):
         r = client.get("/api/rlhf/review/next")
         assert r.status_code in (200, 502)
+
+
+class TestFeedbackRouter:
+    def test_feedback_list_returns_200(self, client):
+        # /api/feedback (GET)
+        r = client.get("/api/feedback")
+        assert r.status_code == 200

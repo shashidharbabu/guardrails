@@ -103,3 +103,16 @@ packages = [
 
 [tool.setuptools.package-data]
 "*" = ["*.json", "*.yaml", "*.yml", "*.txt", "py.typed"]
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Pytest configuration
+# ──────────────────────────────────────────────────────────────────────────────
+[tool.pytest.ini_options]
+asyncio_mode = "strict"
+testpaths = ["tests", "rlhf/tests", "confidence/tests", "gateway/tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+markers = [
+    "smoke: live-service health probes — requires ./start.sh all (deselect with -m 'not smoke')",
+]

@@ -1,8 +1,7 @@
 """Integration tests for the MAD API (full_FinalMAD_with_judge).
 
-These tests call the FastAPI app directly via TestClient. They mock the
-LLM calls so no Ollama server is needed. Tests verify the API contract
-and pipeline wiring, not LLM output quality.
+Uses FastAPI TestClient. LLM calls are mocked — no Ollama needed.
+Tests verify API contract and response shape.
 """
 from __future__ import annotations
 
@@ -23,6 +22,20 @@ def mad_client():
     return TestClient(mad_api.app)
 
 
+def _fake_mad_response(routing: str = "DELIVER"):
+    """Build a valid MADResponse using the real field names from api.py."""
+    import api as mad_api
+    return mad_api.MADResponse(
+        routing_decision=routing,
+        aggregate_confidence=0.85,
+        claims=[],
+        judge_verdicts=[],
+        debate_transcript="No debate (mocked).",
+        query_id="test-qid",
+        rollout_id="test-rid",
+    )
+
+
 class TestMADHealth:
     def test_health_ok(self, mad_client):
         r = mad_client.get("/mad/health")
@@ -36,54 +49,36 @@ class TestMADHealth:
 
 
 class TestMADVerifyContract:
-    """Verify /mad/verify response shape without running the full pipeline."""
-
     def test_verify_missing_body_returns_422(self, mad_client):
         r = mad_client.post("/mad/verify", json={})
         assert r.status_code == 422
 
-    def test_verify_response_shape(self, mad_client):
-        """Mock the pipeline so we can test the API contract without Ollama."""
-        from api import MADResponse
-
-        fake_response = MADResponse(
-            query="test",
-            llm_answer="test answer",
-            routing="DELIVER",
-            agg_confidence=0.85,
-            claims=[],
-            debate_rounds=[],
-            judge_verdicts=[],
-            run_id="test-run",
-        )
-
-        with patch("api._run_pipeline", new=AsyncMock(return_value=fake_response)):
+    def test_verify_response_has_required_fields(self, mad_client):
+        """Mock the pipeline — verify the API response contract."""
+        with patch("api._run_pipeline", new=AsyncMock(return_value=_fake_mad_response())):
             r = mad_client.post(
                 "/mad/verify",
                 json={
-                    "query": "What does HIPAA require?",
-                    "llm_answer": "HIPAA requires privacy safeguards.",
+                    "query": "What does the Security Rule require?",
+                    "llm_answer": "The Security Rule requires technical safeguards.",
                 },
             )
         assert r.status_code == 200
         body = r.json()
-        assert "routing" in body
-        assert "agg_confidence" in body
+        assert "routing_decision" in body
+        assert "aggregate_confidence" in body
         assert "claims" in body
+        assert body["routing_decision"] in ("DELIVER", "RETRY", "HUMAN_REVIEW", "HARD_BLOCK")
 
-    @pytest.mark.parametrize("routing,expected_code", [
-        ("DELIVER", 200),
-        ("HARD_BLOCK", 200),
-        ("RETRY", 200),
-    ])
-    def test_all_routing_outcomes_return_200(self, mad_client, routing, expected_code):
-        from api import MADResponse
-
-        fake = MADResponse(
-            query="q", llm_answer="a", routing=routing,
-            agg_confidence=0.5, claims=[], debate_rounds=[],
-            judge_verdicts=[], run_id="r",
-        )
-        with patch("api._run_pipeline", new=AsyncMock(return_value=fake)):
+    @pytest.mark.parametrize("routing", ["DELIVER", "HARD_BLOCK", "RETRY", "HUMAN_REVIEW"])
+    def test_all_routing_outcomes_return_200(self, mad_client, routing):
+        with patch("api._run_pipeline", new=AsyncMock(return_value=_fake_mad_response(routing))):
             r = mad_client.post("/mad/verify", json={"query": "q", "llm_answer": "a"})
-        assert r.status_code == expected_code
+        assert r.status_code == 200
+        assert r.json()["routing_decision"] == routing
+
+    def test_aggregate_confidence_is_float_in_range(self, mad_client):
+        with patch("api._run_pipeline", new=AsyncMock(return_value=_fake_mad_response())):
+            r = mad_client.post("/mad/verify", json={"query": "q", "llm_answer": "a"})
+        body = r.json()
+        assert 0.0 <= float(body["aggregate_confidence"]) <= 1.0

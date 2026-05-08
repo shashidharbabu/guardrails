@@ -3,19 +3,23 @@ from __future__ import annotations
 
 import pytest
 
-from confidence.cse_config import CSEScoringConfig
+from confidence.cse_config import CSEScoringConfig, DEFAULT_CONFIG
 from confidence.cse_types import RoutingDecision, ScoringMode
 
 
 class TestCSEConfig:
     def test_default_weights_sum_to_one(self):
-        from confidence.cse_config import DEFAULT_CONFIG
-        w = DEFAULT_CONFIG.weights
-        total = w.faithfulness + w.hallucination_inverse + w.contextual_relevancy + w.judge_eval + w.context_quality
+        cfg = DEFAULT_CONFIG
+        total = (
+            cfg.w_faithfulness
+            + cfg.w_hallucination_inverse
+            + cfg.w_contextual_relevancy
+            + cfg.w_judge_eval
+            + cfg.w_context_quality
+        )
         assert pytest.approx(total, abs=1e-6) == 1.0
 
     def test_deliver_threshold_above_human_review(self):
-        from confidence.cse_config import DEFAULT_CONFIG
         assert DEFAULT_CONFIG.deliver_threshold > DEFAULT_CONFIG.human_review_threshold
 
     def test_custom_config_overrides(self):
@@ -38,43 +42,55 @@ class TestScoringModeEnum:
 
 
 class TestCSEScorer:
-    """Integration-light tests using stub claims — no LLM calls."""
+    """Integration-light tests using stub claims — no LLM calls.
 
-    def _make_claims(self, verdicts: list[float]):
-        """Build minimal Claim + JudgeVerdict objects."""
-        from confidence.cse_types import RoutingDecision
+    The legacy `multi_agent.models.Claim` and `JudgeVerdict` are used here
+    because `confidence/scorer.py` imports from that module.
+    """
+
+    def _make_claims_and_verdicts(self, v_labels: list):
+        """Build minimal Claim + JudgeVerdict lists."""
         try:
-            from multi_agent.models import Claim, JudgeVerdict
+            from multi_agent_debate.multi_agent.models import Claim, JudgeVerdict
         except ImportError:
-            pytest.skip("multi_agent.models not importable in this environment")
+            try:
+                from multi_agent.models import Claim, JudgeVerdict
+            except ImportError:
+                pytest.skip("multi_agent.models not importable — skip CSE scorer tests")
 
-        claims = []
-        judge_verdicts = []
-        for i, v in enumerate(verdicts):
-            c = Claim(
-                claim_id=str(i),
-                claim_text=f"Claim {i}",
-                is_material=True,
-                confidence_p=0.8 if v >= 0.5 else 0.3,
+        claims, judge_verdicts = [], []
+        for i, v in enumerate(v_labels):
+            confidence = 0.85 if v >= 0.5 else 0.25
+            claims.append(
+                Claim(
+                    claim_id=i,
+                    claim_text=f"Claim {i}: a verifiable statement.",
+                    is_material=True,
+                    confidence=confidence,
+                    verdict=None,
+                    reasoning="",
+                )
             )
-            claims.append(c)
-            jv = JudgeVerdict(
-                claim_id=str(i),
-                v_label=v,
-                reasoning="test",
+            judge_verdicts.append(
+                JudgeVerdict(
+                    claim_id=i,
+                    claim_text=f"Claim {i}: a verifiable statement.",
+                    is_material=True,
+                    score=v,
+                    reasoning="test judge",
+                )
             )
-            judge_verdicts.append(jv)
         return claims, judge_verdicts
 
     def test_hard_block_on_false_material_claim(self):
         from confidence.scorer import ConfidenceScorer
         scorer = ConfidenceScorer()
-        claims, jvs = self._make_claims([0.0])  # one false material claim
+        claims, jvs = self._make_claims_and_verdicts([0.0])
         result = scorer.score(
-            query="test",
+            query="test query",
             llm_answer="test answer",
-            rag_chunks=["chunk"],
-            claims=claims,
+            rag_chunks=["context chunk"],
+            final_claims=claims,
             judge_verdicts=jvs,
         )
         assert result.routing_decision == RoutingDecision.HARD_BLOCK
@@ -82,12 +98,12 @@ class TestCSEScorer:
     def test_deliver_on_all_supported_claims(self):
         from confidence.scorer import ConfidenceScorer
         scorer = ConfidenceScorer()
-        claims, jvs = self._make_claims([1.0, 1.0, 1.0])
+        claims, jvs = self._make_claims_and_verdicts([1.0, 1.0, 1.0])
         result = scorer.score(
-            query="What does HIPAA require?",
-            llm_answer="HIPAA requires privacy safeguards.",
-            rag_chunks=["HIPAA 45 CFR §164 requires safeguards."],
-            claims=claims,
+            query="What are the technical safeguards required?",
+            llm_answer="Technical safeguards are required under the Security Rule.",
+            rag_chunks=["The Security Rule requires technical safeguards."],
+            final_claims=claims,
             judge_verdicts=jvs,
         )
         assert result.routing_decision in (RoutingDecision.DELIVER, RoutingDecision.RETRY)
@@ -95,8 +111,17 @@ class TestCSEScorer:
     def test_result_score_in_range(self):
         from confidence.scorer import ConfidenceScorer
         scorer = ConfidenceScorer()
-        claims, jvs = self._make_claims([0.5])
+        claims, jvs = self._make_claims_and_verdicts([0.5])
         result = scorer.score(
-            query="q", llm_answer="a", rag_chunks=[], claims=claims, judge_verdicts=jvs
+            query="q", llm_answer="a", rag_chunks=[], final_claims=claims, judge_verdicts=jvs
         )
         assert 0.0 <= result.final_score <= 1.0
+
+    def test_result_has_routing_decision(self):
+        from confidence.scorer import ConfidenceScorer
+        scorer = ConfidenceScorer()
+        claims, jvs = self._make_claims_and_verdicts([0.5])
+        result = scorer.score(
+            query="q", llm_answer="a", rag_chunks=[], final_claims=claims, judge_verdicts=jvs
+        )
+        assert result.routing_decision in list(RoutingDecision)
