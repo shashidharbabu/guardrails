@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Confidence Scoring Engine — Architecture</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: #0d1117;
+    font-family: 'SF Mono', 'Fira Code', monospace;
+    color: #e6edf3;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 32px 24px 48px;
+  }
+  h1 {
+    font-size: 18px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    color: #f0f6fc;
+    margin-bottom: 6px;
+    text-align: center;
+  }
+  .subtitle {
+    font-size: 12px;
+    color: #8b949e;
+    margin-bottom: 32px;
+    text-align: center;
+  }
+
+  /* ── Pipeline canvas ── */
+  .pipeline {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0;
+    width: 100%;
+    max-width: 860px;
+  }
+
+  /* ── Generic box ── */
+  .box {
+    border-radius: 10px;
+    border: 1px solid;
+    padding: 14px 20px;
+    position: relative;
+    width: 100%;
+  }
+  .box-title {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 1.2px;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+    opacity: 0.75;
+  }
+  .box-label {
+    font-size: 15px;
+    font-weight: 600;
+    color: #f0f6fc;
+  }
+  .box-sub {
+    font-size: 11px;
+    color: #8b949e;
+    margin-top: 4px;
+  }
+
+  /* ── Arrow connector ── */
+  .arrow {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0;
+    padding: 4px 0;
+  }
+  .arrow-line {
+    width: 2px;
+    height: 20px;
+    background: #30363d;
+  }
+  .arrow-head {
+    width: 0;
+    height: 0;
+    border-left: 7px solid transparent;
+    border-right: 7px solid transparent;
+    border-top: 10px solid #30363d;
+  }
+  .arrow-label {
+    font-size: 10px;
+    color: #8b949e;
+    margin-top: 3px;
+  }
+
+  /* ── Color themes ── */
+  .theme-blue   { border-color: #1f6feb; background: #0d1b2e; }
+  .theme-blue .box-title { color: #58a6ff; }
+
+  .theme-orange { border-color: #d29922; background: #1c1700; }
+  .theme-orange .box-title { color: #d29922; }
+
+  .theme-purple { border-color: #8957e5; background: #1a0f2e; }
+  .theme-purple .box-title { color: #bc8cff; }
+
+  .theme-green  { border-color: #238636; background: #0a1e0e; }
+  .theme-green .box-title { color: #3fb950; }
+
+  .theme-red    { border-color: #da3633; background: #2a0a0a; }
+  .theme-red .box-title { color: #f85149; }
+
+  .theme-cse    { border-color: #0e7a6a; background: #031210; border-width: 2px; }
+  .theme-cse .box-title { color: #39d0c0; }
+
+  /* ── Gateway internals ── */
+  .validators {
+    display: flex;
+    gap: 10px;
+    margin-top: 10px;
+  }
+  .validator {
+    flex: 1;
+    background: #161b22;
+    border: 1px solid #30363d;
+    border-radius: 6px;
+    padding: 8px 10px;
+    font-size: 11px;
+  }
+  .validator .v-name { font-weight: 700; color: #e6edf3; margin-bottom: 2px; }
+  .validator .v-desc { color: #8b949e; font-size: 10px; }
+  .validator .v-score { color: #f0c438; font-size: 10px; margin-top: 4px; }
+
+  /* ── MAD internals ── */
+  .mad-inner {
+    display: flex;
+    gap: 10px;
+    margin-top: 10px;
+  }
+  .mad-agent {
+    flex: 1;
+    background: #161b22;
+    border: 1px solid #30363d;
+    border-radius: 6px;
+    padding: 8px 10px;
+    font-size: 11px;
+    text-align: center;
+  }
+  .mad-agent .a-name { font-weight: 700; color: #e6edf3; margin-bottom: 2px; }
+  .mad-agent .a-desc { color: #8b949e; font-size: 10px; }
+
+  /* ── CSE internals ── */
+  .cse-formula {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin-top: 12px;
+  }
+  .cse-component {
+    background: #0a1f1d;
+    border: 1px solid #0e7a6a;
+    border-radius: 6px;
+    padding: 10px 12px;
+    font-size: 11px;
+  }
+  .cse-component .c-weight {
+    font-size: 18px;
+    font-weight: 800;
+    color: #39d0c0;
+    line-height: 1;
+  }
+  .cse-component .c-name {
+    font-weight: 700;
+    color: #e6edf3;
+    margin: 4px 0 2px;
+    font-size: 12px;
+  }
+  .cse-component .c-desc { color: #8b949e; font-size: 10px; line-height: 1.4; }
+  .cse-component .c-tool {
+    margin-top: 6px;
+    font-size: 9px;
+    color: #39d0c0;
+    border: 1px solid #0e7a6a;
+    border-radius: 3px;
+    display: inline-block;
+    padding: 1px 5px;
+  }
+  .formula-bar {
+    margin-top: 12px;
+    background: #031a18;
+    border: 1px solid #0e7a6a;
+    border-radius: 6px;
+    padding: 10px 14px;
+    font-size: 12px;
+    text-align: center;
+    color: #e6edf3;
+    line-height: 1.6;
+  }
+  .formula-bar .f-eq { color: #39d0c0; font-weight: 700; font-size: 13px; }
+  .formula-bar .f-var { color: #bc8cff; }
+  .formula-bar .f-w   { color: #f0c438; }
+
+  /* ── Routing row ── */
+  .routing-row {
+    display: flex;
+    gap: 8px;
+    width: 100%;
+    max-width: 860px;
+    margin-top: 0;
+  }
+  .route-box {
+    flex: 1;
+    border-radius: 8px;
+    border: 1px solid;
+    padding: 10px 8px;
+    text-align: center;
+    font-size: 11px;
+  }
+  .route-box .r-label { font-weight: 800; font-size: 13px; margin-bottom: 4px; }
+  .route-box .r-cond  { color: #8b949e; font-size: 10px; }
+  .route-box .r-desc  { font-size: 10px; margin-top: 4px; }
+
+  .r-deliver  { border-color: #238636; background: #0a1e0e; }
+  .r-deliver .r-label { color: #3fb950; }
+  .r-retry    { border-color: #d29922; background: #1c1700; }
+  .r-retry .r-label   { color: #f0c438; }
+  .r-review   { border-color: #8957e5; background: #1a0f2e; }
+  .r-review .r-label  { color: #bc8cff; }
+  .r-block    { border-color: #da3633; background: #2a0a0a; }
+  .r-block .r-label   { color: #f85149; }
+
+  /* ── Hard block callout ── */
+  .hardblock-note {
+    width: 100%;
+    max-width: 860px;
+    background: #2a0a0a;
+    border: 1px solid #da3633;
+    border-radius: 8px;
+    padding: 10px 16px;
+    font-size: 11px;
+    color: #f85149;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 8px;
+  }
+  .hardblock-note .hb-icon { font-size: 18px; flex-shrink: 0; }
+  .hardblock-note .hb-text { color: #8b949e; }
+  .hardblock-note .hb-text strong { color: #f85149; }
+
+  /* ── Legend ── */
+  .legend {
+    margin-top: 32px;
+    display: flex;
+    gap: 20px;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    color: #8b949e;
+  }
+  .legend-dot {
+    width: 10px; height: 10px;
+    border-radius: 50%;
+  }
+
+  /* ── Wide arrow for routing section ── */
+  .wide-arrow {
+    width: 100%;
+    max-width: 860px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 4px 0;
+  }
+</style>
+</head>
+<body>
+
+<h1>Enterprise AI Guardrails — Confidence Scoring Engine</h1>
+<p class="subtitle">Full pipeline architecture · every query passes through all four stages</p>
+
+<div class="pipeline">
+
+  <!-- ── USER QUERY ── -->
+  <div class="box theme-blue">
+    <div class="box-title">Input</div>
+    <div class="box-label">User Query</div>
+    <div class="box-sub">e.g. "What does HIPAA require for PHI encryption?"</div>
+  </div>
+
+  <div class="arrow"><div class="arrow-line"></div><div class="arrow-head"></div></div>
+
+  <!-- ── GATEWAY ── -->
+  <div class="box theme-orange">
+    <div class="box-title">Stage 1 — Input Guardrail</div>
+    <div class="box-label">Gateway</div>
+    <div class="box-sub">Three validators run in parallel → DecisionEngine computes weighted score</div>
+    <div class="validators">
+      <div class="validator">
+        <div class="v-name">PII Validator</div>
+        <div class="v-desc">NER model detects SSN, email, credit cards</div>
+        <div class="v-score">weight: 30%</div>
+      </div>
+      <div class="validator">
+        <div class="v-name">Threat Validator</div>
+        <div class="v-desc">Binary jailbreak classifier</div>
+        <div class="v-score">weight: 40%</div>
+      </div>
+      <div class="validator">
+        <div class="v-name">PI Validator</div>
+        <div class="v-desc">Llama Prompt Guard 2 (86M)</div>
+        <div class="v-score">weight: 30%</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="arrow">
+    <div class="arrow-line"></div>
+    <div class="arrow-head"></div>
+    <div class="arrow-label">PASS or ESCALATE</div>
+  </div>
+
+  <!-- ── LLM ── -->
+  <div class="box theme-purple">
+    <div class="box-title">Stage 2 — Generation</div>
+    <div class="box-label">Ollama LLM — qwen2.5:7b</div>
+    <div class="box-sub">Generates a regulatory answer · max 512 tokens · temperature 0</div>
+  </div>
+
+  <div class="arrow"><div class="arrow-line"></div><div class="arrow-head"></div></div>
+
+  <!-- ── MAD ── -->
+  <div class="box theme-purple" style="border-color:#6e40c9">
+    <div class="box-title" style="color:#bc8cff">Stage 3 — Multi-Agent Debate</div>
+    <div class="box-label">MAD Pipeline</div>
+    <div class="box-sub">Extracts atomic claims → 2 debate cycles → partially-blind judge scores each claim</div>
+    <div class="mad-inner">
+      <div class="mad-agent">
+        <div class="a-name">Claim Extractor</div>
+        <div class="a-desc">Splits answer into atomic verifiable statements</div>
+      </div>
+      <div class="mad-agent">
+        <div class="a-name">Agent A</div>
+        <div class="a-desc">Verifies claims against RAG chunks · outputs confidence 0–1</div>
+      </div>
+      <div class="mad-agent">
+        <div class="a-name">Agent B</div>
+        <div class="a-desc">Challenges Agent A on jurisdiction, currency, exceptions</div>
+      </div>
+      <div class="mad-agent">
+        <div class="a-name">Judge</div>
+        <div class="a-desc">Partially blind · scores each claim 0.0 / 0.5 / 1.0</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="arrow">
+    <div class="arrow-line"></div>
+    <div class="arrow-head"></div>
+    <div class="arrow-label">judge_verdicts + evidence_pool → CSE</div>
+  </div>
+
+  <!-- ── CSE ── -->
+  <div class="box theme-cse">
+    <div class="box-title">Stage 4 — Confidence Scoring Engine (CSE)</div>
+    <div class="box-label">ConfidenceScorer</div>
+    <div class="box-sub">Aggregates 4 signals into one score · drives final routing decision</div>
+
+    <div class="cse-formula">
+
+      <div class="cse-component">
+        <div class="c-weight">×0.30</div>
+        <div class="c-name">F_llm — Faithfulness</div>
+        <div class="c-desc">Does every sentence in the answer follow from the retrieved regulatory documents?</div>
+        <div class="c-tool">DeepEval · FaithfulnessMetric</div>
+      </div>
+
+      <div class="cse-component">
+        <div class="c-weight">×0.25</div>
+        <div class="c-name">H_llm — Hallucination</div>
+        <div class="c-desc">What fraction of claims are fabricated? Used as (1 − H_llm) so higher hallucination = lower score.</div>
+        <div class="c-tool">DeepEval · HallucinationMetric</div>
+      </div>
+
+      <div class="cse-component">
+        <div class="c-weight">×0.10</div>
+        <div class="c-name">Relevancy</div>
+        <div class="c-desc">Were the RAG chunks actually relevant to the question asked?</div>
+        <div class="c-tool">DeepEval · ContextualRelevancyMetric</div>
+      </div>
+
+      <div class="cse-component">
+        <div class="c-weight">×0.35</div>
+        <div class="c-name">Judge Eval</div>
+        <div class="c-desc">MAD judge aggregate: 70% × min(material claims) + 30% × mean(non-material claims)</div>
+        <div class="c-tool">MAD Pipeline · JudgeVerdict</div>
+      </div>
+
+    </div>
+
+    <div class="formula-bar">
+      <span class="f-eq">final_score</span> =
+      <span class="f-w">0.30</span> × <span class="f-var">F_llm</span>
+      &nbsp;+&nbsp;
+      <span class="f-w">0.25</span> × (1 − <span class="f-var">H_llm</span>)
+      &nbsp;+&nbsp;
+      <span class="f-w">0.10</span> × <span class="f-var">relevancy</span>
+      &nbsp;+&nbsp;
+      <span class="f-w">0.35</span> × <span class="f-var">judge_eval</span>
+      <br/>
+      <span style="color:#8b949e;font-size:10px">
+        Fallback v0.1 (Ollama offline): F=0.75, H=0.25, R=0.75 (neutral defaults) — judge_eval still carries full weight
+      </span>
+    </div>
+  </div>
+
+  <div class="arrow">
+    <div class="arrow-line"></div>
+    <div class="arrow-head"></div>
+    <div class="arrow-label">routing decision</div>
+  </div>
+
+</div><!-- end .pipeline -->
+
+<!-- ── ROUTING ROW ── -->
+<div class="routing-row">
+  <div class="route-box r-deliver">
+    <div class="r-label">DELIVER</div>
+    <div class="r-cond">score ≥ 0.8</div>
+    <div class="r-desc" style="color:#3fb950">Answer sent to user</div>
+  </div>
+  <div class="route-box r-retry">
+    <div class="r-label">RETRY</div>
+    <div class="r-cond">0.4 ≤ score &lt; 0.8</div>
+    <div class="r-desc" style="color:#f0c438">Correction signal sent back to LLM</div>
+  </div>
+  <div class="route-box r-review">
+    <div class="r-label">HUMAN REVIEW</div>
+    <div class="r-cond">score &lt; 0.4</div>
+    <div class="r-desc" style="color:#bc8cff">Flagged for analyst review</div>
+  </div>
+  <div class="route-box r-block">
+    <div class="r-label">HARD BLOCK</div>
+    <div class="r-cond">any material claim = 0.0</div>
+    <div class="r-desc" style="color:#f85149">Bypasses formula entirely</div>
+  </div>
+</div>
+
+<!-- ── HARD BLOCK NOTE ── -->
+<div class="hardblock-note">
+  <div class="hb-icon">⛔</div>
+  <div>
+    <strong>HARD_BLOCK safety override</strong> —
+    <span class="hb-text">checked <strong>before</strong> the formula runs. If the MAD judge finds any <strong>material claim</strong> (a regulatory obligation, penalty, or threshold) scored 0.0, the answer is blocked immediately regardless of the overall confidence score. A fabricated regulatory claim can never reach the user via any retry path.</span>
+  </div>
+</div>
+
+<!-- ── DATA FLOW ── -->
+<div style="margin-top:32px;width:100%;max-width:860px;">
+  <div style="font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#8b949e;margin-bottom:12px;">Data flow into CSE</div>
+  <div style="display:flex;gap:10px;">
+    <div style="flex:1;background:#161b22;border:1px solid #30363d;border-radius:8px;padding:12px;">
+      <div style="font-size:10px;color:#8b949e;margin-bottom:6px;text-transform:uppercase;letter-spacing:0.8px;">From MAD Pipeline</div>
+      <div style="font-size:11px;color:#e6edf3;line-height:1.7">
+        • <code style="color:#79c0ff">final_claims</code> — list of Claim objects with is_material flag<br/>
+        • <code style="color:#79c0ff">judge_verdicts</code> — JudgeVerdict per claim (score: 0/0.5/1)<br/>
+        • <code style="color:#79c0ff">evidence_pool</code> — EvidenceChunk objects (RAG context text)
+      </div>
+    </div>
+    <div style="flex:1;background:#161b22;border:1px solid #30363d;border-radius:8px;padding:12px;">
+      <div style="font-size:10px;color:#8b949e;margin-bottom:6px;text-transform:uppercase;letter-spacing:0.8px;">From caller</div>
+      <div style="font-size:11px;color:#e6edf3;line-height:1.7">
+        • <code style="color:#79c0ff">query</code> — original user question<br/>
+        • <code style="color:#79c0ff">llm_answer</code> — the full LLM response text<br/>
+        • <code style="color:#79c0ff">rag_chunks</code> — retrieved context (strings or Chunk objects)
+      </div>
+    </div>
+    <div style="flex:1;background:#161b22;border:1px solid #30363d;border-radius:8px;padding:12px;">
+      <div style="font-size:10px;color:#8b949e;margin-bottom:6px;text-transform:uppercase;letter-spacing:0.8px;">CSE writes to DB</div>
+      <div style="font-size:11px;color:#e6edf3;line-height:1.7">
+        • <code style="color:#79c0ff">final_cse_score</code> — weighted formula result<br/>
+        • <code style="color:#79c0ff">routing_decision</code> — DELIVER / RETRY / etc.<br/>
+        • <code style="color:#79c0ff">cse_f_llm, cse_h_llm</code><br/>
+        • <code style="color:#79c0ff">cse_relevancy, cse_judge_eval</code><br/>
+        • <code style="color:#79c0ff">cse_version</code> — v2.0 or v0.1 (fallback)
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── LEGEND ── -->
+<div class="legend">
+  <div class="legend-item"><div class="legend-dot" style="background:#58a6ff"></div>Input</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#d29922"></div>Gateway</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#8957e5"></div>LLM + MAD</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#0e7a6a"></div>CSE (this system)</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#3fb950"></div>DELIVER</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#f0c438"></div>RETRY</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#bc8cff"></div>HUMAN REVIEW</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#f85149"></div>HARD BLOCK</div>
+</div>
+
+</body>
+</html>

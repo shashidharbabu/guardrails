@@ -27,9 +27,13 @@ ENV/
 # IDE
 .vscode/
 .idea/
+.cursor/
 *.swp
 *.swo
 *~
+
+# Runtime
+.service_pids
 
 # OS
 .DS_Store
