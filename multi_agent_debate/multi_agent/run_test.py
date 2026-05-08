@@ -23,6 +23,9 @@ Usage:
   # Verify storage was written correctly (checks SQLite tables):
   python -m multi_agent.run_test --verify-storage
 
+  # Run GRPO feedback batch scorer on the same DB (PYTHONPATH must include repo root):
+  PYTHONPATH=.. python -m multi_agent.run_test --run-feedback-loop
+
   # List all examples:
   python -m multi_agent.run_test --list
 """
@@ -142,6 +145,11 @@ def main() -> None:
     parser.add_argument("--answer",         default=None)
     parser.add_argument("--output-json",    default=None, metavar="FILE")
     parser.add_argument("--verify-storage", action="store_true")
+    parser.add_argument(
+        "--run-feedback-loop",
+        action="store_true",
+        help="After run, score rewards + GRPO advantage (requires repo root on PYTHONPATH)",
+    )
     parser.add_argument("--list",           action="store_true")
     args = parser.parse_args()
 
@@ -222,11 +230,30 @@ def main() -> None:
     if args.verify_storage:
         _verify_storage(result.query_id, result.rollout_id)
 
+    if args.run_feedback_loop:
+        _run_feedback_loop()
+
     # ── Save JSON ──────────────────────────────────────────────────────────────
     if args.output_json:
         with open(args.output_json, "w", encoding="utf-8") as f:
             json.dump(result.model_dump(), f, indent=2, default=str)
         print(f"\n  Full MADOutput saved → {args.output_json}")
+
+
+def _run_feedback_loop() -> None:
+    """Import rlhf batch scorer (repo root must be on PYTHONPATH)."""
+    import sys
+    from pathlib import Path
+
+    root = Path(__file__).resolve().parent.parent.parent
+    if str(root) not in sys.path:
+        sys.path.insert(0, str(root))
+    from rlhf.feedback_loop.scorer import run_batch_scoring
+
+    stats = run_batch_scoring(DB_PATH, apply_advantage=True)
+    print("\n  [Feedback loop] scoring complete:")
+    for k, v in stats.items():
+        print(f"    {k}: {v}")
 
 
 def _verify_storage(query_id: str, rollout_id: str) -> None:
