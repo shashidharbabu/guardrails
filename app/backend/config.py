@@ -95,8 +95,16 @@ class Settings:
     ENABLE_AUDIT_LOGGING: bool = os.environ.get("ENABLE_AUDIT_LOGGING", "true").lower() == "true"
     ENABLE_LANGFUSE: bool = os.environ.get("ENABLE_LANGFUSE", "false").lower() == "true"
     LANGFUSE_HOST: Optional[str] = os.environ.get("LANGFUSE_HOST")
+    LANGFUSE_PUBLIC_KEY: Optional[str] = os.environ.get("LANGFUSE_PUBLIC_KEY")
+    LANGFUSE_SECRET_KEY: Optional[str] = os.environ.get("LANGFUSE_SECRET_KEY")
     OTEL_EXPORTER_OTLP_ENDPOINT: Optional[str] = os.environ.get("OTEL_EXPORTER_OTLP_ENDPOINT")
     LOG_LEVEL: str = os.environ.get("LOG_LEVEL", "INFO")
+
+    # ── LLM Judge / CSE (DeepEval) ────────────────────────────────────────────
+    ANTHROPIC_API_KEY: Optional[str] = os.environ.get("ANTHROPIC_API_KEY")
+    JUDGE_BACKEND: str = os.environ.get("JUDGE_BACKEND", "claude")  # claude | ollama
+    CLAUDE_JUDGE_MODEL: str = os.environ.get("CLAUDE_JUDGE_MODEL", "claude-haiku-4-5-20251001")
+    CLAUDE_JUDGE_TIMEOUT: int = int(os.environ.get("CLAUDE_JUDGE_TIMEOUT", "60"))
 
     # ── Data ─────────────────────────────────────────────────────────────────
     DATA_RETENTION_DAYS: int = int(os.environ.get("DATA_RETENTION_DAYS", "365"))

@@ -32,11 +32,18 @@ from __future__ import annotations
 import json
 import math
 import re
+import sys
 from pathlib import Path
 from typing import Dict, List
 
 from multi_agent.config import CHUNKS_JSONL_PATH, TOP_K_CHUNKS
 from multi_agent.models import EvidenceChunk
+
+# Ensure the multi_agent_debate/rag/ package is importable regardless of the
+# working directory from which this module is loaded.
+_rag_root = Path(__file__).resolve().parent.parent  # multi_agent_debate/
+if str(_rag_root) not in sys.path:
+    sys.path.insert(0, str(_rag_root))
 
 # ── Module-level cache — loaded once per process ───────────────────────────────
 _chunk_cache: List[Dict] = []
@@ -88,12 +95,12 @@ def retrieve(
         return _retrieve_cache[cache_key]
 
     try:
-        from rag.pipeline import retrieve_verified
-        result = retrieve_verified(query, top_k)
+        from rag.retriever import retrieve as _qdrant_retrieve
+        result = _qdrant_retrieve(query, top_k)
         _retrieve_cache[cache_key] = result
         return result
     except Exception as e:
-        print(f"[RAG] Full pipeline failed — falling back to TF-IDF stub. Reason: {e}")
+        print(f"[RAG] Qdrant retrieval failed — falling back to TF-IDF stub. Reason: {e}")
 
     # ── Fallback: TF-IDF stub ──────────────────────────────────────────────────
     chunks = _load_chunks()

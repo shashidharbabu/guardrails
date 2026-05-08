@@ -163,6 +163,7 @@ async def _run_mad_background(
                 mad_rollout_id=getattr(mad_out, "rollout_id", "") or "",
                 pipeline_duration_ms=duration_ms,
                 cse_result_json=json.dumps(cse_result) if isinstance(cse_result, dict) else None,
+                langfuse_trace_id=getattr(mad_out, "langfuse_trace_id", None),
             )
             db.insert_session_event(
                 session_id=session_id,

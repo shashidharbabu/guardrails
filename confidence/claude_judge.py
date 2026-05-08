@@ -36,8 +36,20 @@ from typing import Any, Optional, Type
 import anthropic
 from deepeval.models.base_model import DeepEvalBaseLLM
 
-CLAUDE_JUDGE_MODEL:   str   = os.getenv("CLAUDE_JUDGE_MODEL", "claude-haiku-4-5")
-CLAUDE_JUDGE_TIMEOUT: float = float(os.getenv("CLAUDE_JUDGE_TIMEOUT", "60"))
+def _default_model() -> str:
+    try:
+        from app.backend.config import get_settings
+        return get_settings().CLAUDE_JUDGE_MODEL
+    except Exception:
+        return os.getenv("CLAUDE_JUDGE_MODEL", "claude-haiku-4-5-20251001")
+
+
+def _default_timeout() -> float:
+    try:
+        from app.backend.config import get_settings
+        return float(get_settings().CLAUDE_JUDGE_TIMEOUT)
+    except Exception:
+        return float(os.getenv("CLAUDE_JUDGE_TIMEOUT", "60"))
 
 
 def _extract_json(text: str) -> str:
@@ -95,9 +107,11 @@ class ClaudeJudge(DeepEvalBaseLLM):
 
     def __init__(
         self,
-        model:   str   = CLAUDE_JUDGE_MODEL,
-        timeout: float = CLAUDE_JUDGE_TIMEOUT,
+        model:   Optional[str]   = None,
+        timeout: Optional[float] = None,
     ) -> None:
+        model   = model   or _default_model()
+        timeout = timeout or _default_timeout()
         self.model   = model
         self.timeout = timeout
         api_key = os.getenv("ANTHROPIC_API_KEY")

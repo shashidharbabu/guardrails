@@ -88,6 +88,7 @@ class MADResponse(BaseModel):
     query_id: str
     rollout_id: str
     cse_result: Optional[Dict[str, Any]] = None
+    langfuse_trace_id: Optional[str] = None
 
 
 # ── Internal helpers ──────────────────────────────────────────────────────────
@@ -257,6 +258,18 @@ async def _run_pipeline(query: str, llm_answer: str) -> MADResponse:
     )
 
     langfuse = get_langfuse_client()
+    # Create a parent trace for this pipeline run so all per-claim traces link up
+    langfuse_run_trace_id: Optional[str] = None
+    if langfuse:
+        try:
+            parent_trace = langfuse.trace(
+                name="mad-pipeline-run",
+                input={"query": query, "run_id": run_id, "query_id": query_id},
+                metadata={"run_id": run_id},
+            )
+            langfuse_run_trace_id = parent_trace.id
+        except Exception:
+            pass
 
     run_judge = True
     try:
@@ -309,6 +322,16 @@ async def _run_pipeline(query: str, llm_answer: str) -> MADResponse:
     judge_outs = _build_judge_outs(state)
     transcript = _build_transcript(state, routing, agg)
 
+    if langfuse and langfuse_run_trace_id:
+        try:
+            langfuse.trace(
+                id=langfuse_run_trace_id,
+                output={"routing_decision": routing, "aggregate_confidence": agg},
+            )
+            langfuse.flush()
+        except Exception:
+            pass
+
     return MADResponse(
         routing_decision=routing,
         aggregate_confidence=agg,
@@ -319,6 +342,7 @@ async def _run_pipeline(query: str, llm_answer: str) -> MADResponse:
         query_id=query_id,
         rollout_id=rollout_id,
         cse_result=None,
+        langfuse_trace_id=langfuse_run_trace_id,
     )
 
 

@@ -218,22 +218,26 @@ def update_session_mad(
     mad_query_id: str = "",
     mad_rollout_id: str = "",
     cse_result_json: Optional[str] = None,
+    langfuse_trace_id: Optional[str] = None,
 ):
     new_status = _mad_routing_to_status(mad_routing)
+    vals = dict(
+        mad_routing=mad_routing,
+        mad_confidence=mad_confidence,
+        mad_output_json=mad_output_json,
+        mad_query_id=mad_query_id,
+        mad_rollout_id=mad_rollout_id,
+        pipeline_duration_ms=pipeline_duration_ms,
+        status=new_status,
+        cse_result_json=cse_result_json,
+    )
+    if langfuse_trace_id is not None:
+        vals["langfuse_trace_id"] = langfuse_trace_id
     with engine.begin() as conn:
         conn.execute(
             sessions_table.update()
             .where(sessions_table.c.id == session_id)
-            .values(
-                mad_routing=mad_routing,
-                mad_confidence=mad_confidence,
-                mad_output_json=mad_output_json,
-                mad_query_id=mad_query_id,
-                mad_rollout_id=mad_rollout_id,
-                pipeline_duration_ms=pipeline_duration_ms,
-                status=new_status,
-                cse_result_json=cse_result_json,
-            )
+            .values(**vals)
         )
 
 

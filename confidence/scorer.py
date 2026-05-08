@@ -342,15 +342,27 @@ class ConfidenceScorer:
             return None, None, None, err
 
     def _get_judge(self) -> object:
-        """Lazy-init the DeepEval judge backend (Ollama or Claude)."""
+        """Lazy-init the DeepEval judge backend. Claude is primary; Ollama is fallback."""
         if self._judge is None:
-            backend = os.getenv("JUDGE_BACKEND", "ollama").lower()
+            try:
+                from app.backend.config import get_settings
+                backend = get_settings().JUDGE_BACKEND.lower()
+            except Exception:
+                backend = os.getenv("JUDGE_BACKEND", "claude").lower()
+
             if backend == "claude":
-                from confidence.claude_judge import ClaudeJudge
-                self._judge = ClaudeJudge()
+                try:
+                    from confidence.claude_judge import ClaudeJudge
+                    self._judge = ClaudeJudge()
+                    logger.info("[CSE] DeepEval judge: Claude (%s)", self._judge.model)
+                except Exception as exc:
+                    logger.warning("[CSE] ClaudeJudge init failed — falling back to Ollama. Reason: %s", exc)
+                    from confidence.ollama_judge import OllamaJudge
+                    self._judge = OllamaJudge(model=self.ollama_model)
             else:
                 from confidence.ollama_judge import OllamaJudge
                 self._judge = OllamaJudge(model=self.ollama_model)
+                logger.info("[CSE] DeepEval judge: Ollama (%s)", self.ollama_model)
         return self._judge
 
 

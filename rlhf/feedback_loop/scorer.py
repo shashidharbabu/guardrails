@@ -43,22 +43,55 @@ def compute_attack_b_reward(v_label: float, p_before: float, p_after: float) -> 
 def update_attack_rewards(con: sqlite3.Connection) -> int:
     """
     Compute b_reward for agent_deltas rows where agent_b shifted A's confidence.
-    Stores result in a temporary in-memory dict (new schema has no b_reward column).
-    Returns number of delta rows processed.
+    Persists b_reward to rewards table and updates is_clean flag accordingly.
+    Returns number of rewards rows updated with a b_reward value.
     """
+    import hashlib
+
     rows = con.execute(
         """
         SELECT ad.delta_id, ad.claim_id,
                ad.confidence_r0 AS p_before,
                ad.confidence_r1 AS p_after,
-               j.v_label
+               j.v_label,
+               q.user_query,
+               q.run_id AS rollout_id
         FROM agent_deltas ad
         JOIN judge_verdicts j ON j.claim_id = ad.claim_id
+        JOIN claims c ON c.claim_id = ad.claim_id
+        JOIN queries q ON q.query_id = c.query_id
         WHERE ad.agent_role = 'agent_b'
           AND ad.confidence_r1 IS NOT NULL
         """
     ).fetchall()
-    return len(rows)
+
+    updated = 0
+    for row in rows:
+        b_reward = compute_attack_b_reward(
+            v_label=float(row["v_label"]),
+            p_before=float(row["p_before"]),
+            p_after=float(row["p_after"]),
+        )
+        # Derive the stable query_id used in rewards table (MD5 of user_query)
+        qid = hashlib.md5(row["user_query"].encode()).hexdigest()[:16]
+        rid = row["rollout_id"]
+        cid = str(row["claim_id"])
+
+        # is_clean=0 when Agent B gaslit A (b_reward=-1)
+        is_clean_val = 0 if b_reward == -1.0 else 1
+
+        cur = con.execute(
+            """
+            UPDATE rewards
+            SET b_reward = ?, is_clean = ?
+            WHERE query_id = ? AND rollout_id = ? AND claim_id = ?
+            """,
+            (b_reward, is_clean_val, qid, rid, cid),
+        )
+        if cur.rowcount > 0:
+            updated += 1
+
+    return updated
 
 
 def claim_has_gaslighting(con: sqlite3.Connection, claim_id: str) -> bool:

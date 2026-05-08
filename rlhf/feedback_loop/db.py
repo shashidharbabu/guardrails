@@ -48,6 +48,7 @@ def init_feedback_schema(db_path: str | None = None) -> None:
                 human_reviewed             INTEGER NOT NULL DEFAULT 0,
                 final_reward               REAL,
                 is_clean                   INTEGER NOT NULL,
+                b_reward                   REAL,
                 is_material                INTEGER NOT NULL DEFAULT 1,
                 grpo_advantage             REAL,
                 scored_at                  TEXT NOT NULL,
@@ -55,3 +56,8 @@ def init_feedback_schema(db_path: str | None = None) -> None:
             )
             """
         )
+        # Idempotent migration: add b_reward column if table already exists without it
+        try:
+            con.execute("ALTER TABLE rewards ADD COLUMN b_reward REAL")
+        except Exception:
+            pass  # Column already exists — safe to ignore
