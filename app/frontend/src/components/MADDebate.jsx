@@ -153,6 +153,43 @@ function DebateCycle({ cycle, index }) {
   )
 }
 
+function JudgeVerdictRow({ verdict, claim }) {
+  const score = verdict?.score
+  const scoreLabel = score === 1.0 ? 'SUPPORTED' : score === 0.5 ? 'PARTIAL' : 'NOT_SUPPORTED'
+  const scoreColor = score === 1.0 ? 'var(--green-hi)' : score === 0.5 ? 'var(--amber-hi)' : 'var(--red-hi)'
+  return (
+    <div style={{
+      border: '1px solid var(--border)',
+      borderRadius: 'var(--r-md)',
+      padding: '10px 12px',
+      background: 'var(--bg-base)',
+    }}>
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8, marginBottom: 4 }}>
+        <p style={{ fontFamily: 'var(--font-ui)', fontSize: 12, color: 'var(--text-primary)', lineHeight: 1.6, flex: 1 }}>
+          {verdict?.claim_text ?? claim?.claim_text}
+        </p>
+        <div style={{ display: 'flex', gap: 4, flexShrink: 0 }}>
+          {(verdict?.is_material ?? claim?.is_material) && (
+            <span style={{ fontSize: 9, padding: '2px 6px', borderRadius: 'var(--r-sm)', background: 'var(--amber-dim)', color: 'var(--amber-hi)', fontFamily: 'var(--font-mono)', fontWeight: 700 }}>MATERIAL</span>
+          )}
+          <span style={{ fontSize: 9, padding: '2px 8px', borderRadius: 'var(--r-sm)', background: 'var(--bg-hover)', color: scoreColor, fontFamily: 'var(--font-mono)', fontWeight: 700, textTransform: 'uppercase' }}>
+            {scoreLabel}
+          </span>
+        </div>
+      </div>
+      <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--text-muted)' }}>
+        judge score {score != null ? (score * 100).toFixed(0) : '—'}%
+        {claim?.confidence != null && ` · agent conf ${(claim.confidence * 100).toFixed(0)}%`}
+      </div>
+      {verdict?.reasoning && (
+        <p style={{ fontFamily: 'var(--font-ui)', fontSize: 11, color: 'var(--text-sec)', marginTop: 6, lineHeight: 1.5 }}>
+          {verdict.reasoning.slice(0, 200)}{verdict.reasoning.length > 200 ? '…' : ''}
+        </p>
+      )}
+    </div>
+  )
+}
+
 export default function MADDebate({ madOutput }) {
   const [showTranscript, setShowTranscript] = useState(false)
 
@@ -172,7 +209,20 @@ export default function MADDebate({ madOutput }) {
     )
   }
 
-  const { debate_cycles = [], debate_transcript, routing_decision, confidence_score } = madOutput
+  const {
+    debate_cycles = [],
+    debate_transcript,
+    routing_decision,
+    confidence_score,
+    aggregate_confidence,
+    claims = [],
+    judge_verdicts = [],
+  } = madOutput
+
+  const displayConfidence = aggregate_confidence ?? confidence_score ?? 0
+
+  // V4MAD returns claims+judge_verdicts; legacy returns debate_cycles
+  const isV4 = claims.length > 0
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -182,17 +232,26 @@ export default function MADDebate({ madOutput }) {
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <Badge value={routing_decision} size="lg" />
             <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--text-sec)' }}>
-              confidence {((confidence_score ?? 0) * 100).toFixed(0)}%
+              confidence {(displayConfidence * 100).toFixed(0)}%
             </span>
           </div>
           <span style={{ fontFamily: 'var(--font-ui)', fontSize: 11, color: 'var(--text-muted)' }}>
-            {debate_cycles.length} debate cycle{debate_cycles.length !== 1 ? 's' : ''}
+            {isV4
+              ? `${claims.length} claim${claims.length !== 1 ? 's' : ''} · R0+R1 debate`
+              : `${debate_cycles.length} debate cycle${debate_cycles.length !== 1 ? 's' : ''}`}
           </span>
         </div>
       </div>
 
-      {/* Debate cycles */}
-      {debate_cycles.length > 0 ? (
+      {/* V4MAD: claims + judge verdicts */}
+      {isV4 ? (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          {claims.map((claim, i) => {
+            const verdict = judge_verdicts.find(v => v.claim_id === claim.claim_id)
+            return <JudgeVerdictRow key={claim.claim_id ?? i} verdict={verdict} claim={claim} />
+          })}
+        </div>
+      ) : debate_cycles.length > 0 ? (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           {debate_cycles.map((cycle, i) => (
             <DebateCycle key={cycle.cycle_index ?? i} cycle={cycle} index={i} />

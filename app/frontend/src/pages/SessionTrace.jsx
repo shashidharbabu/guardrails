@@ -553,28 +553,54 @@ export default function SessionTrace() {
               iconClass="si-w"
               title="MAD Pipeline"
               timeLabel={`${gatewayMs + llmMs}ms → ${gatewayMs + llmMs + madMs}ms`}
-              badge={`${mad.debate_cycles?.length || 0} cycles · ${mad.debate_cycles?.reduce((a, c) => a + (c.agent_b_challenges?.length || 0), 0) || 0} challenges`}
+              badge={`${(mad.claims ?? mad.debate_cycles ?? []).length} claims · R0+R1 debate`}
               badgeClass={
                 session.mad_routing === 'DELIVER' ? 'b-pass'
                 : session.mad_routing === 'HARD_BLOCK' ? 'b-block'
                 : 'b-esc'
               }
             >
-              {mad.debate_cycles?.length === 0 && (
-                <div className="span-row">
-                  <div className="sdot" style={{ background: 'var(--text-muted)' }}/>
-                  <div className="slbl" style={{ color: 'var(--text-muted)' }}>
-                    No debate cycles — routed to human review.
-                  </div>
+              {/* V4MAD shape: claims + judge_verdicts */}
+              {mad.claims?.length > 0 && (
+                <div className="claim-list">
+                  {mad.claims.map((claim, i) => {
+                    const jv = mad.judge_verdicts?.find(v => v.claim_id === claim.claim_id)
+                    const score = jv?.score
+                    const scoreLabel = score === 1.0 ? 'SUPPORTED' : score === 0.5 ? 'PARTIAL' : score === 0.0 ? 'NOT_SUPPORTED' : claim.verdict
+                    return (
+                      <div key={claim.claim_id ?? i} className="claim-card">
+                        <div className="claim-hdr">
+                          <div className="claim-text">{claim.claim_text}</div>
+                          <div style={{ display: 'flex', gap: 4, alignItems: 'center', flexShrink: 0 }}>
+                            {claim.is_material && (
+                              <span className="ev-tag" style={{ fontSize: '9px', background: 'var(--amber-dim)', color: 'var(--amber-hi)' }}>material</span>
+                            )}
+                            <span className={`badge ${claimCls(scoreLabel)}`} style={{ fontSize: '10px' }}>
+                              {scoreLabel || 'pending'}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="claim-ev">
+                          Agent A R1 · conf {((claim.confidence || 0) * 100).toFixed(0)}%
+                          {jv && ` · judge score ${(score * 100).toFixed(0)}%`}
+                        </div>
+                        {jv?.reasoning && (
+                          <div className="claim-ev" style={{ marginTop: 2, color: 'var(--text-muted)', fontStyle: 'italic' }}>
+                            {jv.reasoning.slice(0, 120)}{jv.reasoning.length > 120 ? '…' : ''}
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })}
                 </div>
               )}
 
-              {mad.debate_cycles?.map((cycle, ci) => (
+              {/* Legacy shape: debate_cycles (kept for old sessions) */}
+              {!mad.claims && mad.debate_cycles?.map((cycle, ci) => (
                 <div key={ci}>
                   <div className="cyc-lbl">
                     Cycle {cycle.cycle_number ?? (cycle.cycle_index ?? 0) + 1}
                   </div>
-
                   {cycle.agent_a_report?.length > 0 && (
                     <div className="claim-list">
                       {cycle.agent_a_report.map((claim, i) => (
@@ -592,7 +618,6 @@ export default function SessionTrace() {
                       ))}
                     </div>
                   )}
-
                   {cycle.agent_b_challenges?.map((ch, i) => (
                     <div key={i} className="agent-box ab">
                       <div className="aw">
@@ -600,46 +625,23 @@ export default function SessionTrace() {
                         Agent B — Challenge ({ch.challenge_type})
                       </div>
                       <div className="at">"{ch.challenge_text}"</div>
-                      {ch.suggested_verdict && (
-                        <div className="ev-tags">
-                          <span className="ev-tag">suggests: {ch.suggested_verdict}</span>
-                        </div>
-                      )}
-                    </div>
-                  ))}
-
-                  {cycle.agent_a_revised?.map((claim, i) => (
-                    <div key={i} className="agent-box aa">
-                      <div className="aw">
-                        <div className="adot adot-a"/>
-                        Agent A — Revised
-                      </div>
-                      <div className="at">"{claim.claim_text}"</div>
-                      <div className="ev-tags">
-                        <span className={`badge ${claimCls(claim.verdict)}`} style={{ fontSize: '10px' }}>
-                          {claim.verdict || 'revised'}
-                        </span>
-                        <span className="ev-tag">conf {((claim.confidence || 0) * 100).toFixed(0)}%</span>
-                      </div>
                     </div>
                   ))}
                 </div>
               ))}
 
-              {mad.debate_cycles?.length > 0 && (
-                <div className="judge-box">
-                  <div className="jt">Judge — Final Verdict</div>
-                  <div className="jtext">
-                    MAD routing: {mad.routing_decision} · confidence{' '}
-                    {(((mad.aggregate_confidence ?? mad.confidence_score) || 0) * 100).toFixed(0)}%
-                    {mad.debate_cycles?.length > 0 &&
-                      ` · ${mad.debate_cycles.length} cycle${mad.debate_cycles.length !== 1 ? 's' : ''} completed`}
-                  </div>
-                  <div className="ev-tags" style={{ marginTop: '8px' }}>
-                    <StatusBadge type="mad" value={mad.routing_decision} />
-                  </div>
+              {/* Judge verdict summary — shown for both shapes */}
+              <div className="judge-box">
+                <div className="jt">Judge — Final Verdict</div>
+                <div className="jtext">
+                  MAD routing: {mad.routing_decision} · confidence{' '}
+                  {(((mad.aggregate_confidence ?? mad.confidence_score) || 0) * 100).toFixed(0)}%
+                  {mad.claims?.length > 0 && ` · ${mad.claims.length} claim${mad.claims.length !== 1 ? 's' : ''} evaluated`}
                 </div>
-              )}
+                <div className="ev-tags" style={{ marginTop: '8px' }}>
+                  <StatusBadge type="mad" value={mad.routing_decision} />
+                </div>
+              </div>
 
               {mad.debate_transcript && (
                 <div>
