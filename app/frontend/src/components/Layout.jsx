@@ -2,13 +2,14 @@ import { useEffect, useState } from 'react'
 import { NavLink, Outlet, useLocation } from 'react-router-dom'
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion'
 import CopilotPanel from './CopilotPanel'
+import { useAuth } from '../context/AuthContext'
 
 const NAV = [
   {
     section: 'Observe',
     items: [
       {
-        to: '/', label: 'Conversations', end: true,
+          to: '/conversations', label: 'Conversations', end: true,
         icon: (
           <svg className="nav-icon" viewBox="0 0 16 16" fill="none">
             <path d="M2 4h12M2 8h8M2 12h10" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
@@ -111,7 +112,7 @@ const NAV = [
 ]
 
 function derivePageName(pathname) {
-  if (pathname === '/') return 'conversations'
+  if (pathname === '/conversations') return 'conversations'
   if (pathname.startsWith('/sessions/')) return 'session_trace'
   if (pathname === '/analytics') return 'analytics'
   if (pathname === '/human-review') return 'human_review'
@@ -130,6 +131,7 @@ export default function Layout() {
   const [copilotOpen, setCopilotOpen] = useState(false)
   const location = useLocation()
   const shouldReduceMotion = useReducedMotion()
+  const { user, signOut } = useAuth()
 
   const sessionIdMatch = location.pathname.match(/^\/sessions\/([^/]+)$/)
   const pageContext = {
@@ -165,16 +167,10 @@ export default function Layout() {
       {/* ─── Topbar ─────────────────────────────────────────── */}
       <header className="topbar" role="banner">
         <div className="logo-wrap">
-          <div className="logo-icon" aria-hidden="true">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-              <path d="M12 2L21 7V17L12 22L3 17V7L12 2Z" stroke="var(--blue)" strokeWidth="1.5" fill="rgba(59,130,246,0.06)"/>
-              <path d="M12 6L17.5 9V15L12 18L6.5 15V9L12 6Z" fill="rgba(59,130,246,0.1)" stroke="var(--blue)" strokeWidth="1"/>
-              <circle cx="12" cy="12" r="2.5" fill="var(--blue)"/>
-            </svg>
-          </div>
+          <div className="brand-mark app-mark" aria-hidden="true" />
           <div>
-            <div className="logo-name">GUARDRAILS</div>
-            <div className="logo-sub">AI SAFETY PLATFORM</div>
+            <div className="logo-name">Guardrails</div>
+            <div className="logo-sub">Enterprise AI Safety</div>
           </div>
         </div>
 
@@ -186,6 +182,14 @@ export default function Layout() {
         </div>
 
         <div className="tb-right">
+          <div className="global-search" role="search">
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+              <circle cx="7" cy="7" r="4.5" stroke="currentColor" strokeWidth="1.4"/>
+              <path d="M10.5 10.5L14 14" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
+            </svg>
+            <span>Search sessions, policies, traces</span>
+            <kbd>⌘K</kbd>
+          </div>
           <div className="st-row">
             <div className="st-dot g" />
             <span className="st-lbl">API</span>
@@ -197,6 +201,14 @@ export default function Layout() {
           </div>
           <div className="tb-div" />
           <div className="clock" aria-label="Current time">{clock}</div>
+          <div className="user-menu">
+            <div className="avatar" aria-hidden="true">{(user?.name || 'A').slice(0, 1)}</div>
+            <div>
+              <strong>{user?.org || 'Guardrails Workspace'}</strong>
+              <span>{user?.role || 'Operator'}</span>
+            </div>
+            <button type="button" onClick={signOut}>Sign out</button>
+          </div>
         </div>
       </header>
 
@@ -214,7 +226,7 @@ export default function Layout() {
                 aria-current={item.to === location.pathname ? 'page' : undefined}
               >
                 {item.icon}
-                {item.label}
+                <span>{item.label}</span>
                 {item.badge && (
                   <span className="nav-badge" aria-label={`${item.badge} items`}>{item.badge}</span>
                 )}
@@ -224,8 +236,10 @@ export default function Layout() {
           </div>
         ))}
 
-        <div style={{ marginTop: 'auto', padding: '14px 20px', fontSize: '9px', fontFamily: 'var(--font-ui)', fontWeight: 500, color: 'var(--text-muted)', letterSpacing: '0.06em', textTransform: 'uppercase' }}>
-          v{import.meta.env.VITE_APP_VERSION || '1.0.0'} · Enterprise
+        <div className="sidebar-card">
+          <span>Workspace</span>
+          <strong>{user?.org || 'Northstar AI Governance'}</strong>
+          <small>Production controls · v{import.meta.env.VITE_APP_VERSION || '1.0.0'}</small>
         </div>
       </nav>
 

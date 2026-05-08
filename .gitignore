@@ -8,9 +8,11 @@ airflow-webserver.pid
 gcp_keys/
 *.json
 !config/*.json
+!app/frontend/package.json
 # Explicitly ignore service account keys at root
 guardrails-*.json
 *-*.json
+!app/frontend/package-lock.json
 service-account-key.json
 
 # Python

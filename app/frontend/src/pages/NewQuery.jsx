@@ -59,7 +59,9 @@ export default function NewQuery() {
           setStep(5, 'done', s.mad_routing)
           setResult(s)
         }
-      } catch (_) {}
+      } catch {
+        // Polling failures are non-blocking; the next interval can recover.
+      }
     }, 10000)
     return () => clearInterval(pollRef.current)
   }, [madPending, sessionId])
@@ -408,7 +410,7 @@ export default function NewQuery() {
                   type="button"
                   className="btn"
                   style={{ width: '100%', justifyContent: 'center', display: 'flex', padding: 9 }}
-                  onClick={() => navigate('/')}
+                  onClick={() => navigate('/conversations')}
                 >
                   View in conversations →
                 </button>
