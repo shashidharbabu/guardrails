@@ -138,7 +138,29 @@ human_reviews_table = Table(
 
 def init_db():
     metadata.create_all(engine)
+    _migrate_sessions_table()
     _add_indexes()
+
+
+def _migrate_sessions_table():
+    """Add columns that were introduced after the initial schema was deployed."""
+    new_columns = [
+        ("status",               "TEXT DEFAULT 'RECEIVED'"),
+        ("llm_model",            "TEXT"),
+        ("cse_result_json",      "TEXT"),
+        ("final_route",          "TEXT"),
+        ("tenant_id",            "TEXT"),
+        ("user_id",              "TEXT"),
+    ]
+    with engine.connect() as conn:
+        existing = {row[1] for row in conn.execute(text("PRAGMA table_info(sessions)")).fetchall()}
+        for col_name, col_def in new_columns:
+            if col_name not in existing:
+                try:
+                    conn.execute(text(f"ALTER TABLE sessions ADD COLUMN {col_name} {col_def}"))
+                except Exception:
+                    pass
+        conn.commit()
 
 
 def _add_indexes():
