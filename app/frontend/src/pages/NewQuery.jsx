@@ -58,6 +58,20 @@ export default function NewQuery() {
           setStep(4, 'done', 'ok')
           setStep(5, 'done', s.mad_routing)
           setResult(s)
+        } else if (s.status === 'MAD_UNAVAILABLE') {
+          clearInterval(pollRef.current)
+          setMadPending(false)
+          setStep(3, 'skip', 'unavailable')
+          setStep(4, 'skip', 'unavailable')
+          setStep(5, 'skip', 'LLM only')
+          setResult(s)
+        } else if (s.status === 'FAILED') {
+          clearInterval(pollRef.current)
+          setMadPending(false)
+          setStep(3, 'err', 'failed')
+          setStep(4, 'err', 'failed')
+          setStep(5, 'err', 'failed')
+          setResult(s)
         }
       } catch {
         // Polling failures are non-blocking; the next interval can recover.

@@ -36,8 +36,11 @@ async def _proxy_get(path: str) -> Any:
             return r.json()
     except httpx.ConnectError:
         raise HTTPException(502, detail="Feedback loop service unreachable")
+    except httpx.TimeoutException:
+        raise HTTPException(504, detail="Feedback loop service timed out")
     except httpx.HTTPStatusError as exc:
-        raise HTTPException(exc.response.status_code, detail=exc.response.text)
+        status = 502 if exc.response.status_code >= 500 else exc.response.status_code
+        raise HTTPException(status, detail=exc.response.text)
 
 
 async def _proxy_post(path: str, body: dict | None = None) -> Any:
@@ -48,8 +51,11 @@ async def _proxy_post(path: str, body: dict | None = None) -> Any:
             return r.json()
     except httpx.ConnectError:
         raise HTTPException(502, detail="Feedback loop service unreachable")
+    except httpx.TimeoutException:
+        raise HTTPException(504, detail="Feedback loop service timed out")
     except httpx.HTTPStatusError as exc:
-        raise HTTPException(exc.response.status_code, detail=exc.response.text)
+        status = 502 if exc.response.status_code >= 500 else exc.response.status_code
+        raise HTTPException(status, detail=exc.response.text)
 
 
 # ── Endpoints ─────────────────────────────────────────────────────────────────

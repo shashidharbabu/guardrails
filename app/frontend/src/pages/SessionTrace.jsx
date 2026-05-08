@@ -243,6 +243,12 @@ export default function SessionTrace() {
   const [error, setError] = useState(null)
   const [transcriptOpen, setTranscriptOpen] = useState(false)
   const [cseData, setCseData] = useState(null)
+  const shouldPollMad = Boolean(
+    session &&
+    !session.mad_routing &&
+    session.llm_answer &&
+    session.gateway_decision !== 'BLOCK'
+  )
 
   useEffect(() => {
     getSession(id)
@@ -258,8 +264,7 @@ export default function SessionTrace() {
   }, [id])
 
   useEffect(() => {
-    if (!session) return
-    if (session.mad_routing || !session.llm_answer || session.gateway_decision === 'BLOCK') return
+    if (!shouldPollMad) return
     const interval = setInterval(() => {
       getSession(id)
         .then(s => {
@@ -269,7 +274,7 @@ export default function SessionTrace() {
         .catch(() => {})
     }, 10000)
     return () => clearInterval(interval)
-  }, [session?.id, session?.mad_routing])
+  }, [id, shouldPollMad])
 
   if (loading) {
     return (
@@ -305,6 +310,7 @@ export default function SessionTrace() {
   const judgeMs = totalMs ? totalMs - gatewayMs - llmMs - madMs : 0
   const confidence = mad?.aggregate_confidence ?? mad?.confidence_score
   const confClass = confidence == null ? '' : confidence >= 0.75 ? 'conf-high' : confidence >= 0.45 ? 'conf-mid' : 'conf-low'
+  const showAdminDiagnostics = false
 
   return (
     <div>
@@ -332,12 +338,14 @@ export default function SessionTrace() {
           {totalMs && (
             <span className="badge b-gray">{(totalMs / 1000).toFixed(1)}s total</span>
           )}
-          <span className="tid" style={{ marginLeft: 4 }}>{session.id}</span>
+          {showAdminDiagnostics && (
+            <span className="tid" style={{ marginLeft: 4 }}>{session.id}</span>
+          )}
         </div>
       </div>
 
       {/* Latency ribbon */}
-      {totalMs && (
+      {showAdminDiagnostics && totalMs && (
         <div className="lat-strip" style={{ marginBottom: 20 }}>
           <div className="li">
             <div className="ls">Gateway</div>
@@ -375,8 +383,12 @@ export default function SessionTrace() {
             icon="✓"
             iconClass="si-ok"
             title="Gateway Layer"
-            timeLabel={`0 → ${gatewayMs}ms`}
-            badge={`Composite ${session.gateway_score.toFixed(2)} · ${session.gateway_decision}`}
+            timeLabel={showAdminDiagnostics ? `0 → ${gatewayMs}ms` : 'complete'}
+            badge={
+              session.gateway_decision === 'PASS' ? 'Policy clear'
+              : session.gateway_decision === 'BLOCK' ? 'Blocked by policy'
+              : 'Needs review'
+            }
             badgeClass={
               session.gateway_decision === 'PASS' ? 'b-gray'
               : session.gateway_decision === 'BLOCK' ? 'b-block'
@@ -388,7 +400,9 @@ export default function SessionTrace() {
               <div style={{ flex: 1 }}>
                 <div className="slbl">
                   PII Detection
-                  <span className="smdl">DeBERTa-base NER · 57 entity types</span>
+                  {showAdminDiagnostics && (
+                    <span className="smdl">DeBERTa-base NER · 57 entity types</span>
+                  )}
                 </div>
                 <div className="ssub">
                   {piiEntities.length > 0
@@ -396,7 +410,7 @@ export default function SessionTrace() {
                     : 'No PII detected in query'}
                 </div>
               </div>
-              <div className="sval">score {piiScore.toFixed(2)}</div>
+              {showAdminDiagnostics && <div className="sval">score {piiScore.toFixed(2)}</div>}
             </div>
             <div className="conn"/>
             <div className="span-row">
@@ -404,13 +418,15 @@ export default function SessionTrace() {
               <div style={{ flex: 1 }}>
                 <div className="slbl">
                   Jailbreak Detection
-                  <span className="smdl">RoBERTa-base finetuned</span>
+                  {showAdminDiagnostics && (
+                    <span className="smdl">RoBERTa-base finetuned</span>
+                  )}
                 </div>
                 <div className="ssub">
                   {jbScore > 0.5 ? 'Jailbreak pattern detected' : 'No jailbreak pattern detected'}
                 </div>
               </div>
-              <div className="sval">score {jbScore.toFixed(2)}</div>
+              {showAdminDiagnostics && <div className="sval">score {jbScore.toFixed(2)}</div>}
             </div>
             <div className="conn"/>
             <div className="span-row">
@@ -418,13 +434,15 @@ export default function SessionTrace() {
               <div style={{ flex: 1 }}>
                 <div className="slbl">
                   Prompt Injection
-                  <span className="smdl">Llama-PG-2-86M finetuned</span>
+                  {showAdminDiagnostics && (
+                    <span className="smdl">Llama-PG-2-86M finetuned</span>
+                  )}
                 </div>
                 <div className="ssub">
                   {piScore > 0.5 ? 'Injection pattern detected' : 'No injection pattern detected'}
                 </div>
               </div>
-              <div className="sval">score {piScore.toFixed(2)}</div>
+              {showAdminDiagnostics && <div className="sval">score {piScore.toFixed(2)}</div>}
             </div>
             <div className="conn"/>
             <div
@@ -452,13 +470,19 @@ export default function SessionTrace() {
                       : 'var(--red)',
                   }}
                 >
-                  Decision Engine — {session.gateway_decision}
+                  Policy Decision — {session.gateway_decision}
                 </div>
                 <div className="ssub">
-                  Composite {session.gateway_score.toFixed(3)} · (PII×0.3)+(JB×0.4)+(PI×0.3)
+                  {showAdminDiagnostics
+                    ? `Composite ${session.gateway_score.toFixed(3)} · (PII×0.3)+(JB×0.4)+(PI×0.3)`
+                    : session.gateway_decision === 'PASS'
+                    ? 'Request cleared the configured safety policy.'
+                    : session.gateway_decision === 'BLOCK'
+                    ? 'Request was stopped before model execution.'
+                    : 'Request requires human review before delivery.'}
                 </div>
               </div>
-              <div className="sval">0ms</div>
+              {showAdminDiagnostics && <div className="sval">0ms</div>}
             </div>
           </Stage>
 
@@ -468,8 +492,8 @@ export default function SessionTrace() {
               icon="R"
               iconClass="si-i"
               title="RAG Pipeline"
-              timeLabel={`${gatewayMs}ms → ${gatewayMs + llmMs}ms`}
-              badge={`${mad.evidence_pool?.length || 0} chunks · Recall@1 94.9%`}
+              timeLabel={showAdminDiagnostics ? `${gatewayMs}ms → ${gatewayMs + llmMs}ms` : 'evidence ready'}
+              badge={showAdminDiagnostics ? `${mad.evidence_pool?.length || 0} chunks · Recall@1 94.9%` : 'Evidence retrieved'}
               badgeClass="b-bank"
             >
               <div className="span-row">
@@ -477,9 +501,15 @@ export default function SessionTrace() {
                 <div style={{ flex: 1 }}>
                   <div className="slbl">
                     Embedding query
-                    <span className="smdl">Qwen3-4B finetuned · 2560-dim</span>
+                    {showAdminDiagnostics && (
+                      <span className="smdl">Qwen3-4B finetuned · 2560-dim</span>
+                    )}
                   </div>
-                  <div className="ssub">Instruction-aware prefix · cosine similarity search</div>
+                  <div className="ssub">
+                    {showAdminDiagnostics
+                      ? 'Instruction-aware prefix · cosine similarity search'
+                      : 'Relevant policy evidence was prepared for review.'}
+                  </div>
                 </div>
               </div>
               <div className="conn"/>
@@ -487,14 +517,18 @@ export default function SessionTrace() {
                 <div className="sdot" style={{ background: 'var(--blue)' }}/>
                 <div style={{ flex: 1 }}>
                   <div className="slbl">
-                    Qdrant retrieval + BM25 hybrid + cross-encoder reranking
+                    {showAdminDiagnostics
+                      ? 'Qdrant retrieval + BM25 hybrid + cross-encoder reranking'
+                      : 'Policy evidence retrieval'}
                   </div>
                   <div className="ssub">
-                    Top-{mad.evidence_pool?.length || 0} chunks · tier-aware authority scoring
+                    {showAdminDiagnostics
+                      ? `Top-${mad.evidence_pool?.length || 0} chunks · tier-aware authority scoring`
+                      : `${mad.evidence_pool?.length || 0} supporting evidence items found`}
                   </div>
                 </div>
               </div>
-              {mad.evidence_pool?.length > 0 && (
+              {showAdminDiagnostics && mad.evidence_pool?.length > 0 && (
                 <div className="chunk-list">
                   {mad.evidence_pool.map((chunk, i) => (
                     <div key={chunk.chunk_id || i} className="chunk-item">
@@ -513,11 +547,11 @@ export default function SessionTrace() {
                     <div style={{ flex: 1 }}>
                       <div className="slbl">
                         LLM candidate answer
-                        <span className="smdl">qwen2.5:7b</span>
+                        {showAdminDiagnostics && <span className="smdl">qwen2.5:7b</span>}
                       </div>
                       <div className="ssub">"{session.llm_answer.slice(0, 140)}…"</div>
                     </div>
-                    <div className="sval">{llmMs}ms</div>
+                    {showAdminDiagnostics && <div className="sval">{llmMs}ms</div>}
                   </div>
                 </>
               )}
@@ -525,13 +559,13 @@ export default function SessionTrace() {
           )}
 
           {/* MAD running in background */}
-          {!mad && session.llm_answer && session.gateway_decision !== 'BLOCK' && (
+          {!mad && session.llm_answer && session.gateway_decision !== 'BLOCK' && session.status !== 'MAD_UNAVAILABLE' && (
             <Stage
               icon="·"
               iconClass="si-w pulsing"
               title="MAD Pipeline"
-              timeLabel="running…"
-              badge="background task"
+              timeLabel="in review"
+              badge="Review in progress"
               badgeClass="b-gray"
             >
               <div className="span-row">
@@ -539,7 +573,28 @@ export default function SessionTrace() {
                 <div style={{ flex: 1 }}>
                   <div className="slbl">Multi-Agent Debate running in background</div>
                   <div className="ssub">
-                    ~5–10 min · 2 cycles · Ollama qwen2.5:7b · auto-refreshing every 10s
+                    The request is still being reviewed. This page will refresh as the decision updates.
+                  </div>
+                </div>
+              </div>
+            </Stage>
+          )}
+
+          {!mad && session.llm_answer && session.gateway_decision !== 'BLOCK' && session.status === 'MAD_UNAVAILABLE' && (
+            <Stage
+              icon="!"
+              iconClass="si-w"
+              title="MAD Pipeline"
+              timeLabel="unavailable"
+              badge="Review skipped"
+              badgeClass="b-esc"
+            >
+              <div className="span-row">
+                <div className="sdot" style={{ background: 'var(--amber)' }}/>
+                <div style={{ flex: 1 }}>
+                  <div className="slbl">Multi-Agent Debate unavailable</div>
+                  <div className="ssub">
+                    The initial policy and model stages completed, but secondary review is unavailable in this environment.
                   </div>
                 </div>
               </div>
@@ -727,7 +782,11 @@ export default function SessionTrace() {
               </div>
               {confidence == null && (
                 <div className="conf-n">
-                  {session.gateway_decision === 'BLOCK' ? 'blocked at gateway' : 'MAD pending…'}
+                  {session.gateway_decision === 'BLOCK'
+                    ? 'blocked at gateway'
+                    : session.status === 'MAD_UNAVAILABLE'
+                    ? 'MAD unavailable'
+                    : 'MAD pending…'}
                 </div>
               )}
             </div>
@@ -739,67 +798,74 @@ export default function SessionTrace() {
               ? `${session.mad_routing} · via MAD`
               : session.gateway_decision === 'BLOCK'
               ? 'BLOCK · gateway'
+              : session.status === 'MAD_UNAVAILABLE'
+              ? 'MAD unavailable · LLM only'
               : 'MAD pending…'}
           </div>
 
-          {/* Threat scores */}
-          <div className="ts-sec">
-            <div className="ts-title">Threat Scores</div>
-            <div className="score-block">
-              <ScoreBar label="PII" value={piiScore} colorMode="category" category="pii" />
-              <ScoreBar label="Jailbreak" value={jbScore} colorMode="category" category="jb" />
-              <ScoreBar label="Prompt Inj." value={piScore} colorMode="category" category="pi" />
-              <div style={{ height: 1, background: 'var(--border)', margin: '2px 0' }}/>
-              <ScoreBar
-                label="Composite"
-                value={session.gateway_score}
-                colorMode="fixed"
-                color="var(--teal)"
-              />
+          {showAdminDiagnostics && (
+            <div className="ts-sec">
+              <div className="ts-title">Threat Scores</div>
+              <div className="score-block">
+                <ScoreBar label="PII" value={piiScore} colorMode="category" category="pii" />
+                <ScoreBar label="Jailbreak" value={jbScore} colorMode="category" category="jb" />
+                <ScoreBar label="Prompt Inj." value={piScore} colorMode="category" category="pi" />
+                <div style={{ height: 1, background: 'var(--border)', margin: '2px 0' }}/>
+                <ScoreBar
+                  label="Composite"
+                  value={session.gateway_score}
+                  colorMode="fixed"
+                  color="var(--teal)"
+                />
+              </div>
             </div>
-          </div>
+          )}
 
           {/* Latency breakdown */}
-          <div className="ts-sec">
-            <div className="ts-title">Latency</div>
-            <div className="lat-tbl">
-              <div className="lt-row">
-                <span className="lt-s">Gateway</span>
-                <span className="lt-v">{gatewayMs}ms</span>
-              </div>
-              <div className="lt-row">
-                <span className="lt-s">LLM gen</span>
-                <span className="lt-v" style={!session.llm_answer ? { color: 'var(--text-muted)' } : {}}>
-                  {session.llm_answer ? `${llmMs}ms` : '—'}
-                </span>
-              </div>
-              <div className="lt-row">
-                <span className="lt-s">MAD</span>
-                <span className="lt-v" style={!mad ? { color: 'var(--text-muted)' } : {}}>
-                  {mad ? `${madMs}ms` : '—'}
-                </span>
-              </div>
-              <div className="lt-row">
-                <span className="lt-s">Judge</span>
-                <span className="lt-v" style={!mad ? { color: 'var(--text-muted)' } : {}}>
-                  {mad ? `${judgeMs}ms` : '—'}
-                </span>
-              </div>
-              <div className="lt-row">
-                <span className="lt-s">Total</span>
-                <span className="lt-v" style={{ color: 'var(--teal)' }}>
-                  {totalMs ? `${(totalMs / 1000).toFixed(2)}s` : '—'}
-                </span>
+          {showAdminDiagnostics && (
+            <div className="ts-sec">
+              <div className="ts-title">Latency</div>
+              <div className="lat-tbl">
+                <div className="lt-row">
+                  <span className="lt-s">Gateway</span>
+                  <span className="lt-v">{gatewayMs}ms</span>
+                </div>
+                <div className="lt-row">
+                  <span className="lt-s">LLM gen</span>
+                  <span className="lt-v" style={!session.llm_answer ? { color: 'var(--text-muted)' } : {}}>
+                    {session.llm_answer ? `${llmMs}ms` : '—'}
+                  </span>
+                </div>
+                <div className="lt-row">
+                  <span className="lt-s">MAD</span>
+                  <span className="lt-v" style={!mad ? { color: 'var(--text-muted)' } : {}}>
+                    {mad ? `${madMs}ms` : '—'}
+                  </span>
+                </div>
+                <div className="lt-row">
+                  <span className="lt-s">Judge</span>
+                  <span className="lt-v" style={!mad ? { color: 'var(--text-muted)' } : {}}>
+                    {mad ? `${judgeMs}ms` : '—'}
+                  </span>
+                </div>
+                <div className="lt-row">
+                  <span className="lt-s">Total</span>
+                  <span className="lt-v" style={{ color: 'var(--teal)' }}>
+                    {totalMs ? `${(totalMs / 1000).toFixed(2)}s` : '—'}
+                  </span>
+                </div>
               </div>
             </div>
-          </div>
+          )}
 
           {/* Actions */}
-          <div className="ts-sec">
-            <div className="ts-title">Actions</div>
-            <button type="button" className="act-btn lf-btn">Open in Langfuse →</button>
-            <button type="button" className="act-btn">Export trace as JSON</button>
-          </div>
+          {showAdminDiagnostics && (
+            <div className="ts-sec">
+              <div className="ts-title">Actions</div>
+              <button type="button" className="act-btn lf-btn">Open in Langfuse →</button>
+              <button type="button" className="act-btn">Export trace as JSON</button>
+            </div>
+          )}
 
           <CSEPanel cseData={cseData} />
 
