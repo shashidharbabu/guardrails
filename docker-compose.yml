@@ -19,48 +19,31 @@ services:
     # No host port binding needed; app containers send traces to http://datadog:8126.
 
   # ────────────────────────────────────────────────────────────────────────────
-  # Gateway API (FastAPI)
+  # Unified Pipeline (FastAPI) — Datadog APM + Langfuse traces
   # ────────────────────────────────────────────────────────────────────────────
-  gateway:
+  unified:
     build:
       context: .
-      dockerfile: docker/gateway.Dockerfile
+      dockerfile: docker/unified.Dockerfile
     restart: unless-stopped
     env_file:
       - .env
     environment:
-      DD_SERVICE: ${DD_SERVICE:-gateway}
+      # Datadog
+      DD_SERVICE: ${DD_SERVICE:-unified_pipeline}
       DD_ENV: ${DD_ENV:-local}
       DD_TRACE_ENABLED: ${DD_TRACE_ENABLED:-true}
       DD_TRACE_AUTO_INSTRUMENT: ${DD_TRACE_AUTO_INSTRUMENT:-true}
       DD_AGENT_HOST: datadog
       DD_TRACE_AGENT_URL: http://datadog:8126
-      # For local smoke tests (no HF model downloads). Override to "false" in prod.
       GATEWAY_STUB_VALIDATORS: ${GATEWAY_STUB_VALIDATORS:-true}
-    depends_on:
-      - datadog
-    ports:
-      - "${GATEWAY_PORT:-8080}:8080"
-
-  # ────────────────────────────────────────────────────────────────────────────
-  # MAD API (FastAPI) — Langfuse traces
-  # ────────────────────────────────────────────────────────────────────────────
-  mad:
-    build:
-      context: .
-      dockerfile: docker/mad.Dockerfile
-    restart: unless-stopped
-    env_file:
-      - .env
-    environment:
-      MAD_API_HOST: 0.0.0.0
-      MAD_API_PORT: 8001
-      # Inside Compose, the Langfuse web service is reachable by service name.
+      # Langfuse
       LANGFUSE_BASE_URL: http://langfuse-web:3000
     depends_on:
+      - datadog
       - langfuse-web
     ports:
-      - "${MAD_API_PORT:-8001}:8001"
+      - "${UNIFIED_API_PORT:-8002}:8002"
 
   # ────────────────────────────────────────────────────────────────────────────
   # Langfuse (self-hosted stack)
