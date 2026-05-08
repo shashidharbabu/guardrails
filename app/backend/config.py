@@ -57,6 +57,9 @@ class Settings:
     MAD_API_URL: Optional[str] = os.environ.get("MAD_API_URL")
     MAD_TIMEOUT_SECONDS: int = int(os.environ.get("MAD_TIMEOUT_SECONDS", "600"))
 
+    # ── Feedback Loop ─────────────────────────────────────────────────────────
+    FEEDBACK_API_URL: str = os.environ.get("FEEDBACK_API_URL", "http://localhost:8002")
+
     # ── Queue (optional for production durable execution) ─────────────────────
     REDIS_URL: Optional[str] = os.environ.get("REDIS_URL")
     QUEUE_URL: Optional[str] = os.environ.get("QUEUE_URL")
