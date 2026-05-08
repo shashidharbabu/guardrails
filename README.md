@@ -39,6 +39,7 @@ For detailed setup instructions, see:
 - **[Setup Guide](docs/SETUP_GUIDE.md)** - Comprehensive setup instructions
 - **[Full Documentation](docs/README.md)** - Complete project documentation
 - **[MAD Setup Guide](MAD_SETUP_GUIDE.md)** - Multi-Agent Debate service setup
+- **[GRPO LoRA Deployment Handoff](docs/GRPO_LORA_DEPLOYMENT.md)** - Agent A/B adapter location, vLLM dynamic LoRA serving, AWS routing, runtime prompts, JSON schema, and eval summary
 
 ## ✅ Active Pipelines
 
@@ -75,6 +76,7 @@ For detailed setup instructions, see:
 - **Location**: `rlhf/`
 - **Purpose**: GRPO-based fine-tuning loop for Agent A (Brier reward) and Agent B (precision reward) using data written by the MAD pipeline to SQLite
 - **Status**: 🚧 In Development
+- **Deployment handoff**: GRPO-finetuned Agent A/B LoRA adapters are shared through Drive. See [GRPO LoRA Deployment Handoff](docs/GRPO_LORA_DEPLOYMENT.md) for adapter file manifest, vLLM model names (`agent_a`, `agent_b`), prompts, JSON-only schema, generation settings, AWS serving notes, and held-out eval results.
 
 ### Finetuning Pipelines
 - **Location**: `finetuning/`
@@ -119,4 +121,3 @@ python -m multi_agent.run_test
 - [Quick Start Guide](docs/QUICK_START.md)
 - [Setup Guide](docs/SETUP_GUIDE.md)
 - [MAD Setup Guide](MAD_SETUP_GUIDE.md)
-
