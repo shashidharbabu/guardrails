@@ -245,7 +245,10 @@ async def _run_mad_async(query: str, llm_answer: str):
         # Legacy fallback: Ollama-based synchronous pipeline
         try:
             loop = asyncio.get_event_loop()
-            from multi_agent.mad_pipeline import run_mad  # type: ignore[import]
+            try:
+                from multi_agent.mad_pipeline import run_mad  # type: ignore[import]
+            except ImportError:
+                from multi_agent_debate.multi_agent.mad_pipeline import run_mad  # type: ignore[import]
             return await loop.run_in_executor(None, run_mad, query, llm_answer)
         except Exception as exc2:
             logger.warning("legacy_mad_also_failed", extra={"error": str(exc2)})

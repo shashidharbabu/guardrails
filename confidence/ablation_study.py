@@ -80,7 +80,10 @@ for _p in [str(_REPO), str(_REPO / "multi_agent_debate"), str(_REPO / "rag_folde
 from dotenv import load_dotenv
 load_dotenv(_REPO / ".env")
 
-from multi_agent.models import Claim, JudgeVerdict, EvidenceChunk, Verdict
+try:
+    from multi_agent.models import Claim, JudgeVerdict, EvidenceChunk, Verdict
+except ImportError:
+    from multi_agent_debate.multi_agent.models import Claim, JudgeVerdict, EvidenceChunk, Verdict
 
 
 # ─────────────────────────────────────────────────────────────────────────────

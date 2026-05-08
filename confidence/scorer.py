@@ -47,7 +47,10 @@ import statistics
 from datetime import datetime, timezone
 from typing import Dict, List, Optional, Tuple
 
-from multi_agent.models import Claim, JudgeVerdict
+try:
+    from multi_agent.models import Claim, JudgeVerdict
+except ImportError:
+    from multi_agent_debate.multi_agent.models import Claim, JudgeVerdict
 
 from confidence.cse_config import CSEScoringConfig, DEFAULT_CONFIG
 from confidence.cse_types import (
