@@ -1,0 +1,79 @@
+Files Created (38 total, all Python passing py_compile)
+Path	Source	Description
+README.md	new	Quick start, env vars, what works/TODO
+requirements.txt	adapted	Core deps (langgraph, langchain-openai, pydantic, langfuse, dotenv)
+.env.example	adapted	All env vars with comments
+configs/config.py	rewritten	Clean env-based config (no hardcoded HPC paths)
+src/schemas/schemas.py	exact copy	Pydantic models (AgentOutputFull, JudgeOutput, PipelineState, strip_for_peer)
+src/utils/prompts.py	adapted	All system/user prompts (exact text from live run)
+src/utils/vllm_client.py	adapted	vLLM client factories + call_agent() async helper
+src/db/db.py	adapted	SQLite context manager + all insert/fetch functions
+src/db/schema.sql	exact copy	5-table schema (queries, claims, agent_outputs, agent_deltas, judge_verdicts)
+src/agents/parser.py	extracted	JSON parsing (strict + fallback regex repair) for agent outputs
+src/agents/round0.py	adapted	Round 0 debate (agents run in parallel, with retry loop)
+src/agents/round1.py	adapted	Round 1 debate (peer-view with confidence stripped)
+src/decomposer/node.py	adapted	Claim decomposition with coverage check
+src/retrieval/rag_client.py	stub	RAG client (see TODO below)
+src/judge/node.py	merged	Judge node from nodes/judge.py + Langfuse from judge_reference/judge.py
+src/debate/pipeline.py	new	Full pipeline orchestrator (run_debate_from_file, run_debate_for_query)
+src/langfuse_log/logger.py	new	Langfuse client factory with graceful fallback
+scripts/run_debate_from_inputs.py	adapted	CLI: run full debate from JSON file
+scripts/run_judge_on_db.py	adapted	CLI: run judge on existing DB outputs
+scripts/export_grpo_dataset.py	new	Export GRPO JSONL from SQLite DB
+scripts/inspect_db.py	new	DB inspector (summary + per-query detail)
+examples/sample_input.json	new	GDPR sample query with 2 claims
+docs/PIPELINE_OVERVIEW.md	new	Full pipeline diagram and design rationale
+docs/DATABASE_SCHEMA.md	new	All 5 table schemas with column docs
+docs/VLLM_SETUP.md	new	vLLM launch commands for all 4 roles
+docs/LANGFUSE_SETUP.md	new	Langfuse setup (self-hosted Docker)
+training_reference/GRPO_HANDOFF.md	exact copy	Full GRPO fine-tuning guide
+
+
+What is Fully Working
+All Pydantic schemas with validation, including strip_for_peer() logic
+Exact prompts from the live 416-claim debate run
+SQLite schema and all CRUD operations
+Agent JSON parsing with fallback repair loop (strict → retry → regex fallback)
+Round 0 and Round 1 async debate nodes with per-claim concurrency
+Decomposer node with coverage check (60% word overlap threshold)
+Judge node with full Langfuse tracing (graceful fallback if keys missing)
+Full pipeline orchestrator wiring all nodes together
+All 4 CLI scripts with argparse
+GRPO export script (produces same format as agent_a_grpo.jsonl)
+What is Stubbed / TODO
+RAG retrieval (src/retrieval/rag_client.py): requires Qdrant running + bm25_combined.pkl + embedding model. Workaround: pass rag_chunks directly in the input JSON — the pipeline never calls RAG if chunks are pre-supplied.
+Baseline LLM node: wired in pipeline.py but requires VLLM_BASELINE_URL. Skip by providing baseline_answer + claims in input JSON.
+
+
+Commands to Run the Pipeline
+# 1. Enter container and set up env
+docker exec -it brave_diffie bash
+cd /app/full_FinalMAD_with_judge
+cp .env.example .env
+# Edit .env: set VLLM_AGENTS_URL, VLLM_JUDGE_URL
+
+# 2. Init DB and run debate + judge
+python scripts/run_debate_from_inputs.py \
+    --input examples/sample_input.json \
+    --run-id demo-01 --db mad.db --run-judge
+
+# 3. Inspect results
+python scripts/inspect_db.py --db mad.db --run-id demo-01
+
+# 4. Run judge separately (if debate ran without --run-judge)
+python scripts/run_judge_on_db.py --run-id demo-01 --db mad.db
+
+# 5. Export GRPO training data
+python scripts/export_grpo_dataset.py --db mad.db --run-id demo-01 --out-dir grpo_export/
+
+
+Required Env Vars
+Variable	Required	Default
+VLLM_AGENTS_URL	Yes	http://localhost:8001/v1
+VLLM_JUDGE_URL	Yes (judge)	http://localhost:8004/v1
+AGENTS_MODEL_NAME	No	agents
+JUDGE_MODEL_NAME	No	Qwen2.5-32B-Instruct
+SQLITE_DB_PATH	No	mad.db
+CLAIM_CONCURRENCY	No	2
+LANGFUSE_PUBLIC_KEY	No	tracing disabled
+LANGFUSE_SECRET_KEY	No	tracing disabled
