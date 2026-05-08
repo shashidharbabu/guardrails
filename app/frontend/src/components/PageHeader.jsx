@@ -27,13 +27,13 @@ export default function PageHeader({
       )}
       <div className="ph-row">
         <div className="ph-left">
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+          <div className="ph-title-row">
             <h1 className="pt">{title}</h1>
             {badge}
           </div>
           {sub && <div className="ps">{sub}</div>}
           {pills && (
-            <div style={{ display: 'flex', gap: '6px', marginTop: '10px', flexWrap: 'wrap' }}>
+            <div className="ph-pills">
               {pills}
             </div>
           )}

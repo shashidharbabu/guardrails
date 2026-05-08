@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { motion, useReducedMotion } from 'framer-motion'
 import { getSessions } from '../api/client'
 import MetricCard from '../components/MetricCard'
@@ -62,11 +62,12 @@ function LatencyIcon() {
 }
 
 export default function Conversations() {
+  const [searchParams, setSearchParams] = useSearchParams()
   const [sessions, setSessions] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [filter, setFilter] = useState('ALL')
-  const [search, setSearch] = useState('')
+  const [search, setSearch] = useState(searchParams.get('q') || '')
   const shouldReduceMotion = useReducedMotion()
 
   function load() {
@@ -79,6 +80,21 @@ export default function Conversations() {
   }
 
   useEffect(() => { load() }, [])
+
+  useEffect(() => {
+    setSearch(searchParams.get('q') || '')
+  }, [searchParams])
+
+  function handleSearch(value) {
+    setSearch(value)
+    const next = new URLSearchParams(searchParams)
+    if (value.trim()) {
+      next.set('q', value)
+    } else {
+      next.delete('q')
+    }
+    setSearchParams(next, { replace: true })
+  }
 
   const filtered = sessions.filter(s => {
     if (filter !== 'ALL' && s.gateway_decision !== filter) return false
@@ -163,7 +179,7 @@ export default function Conversations() {
       {/* ── Filter Bar ──────────────────────────────── */}
       <FilterBar
         search={search}
-        onSearch={setSearch}
+        onSearch={handleSearch}
         placeholder="Search sessions…"
         filters={FILTERS}
         activeFilter={filter}
@@ -208,7 +224,7 @@ export default function Conversations() {
                     <button
                       type="button"
                       className="btn"
-                      onClick={() => { setSearch(''); setFilter('ALL') }}
+                      onClick={() => { handleSearch(''); setFilter('ALL') }}
                     >
                       Clear filters
                     </button>

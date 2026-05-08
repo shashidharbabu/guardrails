@@ -139,6 +139,7 @@ human_reviews_table = Table(
 def init_db():
     metadata.create_all(engine)
     _migrate_sessions_table()
+    _migrate_feedback_table()
     _add_indexes()
 
 
@@ -160,6 +161,26 @@ def _migrate_sessions_table():
                     conn.execute(text(f"ALTER TABLE sessions ADD COLUMN {col_name} {col_def}"))
                 except Exception:
                     pass
+        conn.commit()
+
+
+def _migrate_feedback_table():
+    """Add feedback columns introduced after the initial local SQLite schema."""
+    if not _is_sqlite:
+        return
+    new_columns = [
+        ("status",         "TEXT DEFAULT 'open'"),
+        ("category",       "TEXT"),
+        ("severity",       "TEXT"),
+        ("reviewer_notes", "TEXT"),
+        ("updated_at",     "TEXT"),
+        ("resolved_at",    "TEXT"),
+    ]
+    with engine.connect() as conn:
+        existing = {row[1] for row in conn.execute(text("PRAGMA table_info(feedback)")).fetchall()}
+        for col_name, col_def in new_columns:
+            if col_name not in existing:
+                conn.execute(text(f"ALTER TABLE feedback ADD COLUMN {col_name} {col_def}"))
         conn.commit()
 
 
