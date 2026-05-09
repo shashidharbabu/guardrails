@@ -30,6 +30,13 @@ services:
       timeout: 3s
       retries: 10
 
+  vllm:
+    build:
+      context: .
+      dockerfile: deploy/mock-vllm/Dockerfile
+    ports:
+      - "8003:8000"
+
   frontend:
     build:
       context: ./app/frontend
@@ -145,7 +152,7 @@ services:
       mad-api:
         condition: service_started
 
-  vllm:
+  vllm-gpu:
     image: vllm/vllm-openai:latest
     profiles: ["gpu"]
     ipc: host
@@ -161,7 +168,7 @@ services:
     volumes:
       - ${LOCAL_LORA_MODELS_DIR:-./models}:/models:ro
     ports:
-      - "8003:8000"
+      - "8004:8000"
     deploy:
       resources:
         reservations:
