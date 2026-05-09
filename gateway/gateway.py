@@ -109,11 +109,13 @@ class GuardrailGateway:
         jb_score = 0.0
         pi_score = 0.0
         pii_entities = []
+        validator_failed = False
 
         try:
             self._guard.validate(user_input)
         except Exception as exc:
             print(f"[Gateway] Warning: validation error: {exc}")
+            validator_failed = True
 
         try:
             last_call = self._guard.history[-1]
@@ -151,6 +153,21 @@ class GuardrailGateway:
 
         except (IndexError, AttributeError) as exc:
             print(f"[Gateway] Warning: could not read validator scores: {exc}")
+
+        if validator_failed and self._guard.history == []:
+            # Validator threw before producing any history — escalate instead of silently passing
+            result = GatewayResult(
+                decision=Decision.ESCALATE,
+                gateway_score=self._engine.pass_threshold,
+                pii_score=0.0,
+                jb_score=0.0,
+                pi_score=0.0,
+                threat_types=["VALIDATOR_ERROR"],
+                blocked_reason="Flagged for review — validator unavailable, scores unverified",
+                raw_input=user_input,
+            )
+            event_logger.log_event(result)
+            return result
 
         result = self._engine.decide(
             raw_input=user_input,

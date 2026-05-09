@@ -6,6 +6,7 @@ Run: pytest gateway/tests/test_gateway.py -v
 from unittest.mock import MagicMock
 
 from gateway.decision_engine import Decision, DecisionEngine
+from gateway.gateway import GuardrailGateway
 
 
 class TestDecisionEngine:
