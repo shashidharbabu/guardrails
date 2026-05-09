@@ -19,7 +19,7 @@ This directory captures the production deployment shape for `www.spartanguard.ai
 
 ## Current Deployment Caveats
 
-- Backend config exposes `MAD_API_URL`, but the current backend implementation imports `full_FinalMAD_with_judge` in-process. Before ECS split-service production traffic, the backend must call `spartanguard-mad-api` over HTTP or run MAD in the backend container intentionally.
+- Backend `MAD_MODE=api` now calls `MAD_API_URL`, so ECS can run MAD as the separate `spartanguard-mad-api` service.
 - If `api.spartanguard.ai` is used instead of same-origin `/api`, the frontend Nginx CSP must allow that API origin in `connect-src`.
 - The exact fine-tuned Qwen embedding 4B Hugging Face ID or artifact path is still open.
 - DNS ownership is undecided: either move `spartanguard.ai` DNS to Route53 or keep registrar-managed DNS and point records to the ALB.

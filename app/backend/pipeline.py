@@ -11,7 +11,7 @@ import logging
 import time
 import uuid
 from datetime import datetime, timezone
-from typing import Optional
+from typing import Any, Optional
 
 import httpx
 
@@ -149,21 +149,21 @@ async def _run_mad_background(
     try:
         mad_out = await _run_mad_async(query, llm_answer)
         if mad_out:
-            mad_routing = mad_out.routing_decision
-            mad_confidence = mad_out.aggregate_confidence
-            mad_output = mad_out.model_dump(mode="json")
-            cse_result = getattr(mad_out, "cse_result", None)
+            mad_routing = _mad_get(mad_out, "routing_decision")
+            mad_confidence = _mad_get(mad_out, "aggregate_confidence")
+            mad_output = _mad_to_json(mad_out)
+            cse_result = _mad_get(mad_out, "cse_result")
             duration_ms = int((time.time() - t0) * 1000)
             db.update_session_mad(
                 session_id=session_id,
                 mad_routing=mad_routing,
                 mad_confidence=mad_confidence,
                 mad_output_json=json.dumps(mad_output),
-                mad_query_id=getattr(mad_out, "query_id", "") or "",
-                mad_rollout_id=getattr(mad_out, "rollout_id", "") or "",
+                mad_query_id=_mad_get(mad_out, "query_id", "") or "",
+                mad_rollout_id=_mad_get(mad_out, "rollout_id", "") or "",
                 pipeline_duration_ms=duration_ms,
                 cse_result_json=json.dumps(cse_result) if isinstance(cse_result, dict) else None,
-                langfuse_trace_id=getattr(mad_out, "langfuse_trace_id", None),
+                langfuse_trace_id=_mad_get(mad_out, "langfuse_trace_id"),
             )
             db.insert_session_event(
                 session_id=session_id,
@@ -243,11 +243,15 @@ async def _call_llm(query: str, model: str) -> str:
 async def _run_mad_async(query: str, llm_answer: str):
     """
     Run the full_FinalMAD_with_judge pipeline asynchronously.
-    Falls back to the legacy Ollama-based multi_agent pipeline if the new one
-    is unavailable (e.g. vLLM not configured), so the app always degrades gracefully.
+    In production, MAD_MODE=api calls the separately deployed MAD API service.
+    Local mode imports the pipeline in-process and then falls back to the legacy
+    Ollama-based multi_agent pipeline if unavailable.
     """
     if settings.MAD_MODE == "disabled":
         return None
+    if settings.MAD_MODE == "api":
+        return await _run_mad_api(query, llm_answer)
+
     try:
         import sys
         from pathlib import Path
@@ -269,3 +273,38 @@ async def _run_mad_async(query: str, llm_answer: str):
         except Exception as exc2:
             logger.warning("legacy_mad_also_failed", extra={"error": str(exc2)})
             return None
+
+
+async def _run_mad_api(query: str, llm_answer: str) -> Optional[dict[str, Any]]:
+    if not settings.MAD_API_URL:
+        logger.warning("mad_api_url_missing")
+        return None
+
+    payload = {"query": query, "llm_answer": llm_answer}
+    try:
+        async with httpx.AsyncClient(timeout=settings.MAD_TIMEOUT_SECONDS) as client:
+            response = await client.post(settings.MAD_API_URL, json=payload)
+            response.raise_for_status()
+            return response.json()
+    except httpx.HTTPError as exc:
+        logger.warning(
+            "mad_api_failed",
+            extra={"url": settings.MAD_API_URL, "error": str(exc)},
+        )
+        return None
+
+
+def _mad_get(mad_out: Any, key: str, default: Any = None) -> Any:
+    if isinstance(mad_out, dict):
+        return mad_out.get(key, default)
+    return getattr(mad_out, key, default)
+
+
+def _mad_to_json(mad_out: Any) -> dict[str, Any]:
+    if isinstance(mad_out, dict):
+        return mad_out
+    if hasattr(mad_out, "model_dump"):
+        return mad_out.model_dump(mode="json")
+    if hasattr(mad_out, "dict"):
+        return mad_out.dict()
+    return dict(mad_out)
