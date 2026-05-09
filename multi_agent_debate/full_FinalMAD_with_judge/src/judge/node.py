@@ -50,8 +50,23 @@ def _message_text(message) -> str:
 
 
 def _parse_judge_output(raw: str) -> JudgeOutput:
+    # Strip markdown code fences if present (Claude wraps JSON in ```json ... ```)
+    text = raw.strip()
+    if text.startswith("```"):
+        text = text.split("```", 2)[-1] if text.count("```") >= 2 else text
+        # Remove leading language tag (e.g. "json\n")
+        if "\n" in text:
+            first_line = text.split("\n", 1)[0].strip()
+            if first_line in ("json", ""):
+                text = text.split("\n", 1)[1] if "\n" in text else text
+        text = text.rsplit("```", 1)[0].strip()
+    # Find JSON object in the text
+    start = text.find("{")
+    end = text.rfind("}") + 1
+    if start != -1 and end > start:
+        text = text[start:end]
     try:
-        payload = json.loads(raw)
+        payload = json.loads(text)
     except json.JSONDecodeError as exc:
         raise ValueError(f"Could not parse judge JSON response: {raw[:200]}") from exc
     if not isinstance(payload, dict):
