@@ -23,12 +23,12 @@ data:
   MAD_MODE: "api"
   MAD_TIMEOUT_SECONDS: "600"
 
-  # LLM — SageMaker endpoint (LLaMA-3.1-8B-Instruct, no built-in safety guardrails)
-  # This is intentionally an open model so SpartanGuard's guardrails are exercised
+  # LLM — spartanguard-agents (Qwen2.5-14B-Instruct 4-bit AWQ + LoRA adapters)
+  # Shared endpoint: used as main LLM (base model) AND MAD debate agents (with LoRA)
   LLM_PROVIDER_TYPE: "sagemaker"
-  DEFAULT_LLM_MODEL: "spartanguard-guard"
-  LLM_SAGEMAKER_ENDPOINT: "spartanguard-guard"
-  # MAD judge still uses Claude for high-quality policy reasoning
+  DEFAULT_LLM_MODEL: "spartanguard-agents"
+  LLM_SAGEMAKER_ENDPOINT: "spartanguard-agents"
+  # MAD judge uses Claude for high-quality policy reasoning
   JUDGE_BACKEND: "claude"
   CLAUDE_JUDGE_MODEL: "claude-haiku-4-5-20251001"
   CLAUDE_JUDGE_TIMEOUT: "60"
@@ -37,17 +37,26 @@ data:
   # PII: Qwen2.5-7B-Instruct + vineeth453/qwen25-7b-pii-detection-lora (generative NER)
   PII_SAGEMAKER_ENDPOINT: "spartanguard-pii"
   PII_LORA_ADAPTER: "vineeth453/qwen25-7b-pii-detection-lora"
-  # PI: protectai/deberta-v3-base-prompt-injection-v2 (classifier, works)
+  # PI: protectai/deberta-v3-base-prompt-injection-v2 (classifier)
   PI_SAGEMAKER_ENDPOINT: "spartanguard-pi"
-  # JB: LLaMA-3.1-8B-Instruct + harshitasayala/pi-llama31-8b LoRA (generative)
-  JB_SAGEMAKER_ENDPOINT: "spartanguard-guard"
-  JB_GENERATIVE_MODE: "true"
-  JB_LORA_ADAPTER: "harshitasayala/pi-llama31-8b"
-  # PI also uses generative guard endpoint as secondary (PI_GENERATIVE_MODE=false = classifier mode for spartanguard-pi)
   PI_GENERATIVE_MODE: "false"
+  # JB: use spartanguard-agents (Qwen2.5-14B) with JB system prompt
+  JB_SAGEMAKER_ENDPOINT: "spartanguard-agents"
+  JB_GENERATIVE_MODE: "true"
+  JB_LORA_ADAPTER: "agent-a"
   AWS_REGION: "us-west-2"
 
-  # MAD pipeline LLM endpoints (judge uses Anthropic OpenAI-compat endpoint)
+  # MAD pipeline — agents use SageMaker proxy inside the pod (localhost:8080)
+  VLLM_AGENTS_URL: "http://localhost:8080/v1"
+  VLLM_DECOMPOSER_URL: "http://localhost:8080/v1"
+  VLLM_BASELINE_URL: "http://localhost:8080/v1"
+  AGENTS_SAGEMAKER_ENDPOINT: "spartanguard-agents"
+  AGENTS_A_MODEL_NAME: "agent-a"
+  AGENTS_B_MODEL_NAME: "agent-b"
+  AGENTS_MODEL_NAME: "agent-a"
+  DECOMPOSER_MODEL_NAME: "agent-a"
+  BASELINE_MODEL_NAME: "agent-a"
+  # MAD judge uses Anthropic OpenAI-compat endpoint
   JUDGE_MODEL_NAME: "claude-haiku-4-5-20251001"
   VLLM_JUDGE_URL: "https://api.anthropic.com/v1"
 

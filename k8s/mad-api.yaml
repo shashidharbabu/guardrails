@@ -41,6 +41,8 @@ spec:
               value: "/tmp/mad.db"
             - name: LANGCHAIN_CACHE_DB
               value: "/tmp/langchain_cache.db"
+            - name: AWS_REGION
+              value: "us-west-2"
           resources:
             requests:
               memory: "2Gi"

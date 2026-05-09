@@ -52,9 +52,14 @@ def make_agent_client(role: AgentRoleName = "agent_a", max_tokens: int = 384) ->
     if role not in ("agent_a", "agent_b"):
         raise ValueError("role must be 'agent_a' or 'agent_b'")
     from configs import config
+    # Each role maps to its own LoRA adapter name so the SageMaker proxy
+    # can route to the correct adapter on the shared endpoint.
+    model_a = os.getenv("AGENTS_A_MODEL_NAME", "agent-a")
+    model_b = os.getenv("AGENTS_B_MODEL_NAME", "agent-b")
+    model = model_a if role == "agent_a" else model_b
     return _make_client(
         base_url=_endpoint("VLLM_AGENTS_URL", config.VLLM_AGENTS_URL),
-        model=config.AGENTS_MODEL_NAME,
+        model=model,
         temperature=0.4 if role == "agent_a" else 0.7,
         max_tokens=max_tokens,
     )
