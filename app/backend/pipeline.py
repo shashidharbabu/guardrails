@@ -317,30 +317,40 @@ async def _call_llm_openai_compat(query: str, model: str) -> str:
 
 async def _run_mad_async(query: str, llm_answer: str):
     """
-    Run the full_FinalMAD_with_judge pipeline asynchronously.
-    Falls back to the legacy Ollama-based multi_agent pipeline if the new one
-    is unavailable (e.g. vLLM not configured), so the app always degrades gracefully.
+    Call the mad-api HTTP service at MAD_API_URL (http://mad-api:8001/mad/verify).
+    MAD_MODE=api   → HTTP POST to mad-api (production, always used if set)
+    MAD_MODE=disabled → skip MAD entirely
     """
     if settings.MAD_MODE == "disabled":
         return None
+
+    mad_url = getattr(settings, "MAD_API_URL", "http://mad-api:8001/mad/verify")
+    timeout = float(getattr(settings, "MAD_TIMEOUT_SECONDS", "600"))
+
     try:
-        import sys
-        from pathlib import Path
-        _mad_root = Path(__file__).resolve().parent.parent.parent / "multi_agent_debate" / "full_FinalMAD_with_judge"
-        if str(_mad_root) not in sys.path:
-            sys.path.insert(0, str(_mad_root))
-        from api import _run_pipeline  # type: ignore[import]
-        return await _run_pipeline(query, llm_answer)
+        async with httpx.AsyncClient(timeout=timeout) as client:
+            r = await client.post(
+                mad_url,
+                json={"query": query, "llm_answer": llm_answer},
+            )
+            r.raise_for_status()
+            data = r.json()
+
+        class _MADResult:
+            """Lightweight wrapper so the rest of pipeline.py works unchanged."""
+            def __init__(self, d: dict):
+                self.routing_decision = d.get("routing_decision", "HUMAN_REVIEW")
+                self.aggregate_confidence = d.get("aggregate_confidence", 0.0)
+                self.query_id = d.get("query_id", "")
+                self.rollout_id = d.get("rollout_id", "")
+                self.langfuse_trace_id = d.get("langfuse_trace_id")
+                self.cse_result = None
+                self._raw = d
+            def model_dump(self, **kwargs):
+                return self._raw
+
+        return _MADResult(data)
+
     except Exception as exc:
-        logger.warning("new_mad_failed, trying legacy", extra={"error": str(exc)})
-        # Legacy fallback: Ollama-based synchronous pipeline
-        try:
-            loop = asyncio.get_event_loop()
-            try:
-                from multi_agent.mad_pipeline import run_mad  # type: ignore[import]
-            except ImportError:
-                from multi_agent_debate.multi_agent.mad_pipeline import run_mad  # type: ignore[import]
-            return await loop.run_in_executor(None, run_mad, query, llm_answer)
-        except Exception as exc2:
-            logger.warning("legacy_mad_also_failed", extra={"error": str(exc2)})
-            return None
+        logger.warning("mad_http_call_failed", extra={"url": mad_url, "error": str(exc)})
+        return None
