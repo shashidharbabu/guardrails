@@ -39,10 +39,14 @@ ENV/
 
 # SQLite databases (auto-created at runtime)
 app/mad_v4.db
+app/*.db
 app/*.db-shm
 app/*.db-wal
 app/.langchain_cache.db
 *.langchain_cache.db
+multi_agent_debate/*.db
+multi_agent_debate/*.db-shm
+multi_agent_debate/*.db-wal
 
 # OS
 .DS_Store
