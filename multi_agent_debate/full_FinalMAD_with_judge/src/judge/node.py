@@ -65,6 +65,9 @@ def _parse_judge_output(raw: str) -> JudgeOutput:
     end = text.rfind("}") + 1
     if start != -1 and end > start:
         text = text[start:end]
+    elif start == -1 and '"v_label"' in text:
+        # Claude omitted the surrounding braces — wrap it
+        text = "{" + text.rstrip().rstrip(",") + "}"
     try:
         payload = json.loads(text)
     except json.JSONDecodeError as exc:
