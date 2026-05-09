@@ -1,8 +1,7 @@
-import { useEffect, useRef, useState } from 'react'
-import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
+import { useEffect, useState } from 'react'
+import { NavLink, Outlet, useLocation } from 'react-router-dom'
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion'
 import CopilotPanel from './CopilotPanel'
-import AppFooter from './AppFooter'
 import { useAuth } from '../context/AuthContext'
 
 const NAV = [
@@ -130,10 +129,7 @@ function derivePageName(pathname) {
 export default function Layout() {
   const [clock, setClock] = useState('')
   const [copilotOpen, setCopilotOpen] = useState(false)
-  const [globalSearch, setGlobalSearch] = useState('')
   const location = useLocation()
-  const navigate = useNavigate()
-  const searchRef = useRef(null)
   const shouldReduceMotion = useReducedMotion()
   const { user, signOut } = useAuth()
 
@@ -158,23 +154,6 @@ export default function Layout() {
     return () => clearInterval(id)
   }, [])
 
-  useEffect(() => {
-    const onKeyDown = event => {
-      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
-        event.preventDefault()
-        searchRef.current?.focus()
-      }
-    }
-    window.addEventListener('keydown', onKeyDown)
-    return () => window.removeEventListener('keydown', onKeyDown)
-  }, [])
-
-  function handleGlobalSearch(event) {
-    event.preventDefault()
-    const q = globalSearch.trim()
-    navigate(q ? `/conversations?q=${encodeURIComponent(q)}` : '/conversations')
-  }
-
   const pageVariants = shouldReduceMotion
     ? {}
     : {
@@ -190,7 +169,7 @@ export default function Layout() {
         <div className="logo-wrap">
           <div className="brand-mark app-mark" aria-hidden="true" />
           <div>
-            <div className="logo-name">SpartanGuard</div>
+            <div className="logo-name">Guardrails</div>
             <div className="logo-sub">Enterprise AI Safety</div>
           </div>
         </div>
@@ -203,20 +182,14 @@ export default function Layout() {
         </div>
 
         <div className="tb-right">
-          <form className="global-search" role="search" onSubmit={handleGlobalSearch}>
+          <div className="global-search" role="search">
             <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true">
               <circle cx="7" cy="7" r="4.5" stroke="currentColor" strokeWidth="1.4"/>
               <path d="M10.5 10.5L14 14" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
             </svg>
-            <input
-              ref={searchRef}
-              value={globalSearch}
-              onChange={event => setGlobalSearch(event.target.value)}
-              placeholder="Search sessions, policies, traces"
-              aria-label="Search sessions, policies, traces"
-            />
+            <span>Search sessions, policies, traces</span>
             <kbd>⌘K</kbd>
-          </form>
+          </div>
           <div className="st-row">
             <div className="st-dot g" />
             <span className="st-lbl">API</span>
@@ -231,7 +204,7 @@ export default function Layout() {
           <div className="user-menu">
             <div className="avatar" aria-hidden="true">{(user?.name || 'A').slice(0, 1)}</div>
             <div>
-              <strong>{user?.org || 'SpartanGuard Workspace'}</strong>
+              <strong>{user?.org || 'Guardrails Workspace'}</strong>
               <span>{user?.role || 'Operator'}</span>
             </div>
             <button type="button" onClick={signOut}>Sign out</button>
@@ -272,7 +245,7 @@ export default function Layout() {
 
       {/* ─── Main ─────────────────────────────────────────────── */}
       <main className="main" id="main-content">
-        <AnimatePresence mode="wait" initial={false}>
+        <AnimatePresence mode="wait">
           <motion.div
             key={location.pathname}
             className="page-body"
@@ -280,12 +253,10 @@ export default function Layout() {
             initial="initial"
             animate="animate"
             exit="exit"
-            style={{ minHeight: 0 }}
           >
             <Outlet />
           </motion.div>
         </AnimatePresence>
-        <AppFooter />
       </main>
 
       {/* ─── Co-pilot FAB ────────────────────────────────────── */}
@@ -302,20 +273,8 @@ export default function Layout() {
           </svg>
         ) : (
           <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true">
-            <path
-              d="M4.5 5.5A3.5 3.5 0 018 2h4a3.5 3.5 0 013.5 3.5v3A3.5 3.5 0 0112 12H8.4L5 15v-3.3A3.48 3.48 0 014.5 8.5v-3z"
-              stroke="currentColor"
-              strokeWidth="1.5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              fill="rgba(255,255,255,0.08)"
-            />
-            <path
-              d="M8 6h4M8 8.5h2.8"
-              stroke="currentColor"
-              strokeWidth="1.5"
-              strokeLinecap="round"
-            />
+            <path d="M10 2.5l2 4 4.5 1.5L13 11l.8 4.5-3.8-2-3.8 2L7 11l-3.5-3L8 6.5z"
+              stroke="currentColor" strokeWidth="1.5" fill="rgba(255,255,255,0.08)" strokeLinejoin="round"/>
           </svg>
         )}
       </button>

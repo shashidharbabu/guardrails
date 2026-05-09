@@ -38,11 +38,12 @@ ENV/
 .service_pids
 
 # SQLite databases (auto-created at runtime)
-app/mad_v4.db
-app/*.db-shm
-app/*.db-wal
-app/.langchain_cache.db
-*.langchain_cache.db
+*.db
+*.db-shm
+*.db-wal
+
+# DeepEval cache
+.deepeval/
 
 # OS
 .DS_Store

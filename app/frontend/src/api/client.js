@@ -435,7 +435,7 @@ export async function sendCopilotMessage(message, history = [], context = {}) {
   if (MOCK) {
     await delay(600)
     return {
-      reply: "I'm the SpartanGuard co-pilot (mock mode). Connect to the backend to query live session data, analytics, and system health.",
+      reply: "I'm the Guardrails co-pilot (mock mode). Connect to the backend to query live session data, analytics, and system health.",
       tool_calls: [],
       model: 'claude-opus-4-5',
     }

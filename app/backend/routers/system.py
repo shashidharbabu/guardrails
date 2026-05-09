@@ -63,13 +63,6 @@ async def _ping_http(url: str, timeout: float = 3.0) -> None:
         r.raise_for_status()
 
 
-def _ollama_base_url() -> str:
-    base = settings.LLM_PROVIDER_URL.rstrip("/")
-    if base.endswith("/v1"):
-        base = base[:-3]
-    return base
-
-
 @router.get("/health")
 async def system_health(user: UserContext = Depends(get_current_user)):
     """
@@ -90,7 +83,7 @@ async def system_health(user: UserContext = Depends(get_current_user)):
     results.append(
         await _check_async(
             "llm_runtime",
-            lambda: _ping_http(f"{_ollama_base_url()}/api/tags", timeout=5.0),
+            lambda: _ping_http(f"{settings.LLM_PROVIDER_URL}/api/tags", timeout=5.0),
         )
     )
 

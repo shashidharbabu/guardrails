@@ -177,18 +177,6 @@ async def _run_mad_background(
                 "mad_completed",
                 extra={"session_id": session_id, "mad_routing": mad_routing},
             )
-        else:
-            message = "MAD unavailable or disabled; session retained with LLM answer only."
-            db.insert_session_event(
-                session_id=session_id,
-                stage="mad",
-                to_status="MAD_UNAVAILABLE",
-                from_status="MAD_RUNNING",
-                message=message,
-                request_id=request_id,
-            )
-            db.update_session_status(session_id, "MAD_UNAVAILABLE")
-            logger.warning("mad_unavailable", extra={"session_id": session_id})
     except Exception as exc:
         logger.error("mad_background_failed", extra={"session_id": session_id, "error": str(exc)}, exc_info=True)
         db.insert_session_event(

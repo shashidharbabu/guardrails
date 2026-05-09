@@ -25,14 +25,20 @@ export default function FilterBar({
   return (
     <div className="filter-bar">
       {onSearch && (
-        <div className="filter-search">
+        <div style={{ position: 'relative', flexShrink: 0 }}>
           <svg
-            className="filter-search-icon"
             width="13"
             height="13"
             viewBox="0 0 14 14"
             fill="none"
-            aria-hidden="true"
+            style={{
+              position: 'absolute',
+              left: 10,
+              top: '50%',
+              transform: 'translateY(-50%)',
+              color: 'var(--text-muted)',
+              pointerEvents: 'none',
+            }}
           >
             <circle cx="6" cy="6" r="4" stroke="currentColor" strokeWidth="1.3"/>
             <path d="M9 9L12.5 12.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>

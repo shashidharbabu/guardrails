@@ -109,12 +109,10 @@ class GuardrailGateway:
         jb_score = 0.0
         pi_score = 0.0
         pii_entities = []
-        validation_error = None
 
         try:
             self._guard.validate(user_input)
         except Exception as exc:
-            validation_error = str(exc)
             print(f"[Gateway] Warning: validation error: {exc}")
 
         try:
@@ -161,22 +159,6 @@ class GuardrailGateway:
             pi_score=pi_score,
             pii_entities=pii_entities,
         )
-
-        if validation_error and result.decision == Decision.PASS:
-            result = GatewayResult(
-                decision=Decision.ESCALATE,
-                gateway_score=max(result.gateway_score, self._engine.pass_threshold),
-                pii_score=pii_score,
-                jb_score=jb_score,
-                pi_score=pi_score,
-                pii_entities=pii_entities,
-                threat_types=["VALIDATOR_ERROR"],
-                blocked_reason=(
-                    "Gateway validator unavailable; routed to analyst review instead of passing. "
-                    f"Error: {validation_error[:240]}"
-                ),
-                raw_input=user_input,
-            )
 
         event_logger.log_event(result)
         return result
