@@ -63,6 +63,7 @@ data/
 !config/*.yaml
 !rlhf/data/
 !rlhf/data/*.json
+!multi_agent_debate/**/examples/*.json
 
 # Node.js / Frontend
 node_modules/

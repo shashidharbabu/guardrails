@@ -1,0 +1,40 @@
+[
+  {
+    "query_id": "q_test_001",
+    "user_query": "Does HIPAA require AES-256 encryption for all ePHI at rest and in transit?",
+    "baseline_answer": "HIPAA requires covered entities to implement AES-256 encryption for all ePHI at rest and in transit, with no exceptions for small providers.",
+    "baseline_model": "ollama/qwen2.5:7b",
+    "rag_chunks": [
+      {
+        "chunk_id": "hipaa_164_312_a2",
+        "text": "The HIPAA Security Rule at 45 CFR §164.312(a)(2)(iv) lists encryption and decryption as an addressable implementation specification under access control. Covered entities must assess whether it is a reasonable and appropriate safeguard given their environment."
+      },
+      {
+        "chunk_id": "hipaa_164_312_e2",
+        "text": "45 CFR §164.312(e)(2)(ii) makes encryption of ePHI in transit an addressable specification. Entities that determine it is not reasonable and appropriate must document that decision and implement an equivalent alternative measure."
+      }
+    ],
+    "claims": [
+      {
+        "claim_id": "claim-001",
+        "claim_text": "HIPAA requires AES-256 encryption for all ePHI at rest.",
+        "claim_index": 0,
+        "is_material": true,
+        "is_critical": true,
+        "confidence_prior": 0.7,
+        "coverage_check": true,
+        "coverage_ratio": 1.0
+      },
+      {
+        "claim_id": "claim-002",
+        "claim_text": "HIPAA encryption requirements apply equally to small providers with no exceptions.",
+        "claim_index": 1,
+        "is_material": true,
+        "is_critical": false,
+        "confidence_prior": 0.5,
+        "coverage_check": true,
+        "coverage_ratio": 0.8
+      }
+    ]
+  }
+]
