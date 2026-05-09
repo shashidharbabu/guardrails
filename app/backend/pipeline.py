@@ -236,30 +236,30 @@ async def _call_llm(query: str, model: str) -> str:
 
 async def _run_mad_async(query: str, llm_answer: str):
     """
-    Run the full_FinalMAD_with_judge pipeline asynchronously.
-    Falls back to the legacy Ollama-based multi_agent pipeline if the new one
-    is unavailable (e.g. vLLM not configured), so the app always degrades gracefully.
+    Run the V4MAD single-query pipeline asynchronously.
+
+    Legacy MAD fallback is disabled by default so local/product tests cannot
+    accidentally pass through the old multi_agent_debate path.
     """
     if settings.MAD_MODE == "disabled":
         return None
     try:
         import sys
         from pathlib import Path
-        _mad_root = Path(__file__).resolve().parent.parent.parent / "multi_agent_debate" / "full_FinalMAD_with_judge"
+        _mad_root = Path(__file__).resolve().parent.parent.parent / "V4MAD"
         if str(_mad_root) not in sys.path:
             sys.path.insert(0, str(_mad_root))
-        from api import _run_pipeline  # type: ignore[import]
-        return await _run_pipeline(query, llm_answer)
+        from api import run_v4mad  # type: ignore[import]
+        return await run_v4mad(query, llm_answer)
     except Exception as exc:
-        logger.warning("new_mad_failed, trying legacy", extra={"error": str(exc)})
-        # Legacy fallback: Ollama-based synchronous pipeline
+        logger.warning("v4mad_failed", extra={"error": str(exc)}, exc_info=True)
+        if not settings.MAD_ALLOW_LEGACY_FALLBACK:
+            raise
+
+        logger.warning("trying_legacy_mad_fallback", extra={"error": str(exc)})
+        loop = asyncio.get_event_loop()
         try:
-            loop = asyncio.get_event_loop()
-            try:
-                from multi_agent.mad_pipeline import run_mad  # type: ignore[import]
-            except ImportError:
-                from multi_agent_debate.multi_agent.mad_pipeline import run_mad  # type: ignore[import]
-            return await loop.run_in_executor(None, run_mad, query, llm_answer)
-        except Exception as exc2:
-            logger.warning("legacy_mad_also_failed", extra={"error": str(exc2)})
-            return None
+            from multi_agent.mad_pipeline import run_mad  # type: ignore[import]
+        except ImportError:
+            from multi_agent_debate.multi_agent.mad_pipeline import run_mad  # type: ignore[import]
+        return await loop.run_in_executor(None, run_mad, query, llm_answer)

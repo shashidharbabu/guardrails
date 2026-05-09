@@ -7,7 +7,7 @@ CLAIM_CONCURRENCY claims processed simultaneously.
 
 Key asymmetries enforced here:
   Agent A: system=AGENT_A_SYSTEM, temp=0.4, chunks [0,1,2]
-  Agent B: system=AGENT_B_SYSTEM, temp=0.85, chunks [0,3,4]
+  Agent B: system=AGENT_B_SYSTEM, temp=0.85, chunks [0,2,3]
 
 Both point to the SAME vLLM server. With USE_GRPO_LORA_AGENTS=1, Agent A
 calls model="agent_a" and Agent B calls model="agent_b"; otherwise both

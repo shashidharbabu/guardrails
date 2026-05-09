@@ -6,7 +6,7 @@ Agent A sees B's R0 stripped output. Agent B sees A's R0 stripped output.
 
 IMPORTANT: Agent A does NOT see Agent B's full chunks. It only sees the
 relevant_quote (≤160 chars) that Agent B chose to cite. If Agent B cited
-a chunk that's in positions [3] or [4], Agent A cannot look it up in its
+a chunk that's in position [3], Agent A cannot look it up in its
 own evidence pool — creating genuine information asymmetry in the debate.
 
 R1 prompt redesign: agents should HOLD their position unless the other agent
@@ -132,7 +132,7 @@ async def debate_r1_node(state: MADState) -> dict:
                 return  # R0 missing — skip R1 for this claim
 
             # Strip for peer: hide confidence_internal, truncate reasoning
-            # Agent A sees B's stripped R0 (with B's chunk quotes — possibly from [3],[4])
+            # Agent A sees B's stripped R0 (with B's chunk quotes — possibly from [2],[3])
             # Agent B sees A's stripped R0 (with A's chunk quotes from [0],[1],[2])
             b_stripped = strip_for_peer(b_r0, "Debater 2")
             a_stripped = strip_for_peer(a_r0, "Debater 1")
@@ -143,7 +143,7 @@ async def debate_r1_node(state: MADState) -> dict:
 
             # Agent A's R1: sees its own [0,1,2] chunks + B's stripped R0
             a_r1_user = round1_user(claim, a_chunks, user_query, b_stripped)
-            # Agent B's R1: sees its own [0,3,4] chunks + A's stripped R0
+            # Agent B's R1: sees its own [0,2,3] chunks + A's stripped R0
             b_r1_user = round1_user(claim, b_chunks, user_query, a_stripped)
 
             (a_r1, *_), (b_r1, *_) = await asyncio.gather(

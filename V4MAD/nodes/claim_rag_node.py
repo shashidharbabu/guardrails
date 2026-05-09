@@ -43,9 +43,12 @@ async def claim_rag_node(state: MADState) -> dict:
         claim_text = claim["claim_text"]
 
         if rag_service is not None:
-            retrieved = rag_service.retrieve_for_cot(
-                claim=claim_text,
-                original_query=user_query,
+            retrieved = rag_service.retrieve_for_cod(
+                query=f"{claim_text}. Context: {user_query}",
+                session_id=state["query_id"],
+                agent_id="shared",
+                round_num=0,
+                k=5,
             )
             assignment = assign_ranked_chunks(retrieved["chunks"])
         else:

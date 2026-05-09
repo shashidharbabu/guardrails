@@ -1,13 +1,14 @@
 """
-Step 3: Per-claim chunk assignment (NO vLLM server needed).
+Step 3: Per-claim live NewRAG chunk assignment.
 
-Reranks stored query-level top-5 chunks against each claim text (TF-IDF, CPU).
+For each decomposed claim, retrieves evidence with claim + original query via
+NewRAG v2, then assigns the ranked top-5 chunks:
 Assigns:
   Agent A → ranked positions [0,1,2]   (supporting, high-relevance)
-  Agent B → ranked positions [0,3,4]   (anchor + alternatives/edge cases)
+  Agent B → ranked positions [0,2,3]   (anchor + alternate evidence)
   Judge   → all 5 chunks              (complete evidence pool)
 
-No model loading needed. Runs in seconds.
+Set MAD_USE_LIVE_RAG=0 to fall back to the old stored-query-chunk TF-IDF mode.
 
 Run: python steps/step3_claim_rag.py
 """

@@ -56,6 +56,7 @@ class Settings:
     MAD_MODE: str = os.environ.get("MAD_MODE", "local")  # local | api | disabled
     MAD_API_URL: Optional[str] = os.environ.get("MAD_API_URL")
     MAD_TIMEOUT_SECONDS: int = int(os.environ.get("MAD_TIMEOUT_SECONDS", "600"))
+    MAD_ALLOW_LEGACY_FALLBACK: bool = os.environ.get("MAD_ALLOW_LEGACY_FALLBACK", "false").lower() == "true"
 
     # ── Feedback Loop ─────────────────────────────────────────────────────────
     FEEDBACK_API_URL: str = os.environ.get("FEEDBACK_API_URL", "http://localhost:8002")

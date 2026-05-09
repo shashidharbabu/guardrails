@@ -8,7 +8,7 @@ registers Agent A/B LoRA adapters once at startup and the debate nodes call
 model="agent_a" and model="agent_b".
 
 Agent A: AGENT_A_SYSTEM, temp=0.4, chunks [0,1,2]  — strict verifier
-Agent B: AGENT_B_SYSTEM, temp=0.85, chunks [0,3,4] — inverted-burden skeptic
+Agent B: AGENT_B_SYSTEM, temp=0.85, chunks [0,2,3] — inverted-burden skeptic
 
 LangGraph state: R0 outputs stored in state before R1 node reads them.
 LangGraph checkpoint: if Colab crashes mid-query, resume from last checkpoint.
