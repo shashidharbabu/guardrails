@@ -65,6 +65,16 @@ data/
 !rlhf/data/*.json
 !multi_agent_debate/**/examples/*.json
 
+# NewRAG v2 package assets used by V4MAD.
+!rag_v2/data/
+!rag_v2/data/*.json
+!rag_v2/data/*.jsonl
+!rag_v2/indexes_qdrant_data/
+!rag_v2/indexes_qdrant_data/README.md
+!rag_v2/indexes_qdrant_data/meta.json
+rag_v2/indexes_qdrant_data/collection/
+rag_v2/indexes_qdrant_data/.lock
+
 # Node.js / Frontend
 node_modules/
 dist/
