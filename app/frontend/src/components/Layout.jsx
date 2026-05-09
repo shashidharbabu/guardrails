@@ -224,7 +224,7 @@ export default function Layout() {
           <div className="tb-div" />
           <div className="st-row">
             <div className="st-dot a pulsing" />
-            <span className="st-lbl">{import.meta.env.VITE_DEFAULT_MODEL || 'qwen2.5:7b'}</span>
+            <span className="st-lbl">{import.meta.env.VITE_DEFAULT_MODEL || 'Qwen2.5-14B'}</span>
           </div>
           <div className="tb-div" />
           <div className="clock" aria-label="Current time">{clock}</div>

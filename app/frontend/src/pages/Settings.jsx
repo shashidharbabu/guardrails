@@ -172,12 +172,12 @@ export default function Settings() {
       <div className="settings-grid">
         <ConfigPanel title="Active Models">
           <div className="lat-tbl">
-            <KvRow label="PII detection"    value="shashidharbabu/deberta-pii-guardrails" />
-            <KvRow label="Jailbreak"        value="shashidharbabu/roberta-jailbreak-guardrails" />
-            <KvRow label="Prompt injection" value="shashidharbabu/llama-prompt-guard-guardrails" />
-            <KvRow label="Embedder"         value="nvidia/llama-embed-nemotron-8b" />
-            <KvRow label="LLM"             value="qwen2.5:7b (Ollama)" />
-            <KvRow label="MAD agents"       value="qwen2.5:7b (Ollama)" />
+            <KvRow label="PII detection"    value="Qwen2.5-7B + PII LoRA (SageMaker)" />
+            <KvRow label="Jailbreak"        value="Qwen2.5-14B-AWQ (SageMaker)" />
+            <KvRow label="Prompt injection" value="protectai/deberta-v3-base-pi-v2 (SageMaker)" />
+            <KvRow label="Embedder"         value="Qwen3-Embedding-4B · 2560-dim (SageMaker)" />
+            <KvRow label="LLM"             value="Qwen2.5-14B-Instruct-AWQ (SageMaker)" />
+            <KvRow label="MAD agents"       value="Qwen2.5-14B + LoRA adapters (SageMaker)" />
           </div>
         </ConfigPanel>
 
@@ -199,9 +199,9 @@ export default function Settings() {
         <ConfigPanel title="MAD Debate Settings">
           <div className="lat-tbl">
             <KvRow label="Cycles"         value="2 (configurable)" />
-            <KvRow label="Agent A"        value="qwen2.5:7b" />
-            <KvRow label="Agent B"        value="qwen2.5:7b" />
-            <KvRow label="Judge model"    value="qwen2.5:7b" />
+            <KvRow label="Agent A"        value="Qwen2.5-14B + agent-a LoRA (SageMaker)" />
+            <KvRow label="Agent B"        value="Qwen2.5-14B + agent-b LoRA (SageMaker)" />
+            <KvRow label="Judge model"    value="Claude Haiku 4.5 (Anthropic API)" />
             <KvRow label="Routing"        value="DELIVER · RETRY · HARD_BLOCK · HUMAN_REVIEW" />
           </div>
         </ConfigPanel>

@@ -46,6 +46,14 @@ def get_review_queue(
     return sessions
 
 
+@router.get("/sessions")
+def list_review_sessions(
+    user: UserContext = Depends(require_capability("read:sessions")),
+):
+    """List all sessions that have passed through human review (any status)."""
+    return db.get_sessions(status="HUMAN_REVIEW_REQUIRED", limit=200)
+
+
 @router.get("/reviews")
 def list_reviews(
     review_status: Optional[str] = None,
