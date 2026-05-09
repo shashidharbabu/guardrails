@@ -230,22 +230,21 @@ async def _call_llm(query: str, model: str) -> str:
 
 async def _call_llm_sagemaker(query: str, model: str) -> str:
     """
-    Call a DJL LMI endpoint on SageMaker (LLaMA-3.1-8B-Instruct).
-    Uses the LLaMA-3.1 chat template with boto3 invoke-endpoint.
-    model param is the SageMaker endpoint name (e.g. spartanguard-guard).
+    Call a DJL LMI endpoint on SageMaker (Qwen2.5-14B-Instruct).
+    Uses Qwen2.5 chat template. model param = SageMaker endpoint name.
     """
     import json as _json
+    import re
     import asyncio
 
-    endpoint_name = model or getattr(settings, "LLM_SAGEMAKER_ENDPOINT", "spartanguard-guard")
+    endpoint_name = model or getattr(settings, "LLM_SAGEMAKER_ENDPOINT", "spartanguard-agents")
     aws_region = getattr(settings, "AWS_REGION", "us-west-2")
 
+    # Qwen2.5 chat template
     prompt = (
-        f"<|begin_of_text|><|start_header_id|>system<|end_header_id|>\n\n"
-        f"{SYSTEM_PROMPT}<|eot_id|>"
-        f"<|start_header_id|>user<|end_header_id|>\n\n"
-        f"{query}<|eot_id|>"
-        f"<|start_header_id|>assistant<|end_header_id|>\n\n"
+        f"<|im_start|>system\n{SYSTEM_PROMPT}<|im_end|>\n"
+        f"<|im_start|>user\n{query}<|im_end|>\n"
+        f"<|im_start|>assistant\n"
     )
     payload = {
         "inputs": prompt,
@@ -257,6 +256,8 @@ async def _call_llm_sagemaker(query: str, model: str) -> str:
         },
     }
 
+    _stop = re.compile(r"(<\|im_end\|>|<\|endoftext\|>|<\|eot_id\|>).*", re.DOTALL)
+
     def _invoke():
         import boto3
         client = boto3.client("sagemaker-runtime", region_name=aws_region)
@@ -267,10 +268,12 @@ async def _call_llm_sagemaker(query: str, model: str) -> str:
         )
         result = _json.loads(response["Body"].read())
         if "generated_text" in result:
-            return result["generated_text"]
-        if isinstance(result, list) and result:
-            return result[0].get("generated_text", str(result[0]))
-        return str(result)
+            raw = result["generated_text"]
+        elif isinstance(result, list) and result:
+            raw = result[0].get("generated_text", str(result[0]))
+        else:
+            raw = str(result)
+        return _stop.sub("", raw).strip()
 
     loop = asyncio.get_event_loop()
     return await loop.run_in_executor(None, _invoke)

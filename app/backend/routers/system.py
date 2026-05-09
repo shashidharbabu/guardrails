@@ -91,7 +91,7 @@ async def system_health(user: UserContext = Depends(get_current_user)):
     if provider == "sagemaker":
         async def _check_sagemaker_llm():
             import boto3, json as _json, asyncio
-            endpoint = getattr(settings, "LLM_SAGEMAKER_ENDPOINT", "spartanguard-guard")
+            endpoint = getattr(settings, "LLM_SAGEMAKER_ENDPOINT", "spartanguard-agents")
             region = getattr(settings, "AWS_REGION", "us-west-2")
             def _describe():
                 sm = boto3.client("sagemaker", region_name=region)
