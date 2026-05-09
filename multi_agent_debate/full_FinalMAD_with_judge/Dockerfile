@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 # MAD API — Multi-Agent Debate verification service
-FROM python:3.11-slim AS builder
+FROM public.ecr.aws/docker/library/python:3.11-slim AS builder
 
 WORKDIR /build
 RUN apt-get update && apt-get install -y --no-install-recommends gcc && rm -rf /var/lib/apt/lists/*
@@ -27,7 +27,7 @@ RUN pip install --no-cache-dir --prefix=/install \
     boto3>=1.34.0
 
 
-FROM python:3.11-slim AS runtime
+FROM public.ecr.aws/docker/library/python:3.11-slim AS runtime
 
 LABEL maintainer="guardrails-platform"
 LABEL description="SpartanGuard MAD API — Multi-Agent Debate"
