@@ -103,6 +103,14 @@ Create through AWS Console for speed:
 6. CloudWatch log groups for all ECS services.
 7. ACM certificate for `www.spartanguard.ai` and optionally `api.spartanguard.ai`.
 
+Then fill:
+
+```bash
+cp deploy/aws/env/prod.example.env deploy/aws/env/prod.env
+```
+
+Use real ARNs, endpoint URLs, and image tag values in `prod.env`.
+
 ## Phase 6 - GPU vLLM Runtime
 
 Deadline path:
@@ -141,6 +149,13 @@ Deploy order:
 5. `spartanguard-frontend`
 
 Use `ecs-service-task-matrix.md` and `environment-variables.md`.
+
+First create logs and register task definitions:
+
+```bash
+deploy/aws/scripts/create-log-groups.sh
+ENV_FILE=deploy/aws/env/prod.env deploy/aws/scripts/register-task-definitions.sh
+```
 
 Exit criteria:
 

@@ -25,6 +25,10 @@ env/
 venv/
 ENV/
 .venv
+!deploy/aws/env/
+!deploy/aws/env/prod.example.env
+deploy/aws/env/prod.env
+deploy/aws/generated/
 
 # IDE
 .vscode/
