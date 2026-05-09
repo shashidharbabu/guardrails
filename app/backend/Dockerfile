@@ -31,7 +31,6 @@ COPY --from=builder /install /usr/local
 
 # Copy application source
 COPY app/ ./app/
-COPY multi_agent/ ./multi_agent/
 COPY multi_agent_debate/ ./multi_agent_debate/
 
 RUN chown -R guardrails:guardrails /app

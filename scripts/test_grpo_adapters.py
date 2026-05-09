@@ -75,21 +75,28 @@ def load_adapter(adapter_path: Path, label: str):
     from peft import PeftModel
     from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig
 
-    base_model_id = "unsloth/qwen2.5-14b-instruct-unsloth-bnb-4bit"
+    # Use the standard HF base — the unsloth variant has a baked-in quantization_config
+    # that conflicts with our BitsAndBytesConfig on non-CUDA devices.
+    base_model_id = "Qwen/Qwen2.5-14B-Instruct"
     hf_token = os.environ.get("HF_TOKEN") or os.environ.get("HUGGING_FACE_HUB_TOKEN")
 
-    print(f"\n[{label}] Loading base model {base_model_id} in 4-bit NF4...")
+    print(f"\n[{label}] Loading base model {base_model_id} in 4-bit NF4 (MPS/CPU offload)...")
     bnb = BitsAndBytesConfig(
         load_in_4bit=True,
         bnb_4bit_quant_type="nf4",
         bnb_4bit_use_double_quant=True,
         bnb_4bit_compute_dtype=torch.bfloat16,
+        llm_int8_enable_fp32_cpu_offload=True,
     )
+    # Explicit device map: embed/lm_head on MPS, transformer layers split across MPS+CPU
+    max_mps_mem = "10GiB" if torch.backends.mps.is_available() else "0GiB"
     base = AutoModelForCausalLM.from_pretrained(
         base_model_id,
         quantization_config=bnb,
         device_map="auto",
+        max_memory={"mps": max_mps_mem, "cpu": "32GiB"},
         token=hf_token,
+        low_cpu_mem_usage=True,
     )
     print(f"[{label}] Applying LoRA adapter from {adapter_path}...")
     model = PeftModel.from_pretrained(base, str(adapter_path), token=hf_token)
