@@ -20,7 +20,7 @@ COPY gateway/requirements_gateway.txt ./
 # CPU-only torch — avoids pulling the 2GB CUDA wheel
 # Jailbreak RoBERTa runs on CPU; PII+PI call remote GPU in production
 RUN pip install --no-cache-dir --prefix=/install \
-    torch==2.2.2+cpu \
+    "torch>=2.2.2" \
     --extra-index-url https://download.pytorch.org/whl/cpu
 
 RUN pip install --no-cache-dir --prefix=/install -r requirements_gateway.txt

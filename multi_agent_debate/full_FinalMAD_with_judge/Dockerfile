@@ -5,9 +5,9 @@ FROM python:3.11-slim AS builder
 WORKDIR /build
 RUN apt-get update && apt-get install -y --no-install-recommends gcc && rm -rf /var/lib/apt/lists/*
 
-# Install CPU-only torch first to avoid the 2GB CUDA wheel
+# CPU-only torch — avoids pulling the 2GB CUDA wheel
 RUN pip install --no-cache-dir --prefix=/install \
-    torch==2.2.2+cpu \
+    "torch>=2.2.2" \
     --extra-index-url https://download.pytorch.org/whl/cpu
 
 COPY multi_agent_debate/full_FinalMAD_with_judge/requirements.txt ./mad_requirements.txt
