@@ -50,6 +50,7 @@ data:
   VLLM_AGENTS_URL: "http://localhost:8080/v1"
   VLLM_DECOMPOSER_URL: "http://localhost:8080/v1"
   VLLM_BASELINE_URL: "http://localhost:8080/v1"
+  CLAIM_CONCURRENCY: "1"
   AGENTS_SAGEMAKER_ENDPOINT: "spartanguard-agents"
   AGENTS_A_MODEL_NAME: "agent-a"
   AGENTS_B_MODEL_NAME: "agent-b"
