@@ -2,6 +2,16 @@
 set -euo pipefail
 
 AWS_REGION="${AWS_REGION:-us-west-1}"
+AWS_CMD="${AWS_CMD:-aws}"
+
+if ! command -v "$AWS_CMD" >/dev/null 2>&1; then
+  if [ -x "$HOME/Library/Python/3.9/bin/aws" ]; then
+    AWS_CMD="$HOME/Library/Python/3.9/bin/aws"
+  else
+    echo "aws CLI not found. Install AWS CLI or set AWS_CMD=/path/to/aws." >&2
+    exit 1
+  fi
+fi
 
 repos=(
   "spartanguard/frontend"
@@ -12,10 +22,10 @@ repos=(
 )
 
 for repo in "${repos[@]}"; do
-  if aws ecr describe-repositories --region "$AWS_REGION" --repository-names "$repo" >/dev/null 2>&1; then
+  if "$AWS_CMD" ecr describe-repositories --region "$AWS_REGION" --repository-names "$repo" >/dev/null 2>&1; then
     echo "exists: $repo"
   else
-    aws ecr create-repository \
+    "$AWS_CMD" ecr create-repository \
       --region "$AWS_REGION" \
       --repository-name "$repo" \
       --image-scanning-configuration scanOnPush=true \
