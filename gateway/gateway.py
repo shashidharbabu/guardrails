@@ -54,17 +54,14 @@ class GuardrailGateway:
         pi_override_threshold: float = 0.7,
         pii_override_threshold: float = 0.9,
     ):
-        base_dir = os.path.dirname(__file__)
         pii_model_path = pii_model_path or os.environ.get(
-            "PII_MODEL_PATH", os.path.join(base_dir, "models", "pii_ner_model")
+            "PII_MODEL_PATH", "iiiorg/piiranha-v1-detect-personal-information"
         )
         threat_model_path = threat_model_path or os.environ.get(
-            "THREAT_MODEL_PATH",
-            os.path.join(base_dir, "models", "threat_classifier_model"),
+            "THREAT_MODEL_PATH", "jackhhao/jailbreak-classifier"
         )
         pi_model_path = pi_model_path or os.environ.get(
-            "PROMPT_INJECTION_MODEL_PATH",
-            "meta-llama/Llama-Prompt-Guard-2-86M",
+            "PROMPT_INJECTION_MODEL_PATH", "protectai/deberta-v3-base-prompt-injection-v2"
         )
 
         self._pii_validator = CustomPIIValidator(

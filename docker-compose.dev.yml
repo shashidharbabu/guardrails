@@ -59,6 +59,37 @@ services:
     environment:
       VITE_APP_ENV: development
 
+  mad:
+    build:
+      context: .
+      dockerfile: multi_agent_debate/full_FinalMAD_with_judge/Dockerfile
+    ports:
+      - "8001:8001"
+    environment:
+      APP_ENV: development
+      OLLAMA_BASE_URL: http://host.docker.internal:11434/v1
+      VLLM_BASELINE_URL: http://host.docker.internal:11434/v1
+      VLLM_DECOMPOSER_URL: http://host.docker.internal:11434/v1
+      VLLM_AGENTS_URL: http://host.docker.internal:11434/v1
+      VLLM_JUDGE_URL: http://host.docker.internal:11434/v1
+      AGENTS_MODEL_NAME: qwen2.5:7b
+      AGENT_A_MODEL_NAME: qwen2.5:7b
+      AGENT_B_MODEL_NAME: qwen2.5:7b
+      JUDGE_MODEL_NAME: qwen2.5:7b
+      SQLITE_DB_PATH: /app/data/mad.db
+      CLAIM_CONCURRENCY: "2"
+      LANGFUSE_PUBLIC_KEY: ""
+      LANGFUSE_SECRET_KEY: ""
+      LANGCHAIN_CACHE_DB: ""
+    volumes:
+      - mad_data:/app/data
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8001/mad/health')"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
   gateway:
     build:
       context: .
@@ -76,3 +107,4 @@ services:
 
 volumes:
   pg_data:
+  mad_data:

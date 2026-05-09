@@ -32,4 +32,5 @@ SQLITE_DB_PATH = os.getenv("SQLITE_DB_PATH", _DEFAULT_DB)
 LANGCHAIN_CACHE_DB = os.getenv("LANGCHAIN_CACHE_DB", str(_REPO_ROOT / "app" / ".langchain_cache.db"))
 CLAIM_CONCURRENCY = int(os.getenv("CLAIM_CONCURRENCY", "2"))
 
-set_llm_cache(SQLiteCache(database_path=LANGCHAIN_CACHE_DB))
+if LANGCHAIN_CACHE_DB:
+    set_llm_cache(SQLiteCache(database_path=LANGCHAIN_CACHE_DB))

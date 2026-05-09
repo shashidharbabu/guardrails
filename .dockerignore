@@ -1,0 +1,13 @@
+# Never bake local dev secrets or runtime state into images
+.env
+**/.env
+*.db
+*.db-shm
+*.db-wal
+__pycache__
+**/__pycache__
+*.pyc
+.git
+.deepeval/
+scripts/test_grpo_adapters.py
+adapters/
