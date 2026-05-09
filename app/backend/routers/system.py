@@ -63,6 +63,25 @@ async def _ping_http(url: str, timeout: float = 3.0) -> None:
         r.raise_for_status()
 
 
+def _llm_health_url() -> str:
+    """
+    Return a health-check URL that works for both Ollama and vLLM/OpenAI-compatible servers.
+    Ollama exposes GET /api/tags; vLLM and OpenAI-compatible servers expose GET /v1/models.
+    We prefer /v1/models (works for both) when LLM_PROVIDER_TYPE != 'ollama'.
+    """
+    base = settings.LLM_PROVIDER_URL.rstrip("/")
+    provider_type = getattr(settings, "LLM_PROVIDER_TYPE", "ollama") or "ollama"
+    if provider_type.lower() == "ollama":
+        # Strip trailing /v1 to get Ollama base, then use its native tag endpoint
+        if base.endswith("/v1"):
+            base = base[:-3]
+        return f"{base}/api/tags"
+    # vLLM / custom OpenAI-compatible — /v1/models is always present
+    if not base.endswith("/v1"):
+        base = f"{base}/v1"
+    return f"{base}/models"
+
+
 @router.get("/health")
 async def system_health(user: UserContext = Depends(get_current_user)):
     """
@@ -83,7 +102,7 @@ async def system_health(user: UserContext = Depends(get_current_user)):
     results.append(
         await _check_async(
             "llm_runtime",
-            lambda: _ping_http(f"{settings.LLM_PROVIDER_URL}/api/tags", timeout=5.0),
+            lambda: _ping_http(_llm_health_url(), timeout=5.0),
         )
     )
 

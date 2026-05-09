@@ -28,7 +28,7 @@ function AuthShell({ mode }) {
       <Link to="/" className="brand-lockup auth-brand">
         <span className="brand-mark" aria-hidden="true" />
         <span>
-          <strong>Guardrails</strong>
+          <strong>SpartanGuard</strong>
           <small>Enterprise AI Safety</small>
         </span>
       </Link>
@@ -41,7 +41,7 @@ function AuthShell({ mode }) {
       >
         <div className="auth-card-head">
           <span className="eyebrow">{isRequest ? 'Enterprise onboarding' : 'Secure console access'}</span>
-          <h1>{isRequest ? 'Request access to Guardrails.' : 'Sign in to Guardrails.'}</h1>
+          <h1>{isRequest ? 'Request access to SpartanGuard.' : 'Sign in to SpartanGuard.'}</h1>
           <p>
             {isRequest
               ? 'Create a workspace-ready access profile for evaluation, gateway operations, and human review.'

@@ -73,3 +73,21 @@ app/frontend/.env.local
 dist/
 build/
 *.egg-info/
+
+
+
+# GRPO adapter weights — too large for GitHub (263 MB each), stored in Google Drive
+# See docs/GRPO_LORA_DEPLOYMENT.md for artifact location
+agent-a-adapters/adapter_model.safetensors
+agent-b-adapters/adapter_model.safetensors
+# Allow adapter configs and tokenizer files despite *.json rule above
+!agent-a-adapters/adapter_config.json
+!agent-a-adapters/tokenizer.json
+!agent-a-adapters/tokenizer_config.json
+!agent-a-adapters/chat_template.jinja
+!agent-a-adapters/README.md
+!agent-b-adapters/adapter_config.json
+!agent-b-adapters/tokenizer.json
+!agent-b-adapters/tokenizer_config.json
+!agent-b-adapters/chat_template.jinja
+!agent-b-adapters/README.md
