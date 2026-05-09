@@ -103,6 +103,7 @@ class GuardrailGateway:
     def process(self, user_input: str) -> GatewayResult:
         """
         Run user input through the full gateway pipeline.
+        Calls each validator directly to collect metadata reliably.
         Always returns a GatewayResult — never raises.
         """
         pii_score = 0.0
@@ -111,48 +112,33 @@ class GuardrailGateway:
         pii_entities = []
         validation_error = None
 
+        # Call each validator directly — Guard history is unreliable for multi-validator PassResult metadata
         try:
-            self._guard.validate(user_input)
+            pii_result = self._pii_validator.validate(user_input, {})
+            pii_meta = getattr(pii_result, "metadata", {}) or {}
+            pii_score = float(pii_meta.get("pii_score", 0.0))
+            pii_entities = pii_meta.get("pii_entities", [])
         except Exception as exc:
+            print(f"[Gateway] PII validator error: {exc}")
             validation_error = str(exc)
-            print(f"[Gateway] Warning: validation error: {exc}")
 
         try:
-            last_call = self._guard.history[-1]
-            validator_logs = getattr(last_call, "validator_logs", None)
-            if validator_logs is None:
-                validator_logs = getattr(last_call.inputs, "validator_logs", [])
+            jb_result = self._threat_validator.validate(user_input, {})
+            jb_meta = getattr(jb_result, "metadata", {}) or {}
+            jb_score = float(jb_meta.get("jb_score", 0.0))
+        except Exception as exc:
+            print(f"[Gateway] JB validator error: {exc}")
+            if not validation_error:
+                validation_error = str(exc)
 
-            for vlog in validator_logs:
-                vname = (getattr(vlog, "validator_name", "") or "").lower()
-                result = getattr(vlog, "validation_result", None)
-                meta = getattr(result, "metadata", {}) or {}
-                validator_id = str(meta.get("validator", "")).lower()
-
-                if (
-                    "custompiivalidator" in vname
-                    or "custom-pii-ner" in vname
-                    or validator_id == "custom-pii-ner"
-                ):
-                    pii_score = float(meta.get("pii_score", 0.0))
-                    pii_entities = meta.get("pii_entities", [])
-
-                elif (
-                    "customthreatvalidator" in vname
-                    or "custom-threat-classifier" in vname
-                    or validator_id == "custom-threat-classifier"
-                ):
-                    jb_score = float(meta.get("jb_score", 0.0))
-
-                elif (
-                    "custompivalidator" in vname
-                    or "custom-pi-classifier" in vname
-                    or validator_id == "custom-pi-classifier"
-                ):
-                    pi_score = float(meta.get("pi_score", 0.0))
-
-        except (IndexError, AttributeError) as exc:
-            print(f"[Gateway] Warning: could not read validator scores: {exc}")
+        try:
+            pi_result = self._pi_validator.validate(user_input, {})
+            pi_meta = getattr(pi_result, "metadata", {}) or {}
+            pi_score = float(pi_meta.get("pi_score", 0.0))
+        except Exception as exc:
+            print(f"[Gateway] PI validator error: {exc}")
+            if not validation_error:
+                validation_error = str(exc)
 
         result = self._engine.decide(
             raw_input=user_input,
