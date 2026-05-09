@@ -1,0 +1,167 @@
+# Full-stack local integration test compose — all 5 services + infra
+# Usage:
+#   cp .env.docker.example .env.docker   (fill in real ANTHROPIC_API_KEY, HF_TOKEN, Qdrant creds)
+#   docker compose up --build
+#
+# Services:
+#   postgres  :5432   — app DB (SQLite fallback in dev mode)
+#   redis     :6379   — session cache
+#   gateway   :8080   — input guardrail (3 classifiers)
+#   mad-api   :8001   — MAD debate + RAG search
+#   rlhf      :8002   — human review queue
+#   backend   :8000   — FastAPI app (copilot, sessions, MAD proxy)
+#   frontend  :5173   — Vite/React UI
+
+version: "3.9"
+
+x-secrets: &secrets
+  env_file:
+    - .env.docker
+
+services:
+  # ── Infrastructure ────────────────────────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: guardrails
+      POSTGRES_PASSWORD: guardrails_dev
+      POSTGRES_DB: guardrails
+    ports:
+      - "5432:5432"
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U guardrails"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  # ── Gateway (input guardrail) ─────────────────────────────────────────────
+  gateway:
+    build:
+      context: .
+      dockerfile: gateway/Dockerfile
+    ports:
+      - "8080:8080"
+    <<: *secrets
+    environment:
+      APP_ENV: development
+      GATEWAY_CORS_ALLOWED_ORIGINS: "http://localhost:5173,http://localhost:4173,http://localhost:8000"
+      # Remote GPU inference — set these to GPU server if available, else models load in-process
+      PII_INFERENCE_URL: ""
+      PI_INFERENCE_URL: ""
+      JB_INFERENCE_URL: ""
+      # Fallback local model paths (used only when *_INFERENCE_URL is empty)
+      PII_MODEL_PATH: vineeth453/qwen25-7b-pii-detection-lora
+      THREAT_MODEL_PATH: Qwen/Qwen2.5-3B-Instruct
+      PROMPT_INJECTION_MODEL_PATH: harshitasayala/pi-llama31-8b
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8080/health')"]
+      interval: 30s
+      timeout: 10s
+      start_period: 90s
+      retries: 5
+
+  # ── MAD API (debate + RAG) ────────────────────────────────────────────────
+  mad-api:
+    build:
+      context: .
+      dockerfile: multi_agent_debate/full_FinalMAD_with_judge/Dockerfile
+    ports:
+      - "8001:8001"
+    <<: *secrets
+    environment:
+      APP_ENV: development
+      EMBED_MODEL: Qwen/Qwen3-Embedding-4B
+      JUDGE_MODEL_NAME: claude-haiku-4-5-20251001
+      AGENTS_MODEL_NAME: agent_a
+      # vLLM — set VLLM_URL to your local vLLM instance if running one
+      # VLLM_URL: http://host.docker.internal:8000/v1
+      VLLM_URL: ""
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8001/mad/health')"]
+      interval: 30s
+      timeout: 10s
+      start_period: 120s
+      retries: 5
+
+  # ── RLHF Feedback API ────────────────────────────────────────────────────
+  rlhf:
+    build:
+      context: .
+      dockerfile: rlhf/Dockerfile
+    ports:
+      - "8002:8002"
+    <<: *secrets
+    environment:
+      APP_ENV: development
+      FEEDBACK_USE_PRESIDIO: "0"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8002/health')"]
+      interval: 30s
+      timeout: 10s
+      start_period: 30s
+      retries: 5
+
+  # ── Backend (FastAPI app) ─────────────────────────────────────────────────
+  backend:
+    build:
+      context: .
+      dockerfile: app/backend/Dockerfile
+    ports:
+      - "8000:8000"
+    <<: *secrets
+    environment:
+      APP_ENV: development
+      DATABASE_URL: postgresql://guardrails:guardrails_dev@postgres:5432/guardrails
+      REDIS_URL: redis://redis:6379/0
+      GATEWAY_URL: http://gateway:8080
+      MAD_MODE: api
+      MAD_API_URL: http://mad-api:8001/mad/verify
+      FEEDBACK_API_URL: http://rlhf:8002
+      DISABLE_AUTH: "true"
+      LOG_LEVEL: DEBUG
+      CORS_ALLOWED_ORIGINS: "http://localhost:5173,http://localhost:4173"
+      JUDGE_BACKEND: claude
+      CLAUDE_JUDGE_MODEL: claude-haiku-4-5-20251001
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      gateway:
+        condition: service_started
+      mad-api:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/healthz')"]
+      interval: 30s
+      timeout: 10s
+      start_period: 30s
+      retries: 5
+
+  # ── Frontend (Vite/React) ─────────────────────────────────────────────────
+  frontend:
+    build:
+      context: ./app/frontend
+      dockerfile: Dockerfile
+    ports:
+      - "5173:8080"
+    environment:
+      VITE_APP_ENV: development
+      VITE_API_URL: http://localhost:8000
+    depends_on:
+      - backend
+
+volumes:
+  pg_data:

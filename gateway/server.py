@@ -48,7 +48,7 @@ app.add_middleware(
 
 _DEFAULT_MODELS = {
     "pii":              os.environ.get("PII_MODEL_PATH", "vineeth453/qwen25-7b-pii-detection-lora"),
-    "jailbreak":        os.environ.get("THREAT_MODEL_PATH", "shashidharbabu/roberta-jailbreak-guardrails"),
+    "jailbreak":        os.environ.get("THREAT_MODEL_PATH", "Qwen/Qwen2.5-3B-Instruct"),
     "prompt_injection": os.environ.get("PROMPT_INJECTION_MODEL_PATH", "harshitasayala/pi-llama31-8b"),
 }
 

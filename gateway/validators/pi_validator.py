@@ -1,22 +1,26 @@
 """
-Custom Prompt Injection Validator - wraps meta-llama/Llama-Prompt-Guard-2-86M.
+Custom Prompt Injection Validator — supports two modes via PI_INFERENCE_URL env var:
 
-Model is mDeBERTa-v3 SequenceClassifier (86M params) with two labels:
-  BENIGN    (0) — safe input
-  MALICIOUS (1) — jailbreak or prompt injection attempt
+  LOCAL mode (default, dev):
+    Loads harshitasayala/pi-llama31-8b or meta-llama/Llama-Prompt-Guard-2-86M
+    in-process. Heavy (~16GB RAM for LLaMA-3.1-8B).
 
-Returns pi_score = probability of MALICIOUS class (raw model confidence, 0.0–1.0).
+  REMOTE mode (production):
+    Set PI_INFERENCE_URL=http://<host>:<port> to call a HuggingFace TGI or TEI
+    /text-classification endpoint. No model loaded locally — container stays lean.
 
-Requires HuggingFace authentication:
-  Set HF_TOKEN env var (or in .env at repo root).
+HuggingFace TGI server command (on GPU EC2):
+  docker run -p 3001:80 ghcr.io/huggingface/text-generation-inference:latest \
+    --model-id harshitasayala/pi-llama31-8b \
+    --dtype float16
 
-Model path: set env var PROMPT_INJECTION_MODEL_PATH  (or HuggingFace Hub ID)
-  Default: meta-llama/Llama-Prompt-Guard-2-86M
+Labels (BENIGN / MALICIOUS) — both model families use these.
 """
 
 import os
 from typing import Any, Callable, ClassVar, Dict, Optional
 
+import requests
 from guardrails.validators import (
     FailResult,
     PassResult,
@@ -26,15 +30,16 @@ from guardrails.validators import (
 )
 from transformers import pipeline
 
+_PI_INFERENCE_URL = os.environ.get("PI_INFERENCE_URL", "").rstrip("/")
+
 
 @register_validator(name="custom-pi-classifier", data_type="string")
 class CustomPIValidator(Validator):
     """
-    Wraps Llama Prompt Guard 2 86M as a guardrails-ai Validator.
+    Wraps prompt injection classifier as a guardrails-ai Validator.
 
-    Detects both prompt injection AND jailbreak attempts (model labels both MALICIOUS).
-    Returns pi_score regardless of pass/fail — DecisionEngine reads it for composite
-    scoring and hard-override checks.
+    REMOTE mode: calls PI_INFERENCE_URL/classify (no local model, fast, GPU-backed).
+    LOCAL mode: loads model in-process (dev/fallback only).
     """
 
     LABEL_MAP = {
@@ -57,20 +62,17 @@ class CustomPIValidator(Validator):
         if model_path is None:
             model_path = os.environ.get(
                 "PROMPT_INJECTION_MODEL_PATH",
-                "meta-llama/Llama-Prompt-Guard-2-86M",
+                "harshitasayala/pi-llama31-8b",
             )
-        super().__init__(
-            on_fail=on_fail,
-            model_path=model_path,
-            pi_threshold=pi_threshold,
-        )
+        super().__init__(on_fail=on_fail, model_path=model_path, pi_threshold=pi_threshold)
         self.model_path = model_path
         self.pi_threshold = pi_threshold
+        self._remote_url = _PI_INFERENCE_URL
 
     def _load_model(self):
         if self.model_path not in CustomPIValidator._PIPELINE_CACHE:
             hf_token = os.environ.get("HF_TOKEN") or os.environ.get("HUGGING_FACE_HUB_TOKEN")
-            print(f"[PI Validator] Loading model from: {self.model_path}")
+            print(f"[PI Validator] Loading model locally: {self.model_path}")
             CustomPIValidator._PIPELINE_CACHE[self.model_path] = pipeline(
                 task="text-classification",
                 model=self.model_path,
@@ -83,12 +85,17 @@ class CustomPIValidator(Validator):
             )
             print("[PI Validator] Model ready")
 
-    @property
-    def _pipe(self):
-        return CustomPIValidator._PIPELINE_CACHE.get(self.model_path)
+    def _call_remote(self, text: str) -> list:
+        """Call remote classifier and return raw label scores."""
+        resp = requests.post(
+            f"{self._remote_url}/classify",
+            json={"inputs": text},
+            timeout=10,
+        )
+        resp.raise_for_status()
+        return resp.json()
 
     def _get_pi_score(self, pipeline_output: list) -> float:
-        """Extract prompt injection / malicious class probability."""
         raw = pipeline_output[0] if isinstance(pipeline_output[0], list) else pipeline_output
         for item in raw:
             internal = self.LABEL_MAP.get(item["label"].upper())
@@ -97,14 +104,15 @@ class CustomPIValidator(Validator):
         return 0.0
 
     def validate(self, value: str, metadata: Dict) -> ValidationResult:
-        self._load_model()
+        if self._remote_url:
+            output = self._call_remote(value)
+        else:
+            self._load_model()
+            output = CustomPIValidator._PIPELINE_CACHE[self.model_path](value)
 
-        output = self._pipe(value)
         pi_score = self._get_pi_score(output)
         safe_score = max(0.0, 1.0 - pi_score)
 
-        # Always return PassResult so guardrails doesn't short-circuit the chain.
-        # DecisionEngine reads scores from metadata and makes the final routing decision.
         return PassResult(
             metadata={
                 "pi_score":   round(pi_score, 4),
