@@ -6,8 +6,8 @@ import SectionHeader from '../components/SectionHeader'
 import StatusBadge from '../components/StatusBadge'
 
 const LLM_MODELS = [
-  { id: 'spartanguard-guard', label: 'LLaMA 3.1 8B (SageMaker, default)' },
-  { id: 'spartanguard-pii',   label: 'Qwen2.5 7B (SageMaker)' },
+  { id: 'spartanguard-agents', label: 'Qwen2.5-14B AWQ (SageMaker, default)' },
+  { id: 'spartanguard-pii',    label: 'Qwen2.5 7B (SageMaker)' },
 ]
 
 const EXAMPLES = [
@@ -30,7 +30,7 @@ const STEP_LABELS = [
 
 export default function NewQuery() {
   const [query, setQuery]           = useState('')
-  const [model, setModel]           = useState('spartanguard-guard')
+  const [model, setModel]           = useState('spartanguard-agents')
   const [running, setRunning]       = useState(false)
   const [steps, setSteps]           = useState(STEP_LABELS.map(() => ({ state: 'idle', time: '—' })))
   const [result, setResult]         = useState(null)
