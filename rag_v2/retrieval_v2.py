@@ -480,13 +480,17 @@ class BGEReranker:
 
 @traceable(name="tier_boost", run_type="chain")
 def apply_tier_boost(reranked: list[dict], final_k: int = FINAL_TOP_K) -> list[dict]:
-    """If T0 chunks are in positions 6-10, force them into top-5."""
+    """If T0 chunks are in positions 6-10, force them into top-5.
+
+    Keep the full candidate list so later source-diversity selection can
+    backfill to final_k instead of shrinking the result set.
+    """
     top_5 = reranked[:final_k]
     rest  = reranked[final_k : final_k + 5]   # positions 6-10
 
     t0_in_rest = [c for c in rest if c["payload"].get("tier") == "T0"]
     if not t0_in_rest:
-        return top_5
+        return reranked
 
     non_t0_in_top5 = [c for c in top_5 if c["payload"].get("tier") != "T0"]
     non_t0_in_top5.sort(key=lambda x: x["rerank_score"])
@@ -498,7 +502,8 @@ def apply_tier_boost(reranked: list[dict], final_k: int = FINAL_TOP_K) -> list[d
             top_5.append(t0_chunk)
 
     top_5.sort(key=lambda x: x["rerank_score"], reverse=True)
-    return top_5[:final_k]
+    promoted_ids = {c["chunk_id"] for c in top_5}
+    return top_5[:final_k] + [c for c in reranked if c["chunk_id"] not in promoted_ids]
 
 
 # ═══════════════════════════════════════════════════════════════════════════

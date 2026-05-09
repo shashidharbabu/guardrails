@@ -14,7 +14,7 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 from qdrant_client import QdrantClient
-from qdrant_client.models import PointStruct
+from qdrant_client.models import PayloadSchemaType, PointStruct
 
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -104,6 +104,21 @@ def main() -> None:
 
         if offset is None:
             break
+
+    for field_name, schema in (
+        ("is_summary", PayloadSchemaType.BOOL),
+        ("domain", PayloadSchemaType.KEYWORD),
+        ("source_file", PayloadSchemaType.KEYWORD),
+    ):
+        try:
+            cloud_client.create_payload_index(
+                collection_name=args.collection,
+                field_name=field_name,
+                field_schema=schema,
+                wait=True,
+            )
+        except Exception as exc:
+            print(f"Payload index {field_name} skipped: {exc}")
 
     cloud_info = cloud_client.get_collection(args.collection)
     print(
