@@ -57,29 +57,37 @@ LABEL_MAP = {
 }
 
 
+def _build_llama_prompt(system_prompt: str, user_text: str) -> str:
+    return (
+        f"<|begin_of_text|><|start_header_id|>system<|end_header_id|>\n\n"
+        f"{system_prompt}<|eot_id|>"
+        f"<|start_header_id|>user<|end_header_id|>\n\n"
+        f"{user_text}<|eot_id|>"
+        f"<|start_header_id|>assistant<|end_header_id|>\n\n"
+    )
+
+
 def _invoke_sagemaker_generative(endpoint_name: str, text: str, region: str, lora_adapter: str = None) -> str:
     import boto3
     client = boto3.client("sagemaker-runtime", region_name=region)
     payload = {
-        "messages": [
-            {"role": "system", "content": _PI_SYSTEM_PROMPT},
-            {"role": "user", "content": text},
-        ],
-        "max_tokens": 5,
-        "temperature": 0.0,
+        "inputs": _build_llama_prompt(_PI_SYSTEM_PROMPT, text),
+        "parameters": {
+            "max_new_tokens": 5,
+            "do_sample": False,
+            "temperature": 1.0,
+        },
     }
-    if lora_adapter:
-        payload["model"] = lora_adapter
     response = client.invoke_endpoint(
         EndpointName=endpoint_name,
         ContentType="application/json",
         Body=json.dumps(payload),
     )
     result = json.loads(response["Body"].read())
-    if "choices" in result:
-        return result["choices"][0]["message"]["content"].strip().upper()
     if "generated_text" in result:
         return result["generated_text"].strip().upper()
+    if isinstance(result, list) and result:
+        return str(result[0].get("generated_text", "")).strip().upper()
     return str(result).upper()
 
 

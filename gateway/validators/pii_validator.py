@@ -45,28 +45,31 @@ _PII_SYSTEM_PROMPT = (
 )
 
 
+def _build_qwen_prompt(system_prompt: str, user_text: str) -> str:
+    return (
+        f"<|im_start|>system\n{system_prompt}\n<|im_end|>\n"
+        f"<|im_start|>user\n{user_text}\n<|im_end|>\n"
+        f"<|im_start|>assistant\n"
+    )
+
+
 def _invoke_sagemaker_generative(endpoint_name: str, text: str, system_prompt: str, region: str, lora_adapter: str = None) -> str:
     import boto3
     client = boto3.client("sagemaker-runtime", region_name=region)
-    messages = [
-        {"role": "system", "content": system_prompt},
-        {"role": "user", "content": text},
-    ]
     payload = {
-        "messages": messages,
-        "max_tokens": 256,
-        "temperature": 0.0,
+        "inputs": _build_qwen_prompt(system_prompt, text),
+        "parameters": {
+            "max_new_tokens": 256,
+            "do_sample": False,
+            "temperature": 1.0,
+        },
     }
-    if lora_adapter:
-        payload["model"] = lora_adapter
     response = client.invoke_endpoint(
         EndpointName=endpoint_name,
         ContentType="application/json",
         Body=json.dumps(payload),
     )
     result = json.loads(response["Body"].read())
-    if "choices" in result:
-        return result["choices"][0]["message"]["content"]
     if "generated_text" in result:
         return result["generated_text"]
     if isinstance(result, list) and result:
