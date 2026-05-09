@@ -108,16 +108,25 @@ def chat_completions(req: ChatRequest):
         payload["lora_name"] = req.model
 
     t0 = time.perf_counter()
-    try:
-        response = _sm_client.invoke_endpoint(
-            EndpointName=_ENDPOINT,
-            ContentType="application/json",
-            Body=json.dumps(payload),
-        )
-        result = json.loads(response["Body"].read())
-    except Exception as exc:
-        logger.error("SageMaker invoke failed: %s", exc)
-        raise HTTPException(status_code=502, detail=f"SageMaker error: {exc}")
+    last_exc = None
+    for attempt in range(3):  # retry up to 3 times on timeout
+        try:
+            response = _sm_client.invoke_endpoint(
+                EndpointName=_ENDPOINT,
+                ContentType="application/json",
+                Body=json.dumps(payload),
+            )
+            result = json.loads(response["Body"].read())
+            last_exc = None
+            break
+        except Exception as exc:
+            last_exc = exc
+            logger.warning("SageMaker invoke attempt %d failed: %s", attempt + 1, exc)
+            if attempt < 2:
+                time.sleep(2)
+    if last_exc is not None:
+        logger.error("SageMaker invoke failed after 3 attempts: %s", last_exc)
+        raise HTTPException(status_code=502, detail=f"SageMaker error: {last_exc}")
 
     latency_ms = int((time.perf_counter() - t0) * 1000)
 
