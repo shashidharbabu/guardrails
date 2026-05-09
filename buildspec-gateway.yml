@@ -1,0 +1,19 @@
+version: 0.2
+
+phases:
+  pre_build:
+    commands:
+      - echo Logging in to Amazon ECR...
+      - aws ecr get-login-password --region us-west-2 | docker login --username AWS --password-stdin 829108230080.dkr.ecr.us-west-2.amazonaws.com
+
+  build:
+    commands:
+      - echo Building gateway image...
+      - docker build -t guardrails/gateway:latest -f gateway/Dockerfile .
+      - docker tag guardrails/gateway:latest 829108230080.dkr.ecr.us-west-2.amazonaws.com/guardrails/gateway:latest
+
+  post_build:
+    commands:
+      - echo Pushing gateway image...
+      - docker push 829108230080.dkr.ecr.us-west-2.amazonaws.com/guardrails/gateway:latest
+      - echo Done.
