@@ -26,7 +26,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from openai import AsyncOpenAI
 
 from config import (AGENT_A_TEMP, AGENT_B_TEMP, AGENT_MAX_TOKENS,
-                    AGENT_A_MODEL, AGENT_B_MODEL, AGENTS_PORT, CLAIM_CONCURRENCY,
+                    AGENT_A_MODEL, AGENT_B_MODEL, AGENTS_API_KEY,
+                    AGENTS_BASE_URL, CLAIM_CONCURRENCY,
                     LANGFUSE_HOST, LANGFUSE_PUBLIC_KEY, LANGFUSE_SECRET_KEY)
 from db import get_db_conn, get_llm_cache, insert_agent_output, insert_llm_cache
 from prompts import AGENT_A_SYSTEM, AGENT_B_SYSTEM, round1_user
@@ -42,8 +43,8 @@ try:
 except Exception:
     _lf = None
 
-_client_a = AsyncOpenAI(base_url=f"http://localhost:{AGENTS_PORT}/v1", api_key="EMPTY")
-_client_b = AsyncOpenAI(base_url=f"http://localhost:{AGENTS_PORT}/v1", api_key="EMPTY")
+_client_a = AsyncOpenAI(base_url=AGENTS_BASE_URL, api_key=AGENTS_API_KEY)
+_client_b = AsyncOpenAI(base_url=AGENTS_BASE_URL, api_key=AGENTS_API_KEY)
 
 
 async def _call_agent_r1(

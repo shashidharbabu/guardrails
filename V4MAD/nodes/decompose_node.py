@@ -17,8 +17,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from openai import AsyncOpenAI
 
-from config import (DECOMPOSER_MAX_TOKENS, DECOMPOSER_MODEL,
-                    DECOMPOSER_PORT, DECOMPOSER_TEMP,
+from config import (DECOMPOSER_API_KEY, DECOMPOSER_BASE_URL,
+                    DECOMPOSER_MAX_TOKENS, DECOMPOSER_MODEL, DECOMPOSER_TEMP,
                     LANGFUSE_HOST, LANGFUSE_PUBLIC_KEY, LANGFUSE_SECRET_KEY)
 from db import get_db_conn, get_llm_cache, insert_claim, insert_llm_cache
 from prompts import DECOMPOSER_SYSTEM, decomposer_user
@@ -88,8 +88,8 @@ def _extract_json_object(raw: str) -> dict | None:
 
 async def _call_decomposer(messages):
     client = AsyncOpenAI(
-        base_url=f"http://127.0.0.1:{DECOMPOSER_PORT}/v1",
-        api_key="EMPTY"
+        base_url=DECOMPOSER_BASE_URL,
+        api_key=DECOMPOSER_API_KEY,
     )
     resp = await client.chat.completions.create(
         model=DECOMPOSER_MODEL,

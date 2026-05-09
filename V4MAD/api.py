@@ -171,6 +171,7 @@ async def run_v4mad(
     rollout_id: Optional[str] = None,
     run_debate: bool = True,
     run_judge: bool = True,
+    max_claims: Optional[int] = None,
     claims_override: Optional[list[dict]] = None,
 ) -> MADResponse:
     """
@@ -225,6 +226,9 @@ async def run_v4mad(
     else:
         state.update(await decompose_node(state))
         state["claims"] = get_claims_for_query(conn, query_id)
+
+    if max_claims is not None and max_claims > 0:
+        state["claims"] = state.get("claims", [])[:max_claims]
 
     state.update(await claim_rag_node(state))
 

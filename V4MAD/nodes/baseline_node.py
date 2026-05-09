@@ -17,8 +17,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from openai import AsyncOpenAI
 
-from config import (AGENT_MAX_TOKENS, AGENTS_PORT, BASELINE_MAX_TOKENS,
-                    BASELINE_MODEL, BASELINE_PORT, BASELINE_TEMP,
+from config import (BASELINE_API_KEY, BASELINE_BASE_URL, BASELINE_MAX_TOKENS,
+                    BASELINE_MODEL, BASELINE_TEMP,
                     LANGFUSE_HOST, LANGFUSE_PUBLIC_KEY, LANGFUSE_SECRET_KEY)
 from db import get_db_conn, get_llm_cache, insert_llm_cache, insert_query
 from prompts import BASELINE_SYSTEM, baseline_user
@@ -58,9 +58,7 @@ async def baseline_node(state: MADState) -> dict:
         ti = to = latency_ms = 0
         from_cache = True
     else:
-        client = AsyncOpenAI(
-            base_url=f"http://localhost:{BASELINE_PORT}/v1", api_key="EMPTY"
-        )
+        client = AsyncOpenAI(base_url=BASELINE_BASE_URL, api_key=BASELINE_API_KEY)
         t0   = time.time()
         resp = await client.chat.completions.create(
             model=BASELINE_MODEL,

@@ -24,8 +24,10 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from openai import AsyncOpenAI
 
-from config import (JUDGE_MAX_TOKENS, JUDGE_MODEL, JUDGE_PORT, JUDGE_TEMP,
-                    LANGFUSE_HOST, LANGFUSE_PUBLIC_KEY, LANGFUSE_SECRET_KEY)
+from config import (ANTHROPIC_API_KEY, CLAUDE_JUDGE_MODEL, JUDGE_API_KEY,
+                    JUDGE_BACKEND, JUDGE_BASE_URL, JUDGE_MAX_TOKENS,
+                    JUDGE_MODEL, JUDGE_TEMP, LANGFUSE_HOST,
+                    LANGFUSE_PUBLIC_KEY, LANGFUSE_SECRET_KEY)
 from db import get_db_conn, get_llm_cache, insert_judge_verdict, insert_llm_cache
 from prompts import JUDGE_SYSTEM, judge_user
 from schemas import MADState, parse_agent_json, strip_for_peer
@@ -65,7 +67,15 @@ async def judge_node(state: MADState) -> dict:
     query_id      = state["query_id"]
     conn          = get_db_conn()
 
-    client         = AsyncOpenAI(base_url=f"http://localhost:{JUDGE_PORT}/v1", api_key="EMPTY")
+    client = None
+    anthropic_client = None
+    if JUDGE_BACKEND == "claude":
+        if not ANTHROPIC_API_KEY:
+            raise RuntimeError("JUDGE_BACKEND=claude requires ANTHROPIC_API_KEY")
+        from anthropic import AsyncAnthropic
+        anthropic_client = AsyncAnthropic(api_key=ANTHROPIC_API_KEY)
+    else:
+        client = AsyncOpenAI(base_url=JUDGE_BASE_URL, api_key=JUDGE_API_KEY)
     judge_verdicts = dict(state.get("judge_verdicts", {}))
 
     for claim in claims:
@@ -96,8 +106,9 @@ async def judge_node(state: MADState) -> dict:
             {"role": "user",   "content": prompt},
         ]
 
+        judge_model_name = CLAUDE_JUDGE_MODEL if JUDGE_BACKEND == "claude" else JUDGE_MODEL
         cache_key = hashlib.md5(
-            f"{JUDGE_MODEL}|{JUDGE_TEMP}|{json.dumps(messages)}".encode()
+            f"{judge_model_name}|{JUDGE_TEMP}|{json.dumps(messages)}".encode()
         ).hexdigest()
 
         cached = get_llm_cache(conn, cache_key)
@@ -107,16 +118,33 @@ async def judge_node(state: MADState) -> dict:
             from_cache = True
         else:
             t0   = time.time()
-            resp = await client.chat.completions.create(
-                model=JUDGE_MODEL, messages=messages,
-                temperature=JUDGE_TEMP, max_tokens=JUDGE_MAX_TOKENS,
-            )
+            if JUDGE_BACKEND == "claude":
+                resp = await anthropic_client.messages.create(
+                    model=CLAUDE_JUDGE_MODEL,
+                    max_tokens=JUDGE_MAX_TOKENS,
+                    temperature=JUDGE_TEMP,
+                    system=JUDGE_SYSTEM,
+                    messages=[{"role": "user", "content": prompt}],
+                )
+                raw = "".join(
+                    block.text for block in resp.content
+                    if getattr(block, "type", "") == "text"
+                )
+                ti = getattr(resp.usage, "input_tokens", 0)
+                to = getattr(resp.usage, "output_tokens", 0)
+                model_for_cache = CLAUDE_JUDGE_MODEL
+            else:
+                resp = await client.chat.completions.create(
+                    model=JUDGE_MODEL, messages=messages,
+                    temperature=JUDGE_TEMP, max_tokens=JUDGE_MAX_TOKENS,
+                )
+                raw = resp.choices[0].message.content
+                ti = resp.usage.prompt_tokens
+                to = resp.usage.completion_tokens
+                model_for_cache = JUDGE_MODEL
             latency_ms = int((time.time() - t0) * 1000)
-            raw        = resp.choices[0].message.content
-            ti         = resp.usage.prompt_tokens
-            to         = resp.usage.completion_tokens
             from_cache = False
-            insert_llm_cache(conn, cache_key, raw, JUDGE_MODEL)
+            insert_llm_cache(conn, cache_key, raw, model_for_cache)
 
         verdict = _parse_judge(raw)
 
@@ -125,7 +153,7 @@ async def judge_node(state: MADState) -> dict:
                 _lf.generation(
                     name="judge",
                     session_id=query_id,
-                    model=JUDGE_MODEL,
+                    model=judge_model_name,
                     model_parameters={"temperature": JUDGE_TEMP, "max_tokens": JUDGE_MAX_TOKENS},
                     input=messages,
                     output=raw,
@@ -141,7 +169,7 @@ async def judge_node(state: MADState) -> dict:
             except Exception:
                 pass
 
-        insert_judge_verdict(conn, claim_id, verdict, JUDGE_MODEL,
+        insert_judge_verdict(conn, claim_id, verdict, judge_model_name,
                              raw, ti, to, latency_ms, from_cache)
         judge_verdicts[claim_id] = verdict
 
