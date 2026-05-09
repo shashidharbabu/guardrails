@@ -42,6 +42,12 @@ from pathlib import Path
 import torch
 import numpy as np
 
+try:
+    from dotenv import load_dotenv
+    load_dotenv(Path(__file__).resolve().parents[1] / ".env", override=False)
+except ImportError:
+    pass
+
 # ── Paths ────────────────────────────────────────────────────────────────────
 
 BASE_DIR = Path(os.environ.get("RAG_V2_BASE_DIR", Path(__file__).resolve().parent))
@@ -73,10 +79,13 @@ MIN_RERANK_SCORE    = float(os.environ.get("MIN_RERANK_SCORE",   "0.15"))
 MIN_TOP_RRF_SCORE   = float(os.environ.get("MIN_TOP_RRF_SCORE",  "0.013"))
 MIN_SOURCE_COVERAGE = int(os.environ.get("MIN_SOURCE_COVERAGE",   "1"))
 
-# Qdrant mode — override with env vars for server mode
+# Qdrant mode — local embedded DB, localhost server, or Qdrant Cloud.
 QDRANT_MODE = os.environ.get("QDRANT_MODE", "local")
 QDRANT_HOST = os.environ.get("QDRANT_HOST", "localhost")
 QDRANT_PORT = int(os.environ.get("QDRANT_PORT", "6333"))
+QDRANT_URL = os.environ.get("QDRANT_URL", "")
+QDRANT_API_KEY = os.environ.get("QDRANT_API_KEY", "")
+QDRANT_TIMEOUT = int(os.environ.get("QDRANT_TIMEOUT", "60"))
 
 # HyDE — available but disabled (ablation proved no-HyDE wins)
 HYDE_API_KEY = os.environ.get("OPENROUTER_API_KEY", "")
@@ -222,10 +231,22 @@ class DenseRetriever:
         self.model = self.model.to(self.device).eval()
 
         print("  Connecting to Qdrant...")
-        if QDRANT_MODE == "server":
-            self.client = QdrantClient(host=QDRANT_HOST, port=QDRANT_PORT)
+        if QDRANT_MODE == "cloud":
+            if not QDRANT_URL or not QDRANT_API_KEY:
+                raise RuntimeError("QDRANT_MODE=cloud requires QDRANT_URL and QDRANT_API_KEY")
+            self.client = QdrantClient(
+                url=QDRANT_URL,
+                api_key=QDRANT_API_KEY,
+                timeout=QDRANT_TIMEOUT,
+            )
+        elif QDRANT_MODE == "server":
+            self.client = QdrantClient(
+                host=QDRANT_HOST,
+                port=QDRANT_PORT,
+                timeout=QDRANT_TIMEOUT,
+            )
         else:
-            self.client = QdrantClient(path=QDRANT_PATH)
+            self.client = QdrantClient(path=str(QDRANT_PATH))
 
         info = self.client.get_collection(COLLECTION)
         print(f"  Dense retriever ready: {info.points_count} vectors on {self.device}")
@@ -595,8 +616,13 @@ class RetrievalPipeline:
         old_chunks_path: str | Path | None = None,
         healthcare_chunks_path: str | Path | None = None,
         collection_name: str | None = None,
+        qdrant_mode: str | None = None,
+        qdrant_url: str | None = None,
+        qdrant_api_key: str | None = None,
+        qdrant_timeout: int | None = None,
     ):
         global QDRANT_PATH, BM25_PATH, OLD_CHUNKS_PATH, HC_CHUNKS_PATH, COLLECTION
+        global QDRANT_MODE, QDRANT_URL, QDRANT_API_KEY, QDRANT_TIMEOUT
         if qdrant_path is not None:
             QDRANT_PATH = Path(qdrant_path)
         if bm25_path is not None:
@@ -607,6 +633,14 @@ class RetrievalPipeline:
             HC_CHUNKS_PATH = Path(healthcare_chunks_path)
         if collection_name is not None:
             COLLECTION = collection_name
+        if qdrant_mode is not None:
+            QDRANT_MODE = qdrant_mode
+        if qdrant_url is not None:
+            QDRANT_URL = qdrant_url
+        if qdrant_api_key is not None:
+            QDRANT_API_KEY = qdrant_api_key
+        if qdrant_timeout is not None:
+            QDRANT_TIMEOUT = qdrant_timeout
 
         print("=" * 60)
         print("  RETRIEVAL PIPELINE V2 — guardrails_rag_v2")

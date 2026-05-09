@@ -35,14 +35,15 @@ JUDGE_MAX_TOKENS      = 512
 
 # ── Chunk assignment (by ranked position after per-claim reranking) ────────────
 # Agent A: top-3 (highest relevance support)
-# Agent B: rank-0 anchor + rank-3, rank-4 (different-perspective evidence)
+# Agent B: rank-0 anchor + rank-2, rank-3 (different-perspective evidence)
 # Judge  : all 5 (complete evidence pool)
 AGENT_A_CHUNK_INDICES = [0, 1, 2]
-AGENT_B_CHUNK_INDICES = [0, 3, 4]
+AGENT_B_CHUNK_INDICES = [0, 2, 3]
 JUDGE_CHUNK_INDICES   = [0, 1, 2, 3, 4]
 QUERY_TOP_K           = 5    # how many chunks stored per query in source data
 
-# ── Qdrant (for optional live per-claim retrieval) ─────────────────────────────
+# ── RAG v2 / Qdrant Cloud (live per-claim retrieval) ───────────────────────────
+MAD_USE_LIVE_RAG = os.getenv("MAD_USE_LIVE_RAG", "1").lower() in {"1", "true", "yes"}
 QDRANT_HOST     = os.getenv("QDRANT_HOST", "localhost")
 QDRANT_PORT     = int(os.getenv("QDRANT_PORT", "6333"))
 COLLECTION_NAME = "guardrails_rag_v2"

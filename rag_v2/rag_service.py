@@ -74,10 +74,17 @@ from typing import Optional
 # ── Config ────────────────────────────────────────────────────────────────────
 
 import os
+from dotenv import load_dotenv
+
+load_dotenv(Path(__file__).resolve().parents[1] / ".env", override=False)
 
 BASE_DIR = Path(os.environ.get("RAG_V2_BASE_DIR", Path(__file__).resolve().parent))
 QDRANT_PATH = Path(os.environ.get("RAG_V2_QDRANT_PATH", str(BASE_DIR / "indexes_qdrant_data")))
 COLLECTION_NAME = os.environ.get("RAG_V2_COLLECTION_NAME", "guardrails_rag_v2")
+QDRANT_MODE = os.environ.get("QDRANT_MODE", "local")
+QDRANT_URL = os.environ.get("QDRANT_URL", "")
+QDRANT_API_KEY = os.environ.get("QDRANT_API_KEY", "")
+QDRANT_TIMEOUT = int(os.environ.get("QDRANT_TIMEOUT", "60"))
 BM25_PATH = Path(os.environ.get("RAG_V2_BM25_PATH", str(BASE_DIR / "bm25_combined.pkl")))
 OLD_CHUNKS_PATH = Path(os.environ.get("RAG_V2_OLD_CHUNKS_PATH", str(BASE_DIR / "data" / "enriched_chunks.json")))
 HC_CHUNKS_PATH = Path(os.environ.get("RAG_V2_HC_CHUNKS_PATH", str(BASE_DIR / "data" / "healthcare_enriched_chunks.jsonl")))
@@ -111,9 +118,14 @@ class RAGService:
             old_chunks_path=OLD_CHUNKS_PATH,
             healthcare_chunks_path=HC_CHUNKS_PATH,
             collection_name=COLLECTION_NAME,
+            qdrant_mode=QDRANT_MODE,
+            qdrant_url=QDRANT_URL,
+            qdrant_api_key=QDRANT_API_KEY,
+            qdrant_timeout=QDRANT_TIMEOUT,
         )
         if verbose:
-            print(f"  ✓ RAGService ready — {COLLECTION_NAME} @ {QDRANT_PATH}")
+            target = QDRANT_URL if QDRANT_MODE == "cloud" else str(QDRANT_PATH)
+            print(f"  ✓ RAGService ready — {COLLECTION_NAME} @ {target}")
 
     # ── Task 1: Plain LLM (also CoT step 1) ───────────────────────────────────
 

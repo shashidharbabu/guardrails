@@ -1,22 +1,27 @@
 """
-LangGraph node: Per-claim chunk assignment (no LLM).
+LangGraph node: Per-claim NewRAG evidence retrieval.
 
-Reranks the top-5 query-level stored chunks against each specific claim text
-using TF-IDF cosine similarity, then assigns:
-  Agent A: ranked positions [0, 1, 2]  — highest relevance, supporting
-  Agent B: ranked positions [0, 3, 4]  — anchor + alternatives (edge cases)
-  Judge:   all 5 chunks                — complete evidence pool
+For every decomposed claim, live NewRAG v2 retrieves with:
+    claim + original_query
 
-No GPU needed. Runs on CPU in seconds for all claims across all queries.
+NewRAG performs Qdrant Cloud dense retrieval + local BM25 + RRF + BGE rerank,
+then this node assigns:
+  Agent A: ranked chunks [1, 2, 3]
+  Agent B: ranked chunks [1, 3, 4]
+  Judge:   ranked chunks [1, 2, 3, 4, 5]
 """
 
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+_V4MAD_ROOT = Path(__file__).resolve().parents[1]
+_REPO_ROOT = _V4MAD_ROOT.parent
+sys.path.insert(0, str(_V4MAD_ROOT))
+sys.path.insert(0, str(_REPO_ROOT))
 
+from config import MAD_USE_LIVE_RAG
 from db import get_db_conn, insert_claim_chunks
-from rag_rerank import assign_chunks
+from rag_rerank import assign_chunks, assign_ranked_chunks
 from schemas import MADState
 
 
@@ -28,11 +33,24 @@ async def claim_rag_node(state: MADState) -> dict:
 
     claim_chunks: dict[str, dict] = {}
 
+    rag_service = None
+    if MAD_USE_LIVE_RAG:
+        from rag_v2.rag_service import get_service
+        rag_service = get_service(verbose=False)
+
     for claim in claims:
         claim_id   = claim["claim_id"]
         claim_text = claim["claim_text"]
 
-        assignment = assign_chunks(claim_text, user_query, query_chunks)
+        if rag_service is not None:
+            retrieved = rag_service.retrieve_for_cot(
+                claim=claim_text,
+                original_query=user_query,
+            )
+            assignment = assign_ranked_chunks(retrieved["chunks"])
+        else:
+            assignment = assign_chunks(claim_text, user_query, query_chunks)
+
         claim_chunks[claim_id] = assignment
         insert_claim_chunks(conn, claim_id, assignment)
 

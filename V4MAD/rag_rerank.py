@@ -5,7 +5,7 @@ Takes the top-5 query-level chunks (stored from original retrieval) and
 re-ranks them against the specific claim text using TF-IDF cosine similarity.
 
 Agent A gets ranks [0,1,2]  — highest relevance, supporting evidence
-Agent B gets ranks [0,3,4]  — anchor chunk + lower-ranked alternatives (edge cases, exceptions)
+Agent B gets ranks [0,2,3]  — anchor chunk + alternate evidence
 Judge   gets ranks [0,1,2,3,4] — complete evidence pool
 
 This runs on CPU (sklearn TF-IDF), no GPU needed. Fast for 5 candidates.
@@ -62,6 +62,29 @@ def assign_chunks(claim_text: str, user_query: str, query_chunks: list[dict]) ->
 
     def _pick(indices: list[int]) -> list[dict]:
         return [query_chunks[ranked[i]] for i in indices if i < len(ranked)]
+
+    return {
+        "agent_a": _pick(AGENT_A_CHUNK_INDICES),
+        "agent_b": _pick(AGENT_B_CHUNK_INDICES),
+        "judge":   _pick(JUDGE_CHUNK_INDICES),
+    }
+
+
+def assign_ranked_chunks(chunks: list[dict]) -> dict:
+    """
+    Assign already-ranked live NewRAG results directly.
+
+    NewRAG v2 retrieves with claim + original_query, fuses Qdrant Cloud dense
+    results with local BM25, reranks with BGE, and returns top-5 in rank order.
+    """
+    if not chunks:
+        return {"agent_a": [], "agent_b": [], "judge": []}
+
+    if len(chunks) < 5:
+        return {"agent_a": chunks, "agent_b": chunks, "judge": chunks}
+
+    def _pick(indices: list[int]) -> list[dict]:
+        return [chunks[i] for i in indices if i < len(chunks)]
 
     return {
         "agent_a": _pick(AGENT_A_CHUNK_INDICES),
