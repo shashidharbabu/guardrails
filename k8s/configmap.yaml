@@ -51,7 +51,9 @@ data:
   VLLM_DECOMPOSER_URL: "http://localhost:8080/v1"
   VLLM_BASELINE_URL: "http://localhost:8080/v1"
   CLAIM_CONCURRENCY: "1"
-  AGENTS_SAGEMAKER_ENDPOINT: "spartanguard-agents"
+  # Use Qwen2.5-7B (spartanguard-pii, A10G 24GB) for MAD agents — fast (~3s/call)
+  # spartanguard-agents (14B AWQ on T4) times out on long debate prompts
+  AGENTS_SAGEMAKER_ENDPOINT: "spartanguard-pii"
   AGENTS_A_MODEL_NAME: "agent-a"
   AGENTS_B_MODEL_NAME: "agent-b"
   AGENTS_MODEL_NAME: "agent-a"
