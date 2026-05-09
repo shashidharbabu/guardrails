@@ -1,0 +1,176 @@
+# Production-like local stack for validating container builds before AWS.
+# Secrets are read from the shell or a local .env file; do not commit real values.
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: guardrails
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-guardrails_local}
+      POSTGRES_DB: guardrails
+    ports:
+      - "5432:5432"
+    volumes:
+      - prod_local_pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U guardrails -d guardrails"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--appendonly", "yes"]
+    ports:
+      - "6379:6379"
+    volumes:
+      - prod_local_redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+
+  frontend:
+    build:
+      context: ./app/frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-/api}
+        VITE_APP_ENV: production
+        VITE_APP_VERSION: ${APP_VERSION:-1.0.0}
+        VITE_MOCK_API: "false"
+    ports:
+      - "8088:8080"
+    depends_on:
+      backend:
+        condition: service_started
+
+  backend:
+    build:
+      context: .
+      dockerfile: app/backend/Dockerfile
+    environment:
+      APP_ENV: production
+      APP_VERSION: ${APP_VERSION:-1.0.0}
+      DATABASE_URL: postgresql://guardrails:${POSTGRES_PASSWORD:-guardrails_local}@postgres:5432/guardrails
+      REDIS_URL: redis://redis:6379/0
+      GATEWAY_URL: http://gateway:8080
+      MAD_MODE: api
+      MAD_API_URL: http://mad-api:8001/mad/verify
+      FEEDBACK_API_URL: http://rlhf:8002
+      DISABLE_AUTH: ${DISABLE_AUTH:-false}
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:8088}
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:-replace-me-local-only}
+      LLM_PROVIDER_TYPE: ${LLM_PROVIDER_TYPE:-custom}
+      LLM_PROVIDER_URL: ${LLM_PROVIDER_URL:-http://vllm:8000/v1}
+      DEFAULT_LLM_MODEL: ${DEFAULT_LLM_MODEL:-Qwen/Qwen2.5-14B-Instruct}
+      JUDGE_BACKEND: claude
+      JUDGE_PROVIDER: anthropic
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      gateway:
+        condition: service_started
+      mad-api:
+        condition: service_started
+      rlhf:
+        condition: service_started
+
+  gateway:
+    build:
+      context: .
+      dockerfile: gateway/Dockerfile
+    environment:
+      APP_ENV: production
+      HF_TOKEN: ${HF_TOKEN:-}
+      PII_MODEL_PATH: shashidharbabu/deberta-pii-guardrails
+      THREAT_MODEL_PATH: shashidharbabu/roberta-jailbreak-guardrails
+      PROMPT_INJECTION_MODEL_PATH: shashidharbabu/llama-prompt-guard-guardrails
+      GATEWAY_CORS_ALLOWED_ORIGINS: http://backend:8000
+    ports:
+      - "8080:8080"
+
+  mad-api:
+    build:
+      context: .
+      dockerfile: multi_agent_debate/full_FinalMAD_with_judge/Dockerfile
+    environment:
+      APP_ENV: production
+      SQLITE_DB_PATH: /data/mad.db
+      LANGCHAIN_CACHE_DB: /data/.langchain_cache.db
+      VLLM_AGENTS_URL: ${VLLM_AGENTS_URL:-http://vllm:8000/v1}
+      VLLM_DECOMPOSER_URL: ${VLLM_DECOMPOSER_URL:-http://vllm:8000/v1}
+      VLLM_BASELINE_URL: ${VLLM_BASELINE_URL:-http://vllm:8000/v1}
+      VLLM_JUDGE_URL: ${VLLM_JUDGE_URL:-http://vllm:8000/v1}
+      AGENTS_MODEL_NAME: ${AGENTS_MODEL_NAME:-agent_a}
+      DECOMPOSER_MODEL_NAME: ${DECOMPOSER_MODEL_NAME:-Qwen/Qwen2.5-14B-Instruct}
+      BASELINE_MODEL_NAME: ${BASELINE_MODEL_NAME:-Qwen/Qwen2.5-14B-Instruct}
+      JUDGE_MODEL_NAME: ${JUDGE_MODEL_NAME:-claude-haiku-4-5-20251001}
+      VLLM_API_KEY: ${VLLM_API_KEY:-EMPTY}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-dummy-not-used}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      CLAIM_CONCURRENCY: ${CLAIM_CONCURRENCY:-2}
+      LANGFUSE_PUBLIC_KEY: ${LANGFUSE_PUBLIC_KEY:-}
+      LANGFUSE_SECRET_KEY: ${LANGFUSE_SECRET_KEY:-}
+      LANGFUSE_HOST: ${LANGFUSE_HOST:-https://cloud.langfuse.com}
+    ports:
+      - "8001:8001"
+    volumes:
+      - prod_local_mad_data:/data
+
+  rlhf:
+    build:
+      context: .
+      dockerfile: rlhf/Dockerfile
+    environment:
+      APP_ENV: production
+      FEEDBACK_API_HOST: 0.0.0.0
+      FEEDBACK_API_PORT: 8002
+      MAD_DB_PATH: /data/mad.db
+      HUMAN_FEEDBACK_LOG_PATH: /data/human_feedback_log.jsonl
+      FEEDBACK_TRIAGE_LOW: ${FEEDBACK_TRIAGE_LOW:--0.10}
+      FEEDBACK_TRIAGE_HIGH: ${FEEDBACK_TRIAGE_HIGH:-0.30}
+      FEEDBACK_USE_PRESIDIO: ${FEEDBACK_USE_PRESIDIO:-0}
+    ports:
+      - "8002:8002"
+    volumes:
+      - prod_local_mad_data:/data
+    depends_on:
+      mad-api:
+        condition: service_started
+
+  vllm:
+    image: vllm/vllm-openai:latest
+    profiles: ["gpu"]
+    ipc: host
+    environment:
+      HUGGING_FACE_HUB_TOKEN: ${HF_TOKEN:-}
+    command:
+      - --model
+      - Qwen/Qwen2.5-14B-Instruct
+      - --enable-lora
+      - --lora-modules
+      - agent_a=/models/grpo_agent_a/final
+      - agent_b=/models/grpo_agent_b/final
+    volumes:
+      - ${LOCAL_LORA_MODELS_DIR:-./models}:/models:ro
+    ports:
+      - "8003:8000"
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+
+volumes:
+  prod_local_pg_data:
+  prod_local_redis_data:
+  prod_local_mad_data:
