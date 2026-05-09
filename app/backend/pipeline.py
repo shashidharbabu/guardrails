@@ -220,6 +220,27 @@ async def _call_gateway(query: str) -> dict:
 
 
 async def _call_llm(query: str, model: str) -> str:
+    if settings.LLM_PROVIDER_TYPE == "claude":
+        return await _call_llm_claude(query, model)
+    return await _call_llm_openai_compat(query, model)
+
+
+async def _call_llm_claude(query: str, model: str) -> str:
+    import anthropic
+    api_key = settings.ANTHROPIC_API_KEY
+    if not api_key:
+        raise RuntimeError("ANTHROPIC_API_KEY is not set")
+    client = anthropic.AsyncAnthropic(api_key=api_key)
+    message = await client.messages.create(
+        model=model,
+        max_tokens=512,
+        system=SYSTEM_PROMPT,
+        messages=[{"role": "user", "content": query}],
+    )
+    return message.content[0].text
+
+
+async def _call_llm_openai_compat(query: str, model: str) -> str:
     base = settings.LLM_PROVIDER_URL.rstrip("/")
     if base.endswith("/v1"):
         base = base[:-3]

@@ -86,13 +86,20 @@ async def system_health(user: UserContext = Depends(get_current_user)):
         await _check_async("gateway", lambda: _ping_http(f"{settings.GATEWAY_URL}/health"))
     )
 
-    # LLM runtime
-    results.append(
-        await _check_async(
-            "llm_runtime",
-            lambda: _ping_http(f"{_ollama_base_url()}/api/tags", timeout=5.0),
+    # LLM runtime — Claude (Anthropic) or Ollama depending on provider type
+    if getattr(settings, "LLM_PROVIDER_TYPE", "ollama") == "claude":
+        async def _check_claude():
+            import anthropic
+            client = anthropic.AsyncAnthropic(api_key=settings.ANTHROPIC_API_KEY)
+            await client.models.list()
+        results.append(await _check_async("llm_runtime", _check_claude))
+    else:
+        results.append(
+            await _check_async(
+                "llm_runtime",
+                lambda: _ping_http(f"{_ollama_base_url()}/api/tags", timeout=5.0),
+            )
         )
-    )
 
     # Queue (optional)
     if settings.REDIS_URL or settings.QUEUE_URL:

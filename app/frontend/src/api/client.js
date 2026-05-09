@@ -262,11 +262,20 @@ function delay(ms = 300) {
   return new Promise(r => setTimeout(r, ms))
 }
 
+function _getToken() {
+  try {
+    const stored = window.localStorage.getItem('guardrails.auth.session')
+    return stored ? JSON.parse(stored).access_token : null
+  } catch {
+    return null
+  }
+}
+
 async function apiFetch(path, options = {}) {
-  const res = await fetch(`${API_BASE}${path}`, {
-    headers: { 'Content-Type': 'application/json' },
-    ...options,
-  })
+  const token = _getToken()
+  const headers = { 'Content-Type': 'application/json', ...options.headers }
+  if (token) headers['Authorization'] = `Bearer ${token}`
+  const res = await fetch(`${API_BASE}${path}`, { ...options, headers })
   if (!res.ok) {
     const text = await res.text()
     throw new Error(`${res.status} ${res.statusText}: ${text}`)

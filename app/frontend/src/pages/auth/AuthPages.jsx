@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom'
 import { motion, useReducedMotion } from 'framer-motion'
 import { useAuth } from '../../context/AuthContext'
@@ -9,18 +10,27 @@ function AuthShell({ mode }) {
   const reduceMotion = useReducedMotion()
   const from = location.state?.from?.pathname || '/conversations'
   const isRequest = mode === 'request'
+  const [error, setError] = useState('')
+  const [loading, setLoading] = useState(false)
 
   if (isAuthenticated) return <Navigate to={from} replace />
 
-  function submit(e) {
+  async function submit(e) {
     e.preventDefault()
-    const form = new FormData(e.currentTarget)
-    signIn({
-      email: form.get('email') || 'avery@northstar.ai',
-      name: form.get('name') || 'Avery Stone',
-      org: form.get('org') || 'Northstar AI Governance',
-    })
-    navigate(from, { replace: true })
+    setError('')
+    setLoading(true)
+    try {
+      const form = new FormData(e.currentTarget)
+      await signIn(
+        form.get('username') || 'admin',
+        form.get('password') || '',
+      )
+      navigate(from, { replace: true })
+    } catch (err) {
+      setError(err.message || 'Login failed')
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
@@ -45,57 +55,53 @@ function AuthShell({ mode }) {
           <p>
             {isRequest
               ? 'Create a workspace-ready access profile for evaluation, gateway operations, and human review.'
-              : 'Use your enterprise identity or a workspace email to open the protected AI safety console.'}
+              : 'Enter your credentials to access the protected AI safety console.'}
           </p>
         </div>
 
-        <button type="button" className="sso-button" onClick={() => signIn()}>
-          <span className="sso-icon">S</span>
-          Continue with enterprise SSO
-        </button>
-
-        <div className="auth-divider"><span>or continue with email</span></div>
+        {error && (
+          <div style={{
+            background: 'rgba(239,68,68,0.12)',
+            border: '1px solid rgba(239,68,68,0.3)',
+            borderRadius: 8,
+            padding: '10px 14px',
+            color: '#f87171',
+            fontSize: 13,
+            marginBottom: 12,
+          }}>
+            {error}
+          </div>
+        )}
 
         <form onSubmit={submit} className="auth-form">
-          {isRequest && (
-            <>
-              <label>
-                Full name
-                <input name="name" autoComplete="name" placeholder="Avery Stone" />
-              </label>
-              <label>
-                Organization
-                <input name="org" autoComplete="organization" placeholder="Northstar AI Governance" />
-              </label>
-            </>
-          )}
           <label>
-            Work email
-            <input name="email" type="email" autoComplete="email" placeholder="you@company.com" required />
+            Username
+            <input
+              name="username"
+              autoComplete="username"
+              placeholder="admin"
+              required
+              defaultValue="admin"
+            />
           </label>
-          {!isRequest && (
-            <label>
-              Password
-              <input name="password" type="password" autoComplete="current-password" placeholder="••••••••••••" />
-            </label>
-          )}
-          <div className="auth-row">
-            <label className="check-row">
-              <input type="checkbox" defaultChecked />
-              <span>{isRequest ? 'Send onboarding checklist' : 'Remember this device'}</span>
-            </label>
-            {!isRequest && <a href="#forgot">Forgot password?</a>}
-          </div>
-          <button className="btn btn-primary btn-xl" type="submit">
-            {isRequest ? 'Create secure workspace' : 'Enter console'}
+          <label>
+            Password
+            <input
+              name="password"
+              type="password"
+              autoComplete="current-password"
+              placeholder="••••••••••••"
+              required
+            />
+          </label>
+          <button className="btn btn-primary btn-xl" type="submit" disabled={loading}>
+            {loading ? 'Signing in…' : 'Enter console'}
           </button>
         </form>
 
         <p className="auth-switch">
-          {isRequest ? 'Already have access?' : 'Need a workspace?'}{' '}
-          <Link to={isRequest ? '/sign-in' : '/request-access'}>
-            {isRequest ? 'Sign in' : 'Request access'}
-          </Link>
+          Need access?{' '}
+          <Link to="/request-access">Request access</Link>
         </p>
       </motion.section>
 

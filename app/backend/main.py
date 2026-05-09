@@ -30,6 +30,7 @@ from app.backend.routers import audit as audit_router
 from app.backend.routers import human_review as human_review_router
 from app.backend.routers import copilot as copilot_router
 from app.backend.routers import rlhf as rlhf_router
+from app.backend.routers import auth as auth_router
 
 settings = get_settings()
 configure_logging(settings.LOG_LEVEL)
@@ -87,6 +88,7 @@ app.include_router(audit_router.router)
 app.include_router(human_review_router.router)
 app.include_router(copilot_router.router)
 app.include_router(rlhf_router.router)
+app.include_router(auth_router.router)
 
 # ── Shallow health probes (no auth, no DB — for load balancer liveness) ──────
 @app.get("/healthz", tags=["health"], include_in_schema=False)

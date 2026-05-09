@@ -42,8 +42,18 @@ spec:
                 secretKeyRef:
                   name: guardrails-secrets
                   key: REDIS_URL
+            - name: ADMIN_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: guardrails-secrets
+                  key: ADMIN_USERNAME
+            - name: ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: guardrails-secrets
+                  key: ADMIN_PASSWORD
             - name: CORS_ALLOWED_ORIGINS
-              value: "PLACEHOLDER_FRONTEND_URL"
+              value: "http://af538f9f15e8c433784935b1dad96cc3-1781139394.us-west-2.elb.amazonaws.com,http://localhost:5173"
           resources:
             requests:
               memory: "512Mi"

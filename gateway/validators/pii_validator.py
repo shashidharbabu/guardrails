@@ -1,22 +1,23 @@
 """
-Custom PII Validator — supports two modes controlled by PII_INFERENCE_URL env var:
+Custom PII Validator — three modes via env vars:
 
-  LOCAL mode (default, dev):
-    Loads vineeth453/qwen25-7b-pii-detection-lora or any HF NER model in-process.
-    Set PII_MODEL_PATH to override the model.
+  SAGEMAKER GENERATIVE mode (production):
+    Set PII_SAGEMAKER_ENDPOINT=spartanguard-pii
+    → DJL LMI vLLM endpoint (Qwen2.5-7B-Instruct + vineeth453 PII LoRA)
+    → Uses invoke-endpoint with OpenAI-compat payload via boto3
+    → Extracts detected PII entities from generative output
 
-  REMOTE mode (production):
-    Set PII_INFERENCE_URL=http://<host>:<port> to call a HuggingFace TEI or
-    custom inference server's /token-classification endpoint instead.
-    No model is loaded locally — the container stays lean.
+  REMOTE mode (fallback production):
+    Set PII_INFERENCE_URL=http://<host>:<port>
+    → calls /token-classification endpoint
 
-HuggingFace TEI server command (on GPU EC2):
-  docker run -p 3000:80 ghcr.io/huggingface/text-embeddings-inference:latest \
-    --model-id vineeth453/qwen25-7b-pii-detection-lora \
-    --dtype float16
+  LOCAL mode (dev):
+    Leave both unset → loads model in-process (slow, dev only)
 """
 
+import json
 import os
+import re
 from typing import Any, Callable, ClassVar, Dict, List, Optional
 
 import requests
@@ -30,15 +31,66 @@ from guardrails.validators import (
 from transformers import pipeline
 
 _PII_INFERENCE_URL = os.environ.get("PII_INFERENCE_URL", "").rstrip("/")
+_PII_SAGEMAKER_ENDPOINT = os.environ.get("PII_SAGEMAKER_ENDPOINT", "").strip()
+_PII_LORA_ADAPTER = os.environ.get("PII_LORA_ADAPTER", "vineeth453/qwen25-7b-pii-detection-lora")
+_AWS_REGION = os.environ.get("AWS_REGION", os.environ.get("DEPLOYMENT_REGION", "us-west-2"))
+
+_PII_SYSTEM_PROMPT = (
+    "You are a PII detection system. Analyze the user message and identify any Personally "
+    "Identifiable Information (PII) such as: names, email addresses, phone numbers, SSNs, "
+    "credit card numbers, addresses, dates of birth, IP addresses, or other sensitive personal data. "
+    "Respond in JSON format: {\"pii_found\": true/false, \"entities\": [{\"type\": \"<TYPE>\", \"text\": \"<VALUE>\", \"confidence\": 0.95}]}. "
+    "If no PII is found, respond: {\"pii_found\": false, \"entities\": []}. "
+    "Respond with ONLY valid JSON, no other text."
+)
+
+
+def _invoke_sagemaker_generative(endpoint_name: str, text: str, system_prompt: str, region: str, lora_adapter: str = None) -> str:
+    import boto3
+    client = boto3.client("sagemaker-runtime", region_name=region)
+    messages = [
+        {"role": "system", "content": system_prompt},
+        {"role": "user", "content": text},
+    ]
+    payload = {
+        "messages": messages,
+        "max_tokens": 256,
+        "temperature": 0.0,
+    }
+    if lora_adapter:
+        payload["model"] = lora_adapter
+    response = client.invoke_endpoint(
+        EndpointName=endpoint_name,
+        ContentType="application/json",
+        Body=json.dumps(payload),
+    )
+    result = json.loads(response["Body"].read())
+    if "choices" in result:
+        return result["choices"][0]["message"]["content"]
+    if "generated_text" in result:
+        return result["generated_text"]
+    if isinstance(result, list) and result:
+        return result[0].get("generated_text", str(result[0]))
+    return str(result)
+
+
+def _invoke_sagemaker_classifier(endpoint_name: str, payload: dict, region: str) -> list:
+    import boto3
+    client = boto3.client("sagemaker-runtime", region_name=region)
+    response = client.invoke_endpoint(
+        EndpointName=endpoint_name,
+        ContentType="application/json",
+        Body=json.dumps(payload),
+    )
+    return json.loads(response["Body"].read())
 
 
 @register_validator(name="custom-pii-ner", data_type="string")
 class CustomPIIValidator(Validator):
     """
-    Wraps our finetuned NER model as a guardrails-ai Validator.
+    Wraps PII detection as a guardrails-ai Validator.
 
-    In REMOTE mode: calls PII_INFERENCE_URL/token-classification (no local model).
-    In LOCAL mode: loads model in-process (dev/fallback only).
+    Priority: SageMaker (Qwen2.5-7B generative) > REMOTE URL > LOCAL model
     """
 
     _PIPELINE_CACHE: ClassVar[Dict[str, Any]] = {}
@@ -52,12 +104,14 @@ class CustomPIIValidator(Validator):
         if model_path is None:
             model_path = os.environ.get(
                 "PII_MODEL_PATH",
-                "vineeth453/qwen25-7b-pii-detection-lora",
+                "dslim/bert-base-NER",
             )
         super().__init__(on_fail=on_fail, model_path=model_path, threshold=threshold)
         self.model_path = model_path
         self.threshold = threshold
         self._remote_url = _PII_INFERENCE_URL
+        self._sm_endpoint = _PII_SAGEMAKER_ENDPOINT
+        self._lora_adapter = _PII_LORA_ADAPTER
 
     def _load_model(self):
         if self.model_path not in CustomPIIValidator._PIPELINE_CACHE:
@@ -73,12 +127,37 @@ class CustomPIIValidator(Validator):
             )
             print("[PII Validator] Model ready")
 
+    def _call_sagemaker_generative(self, text: str) -> List[Dict]:
+        raw_output = _invoke_sagemaker_generative(
+            self._sm_endpoint, text, _PII_SYSTEM_PROMPT, _AWS_REGION, self._lora_adapter
+        )
+        return self._parse_generative_output(raw_output)
+
+    def _parse_generative_output(self, output: str) -> List[Dict]:
+        try:
+            json_match = re.search(r'\{.*\}', output, re.DOTALL)
+            if json_match:
+                data = json.loads(json_match.group())
+                entities = data.get("entities", [])
+                result = []
+                for e in entities:
+                    result.append({
+                        "entity_group": e.get("type", "PII"),
+                        "word": e.get("text", ""),
+                        "score": float(e.get("confidence", 0.9)),
+                        "start": e.get("start", 0),
+                        "end": e.get("end", 0),
+                    })
+                return result
+        except Exception as exc:
+            print(f"[PII Validator] Failed to parse generative output: {exc} — raw: {output[:200]}")
+        return []
+
     def _call_remote(self, text: str) -> List[Dict]:
-        """Call TEI /token-classification endpoint and return raw entity list."""
         resp = requests.post(
             f"{self._remote_url}/token-classification",
             json={"inputs": text, "aggregation_strategy": "simple"},
-            timeout=10,
+            timeout=30,
         )
         resp.raise_for_status()
         return resp.json()
@@ -103,7 +182,9 @@ class CustomPIIValidator(Validator):
         return pii_entities, pii_score
 
     def validate(self, value: str, metadata: Dict) -> ValidationResult:
-        if self._remote_url:
+        if self._sm_endpoint:
+            raw = self._call_sagemaker_generative(value)
+        elif self._remote_url:
             raw = self._call_remote(value)
         else:
             self._load_model()

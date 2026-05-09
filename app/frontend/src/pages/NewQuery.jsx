@@ -6,11 +6,8 @@ import SectionHeader from '../components/SectionHeader'
 import StatusBadge from '../components/StatusBadge'
 
 const LLM_MODELS = [
-  { id: 'qwen2.5:7b',  label: 'Qwen2.5-7B (default)' },
-  { id: 'llama3.2:3b', label: 'Llama 3.2-3B' },
-  { id: 'llama3.1:8b', label: 'Llama 3.1-8B' },
-  { id: 'mistral:7b',  label: 'Mistral-7B' },
-  { id: 'gemma2:9b',   label: 'Gemma 2-9B' },
+  { id: 'claude-haiku-4-5-20251001',  label: 'Claude Haiku 4.5 (default)' },
+  { id: 'claude-sonnet-4-5',          label: 'Claude Sonnet 4.5' },
 ]
 
 const EXAMPLES = [
@@ -33,7 +30,7 @@ const STEP_LABELS = [
 
 export default function NewQuery() {
   const [query, setQuery]           = useState('')
-  const [model, setModel]           = useState('qwen2.5:7b')
+  const [model, setModel]           = useState('claude-haiku-4-5-20251001')
   const [running, setRunning]       = useState(false)
   const [steps, setSteps]           = useState(STEP_LABELS.map(() => ({ state: 'idle', time: '—' })))
   const [result, setResult]         = useState(null)
@@ -225,7 +222,7 @@ export default function NewQuery() {
                   ))}
                 </select>
                 <div style={{ fontFamily: 'var(--font-ui)', fontSize: 11, color: 'var(--text-muted)', marginTop: 5 }}>
-                  Model must be pulled in Ollama. MAD agents always use qwen2.5:7b.
+                  LLM calls route through Anthropic API. MAD agents use the configured vLLM endpoint.
                 </div>
               </div>
 

@@ -25,9 +25,28 @@ data:
 
   # LLM — decoupled from service, uses Anthropic API
   LLM_PROVIDER_TYPE: "claude"
+  DEFAULT_LLM_MODEL: "claude-haiku-4-5-20251001"
   JUDGE_BACKEND: "claude"
   CLAUDE_JUDGE_MODEL: "claude-haiku-4-5-20251001"
   CLAUDE_JUDGE_TIMEOUT: "60"
+
+  # Gateway — SageMaker endpoints for remote model inference (no local loading)
+  # PII: Qwen2.5-7B-Instruct + vineeth453/qwen25-7b-pii-detection-lora (generative NER)
+  PII_SAGEMAKER_ENDPOINT: "spartanguard-pii"
+  PII_LORA_ADAPTER: "vineeth453/qwen25-7b-pii-detection-lora"
+  # PI: protectai/deberta-v3-base-prompt-injection-v2 (classifier, works)
+  PI_SAGEMAKER_ENDPOINT: "spartanguard-pi"
+  # JB: LLaMA-3.1-8B-Instruct + harshitasayala/pi-llama31-8b LoRA (generative)
+  JB_SAGEMAKER_ENDPOINT: "spartanguard-guard"
+  JB_GENERATIVE_MODE: "true"
+  JB_LORA_ADAPTER: "harshitasayala/pi-llama31-8b"
+  # PI also uses generative guard endpoint as secondary (PI_GENERATIVE_MODE=false = classifier mode for spartanguard-pi)
+  PI_GENERATIVE_MODE: "false"
+  AWS_REGION: "us-west-2"
+
+  # MAD pipeline LLM endpoints (judge uses Anthropic OpenAI-compat endpoint)
+  JUDGE_MODEL_NAME: "claude-haiku-4-5-20251001"
+  VLLM_JUDGE_URL: "https://api.anthropic.com/v1"
 
   # Qdrant Cloud (GCP us-east4)
   QDRANT_URL: "https://e2e7b7d2-4927-4c61-a78d-61f9c4e024bb.us-east4-0.gcp.cloud.qdrant.io"
