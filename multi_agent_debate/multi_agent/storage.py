@@ -66,8 +66,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import List, Optional
 
-from multi_agent.config import DB_PATH
-from multi_agent.models import Claim, Challenge, JudgeVerdict
+from mad.config import DB_PATH
+from mad.models import Claim, Challenge, JudgeVerdict
 
 
 # ── Connection helper ──────────────────────────────────────────────────────────

@@ -15,8 +15,8 @@ from typing import List
 
 from openai import OpenAI
 
-from multi_agent.config import OLLAMA_BASE_URL, OLLAMA_API_KEY, AGENT_MODEL
-from multi_agent.models import Claim
+from mad.config import OLLAMA_BASE_URL, OLLAMA_API_KEY, AGENT_MODEL
+from mad.models import Claim
 
 client = OpenAI(base_url=OLLAMA_BASE_URL, api_key=OLLAMA_API_KEY)
 

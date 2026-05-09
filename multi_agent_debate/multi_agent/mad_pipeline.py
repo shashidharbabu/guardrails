@@ -56,20 +56,16 @@ from dotenv import load_dotenv
 _REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 load_dotenv(_REPO_ROOT / ".env")
 
-# Add repo root to sys.path so `confidence` package is importable from here
-if str(_REPO_ROOT) not in sys.path:
-    sys.path.insert(0, str(_REPO_ROOT))
-
-from multi_agent import storage
-from multi_agent.claim_extractor import extract_claims
-from multi_agent.config import (
+from mad import storage
+from mad.claim_extractor import extract_claims
+from mad.config import (
     MAX_CYCLES,
     CONFIDENCE_THRESHOLD_HIGH,
     CONFIDENCE_THRESHOLD_LOW,
 )
-from multi_agent.debate_engine import run_debate, build_transcript
-from multi_agent.judge import judge_claims
-from multi_agent.models import Claim, JudgeVerdict, MADOutput
+from mad.debate_engine import run_debate, build_transcript
+from mad.judge import judge_claims
+from mad.models import Claim, JudgeVerdict, MADOutput
 
 
 def run_mad(query: str, llm_answer: str) -> MADOutput:

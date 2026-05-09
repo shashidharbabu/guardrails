@@ -1,0 +1,24 @@
+include README.md LICENSE pyproject.toml
+recursive-include guardrails_enterprise *.py
+recursive-include gateway *.py
+recursive-include confidence *.py
+recursive-include rlhf *.py
+recursive-include app/backend *.py
+recursive-include multi_agent_debate/multi_agent *.py
+recursive-include multi_agent_debate/full_FinalMAD_with_judge/configs *.py
+recursive-include multi_agent_debate/full_FinalMAD_with_judge/src *.py
+include multi_agent_debate/full_FinalMAD_with_judge/api.py
+prune agent-a-adapters
+prune agent-b-adapters
+prune app/frontend
+prune V4MAD
+prune grpo_finetuned_v4_colab
+prune openrlhf
+prune alembic
+prune scripts
+prune evals
+prune screenshots
+prune docs
+global-exclude *.db *.log *.ipynb *.csv *.parquet *.jsonl
+global-exclude *.png *.jpg *.gif *.pdf *.safetensors
+global-exclude __pycache__ *.py[cod] .env .env.*

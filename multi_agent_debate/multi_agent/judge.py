@@ -22,11 +22,11 @@ from typing import List, Optional, Tuple
 
 from openai import OpenAI
 
-from multi_agent.config import (
+from mad.config import (
     OLLAMA_BASE_URL, OLLAMA_API_KEY,
     JUDGE_MODEL, JUDGE_PROVIDER, ANTHROPIC_API_KEY,
 )
-from multi_agent.models import Claim, EvidenceChunk, JudgeVerdict
+from mad.models import Claim, EvidenceChunk, JudgeVerdict
 
 # ── Client setup ───────────────────────────────────────────────────────────────
 _ollama_client = OpenAI(base_url=OLLAMA_BASE_URL, api_key=OLLAMA_API_KEY)

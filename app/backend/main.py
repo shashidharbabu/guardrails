@@ -5,17 +5,11 @@ Production: gunicorn app.backend.main:app -k uvicorn.workers.UvicornWorker
 """
 
 import logging
-import sys
 import time
 import uuid
-from pathlib import Path
-
-# Allow multi_agent_debate imports from repo root
-_repo_root = Path(__file__).resolve().parent.parent.parent
-sys.path.insert(0, str(_repo_root / "multi_agent_debate"))
 
 from dotenv import load_dotenv
-load_dotenv(_repo_root / ".env")
+load_dotenv()
 
 from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware

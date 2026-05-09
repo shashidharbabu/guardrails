@@ -39,8 +39,8 @@ from __future__ import annotations
 
 from typing import Dict, List, Tuple
 
-from multi_agent import agent_a, agent_b, storage
-from multi_agent.models import (
+from mad import agent_a, agent_b, storage
+from mad.models import (
     Claim, Challenge, DebateCycle, EvidenceChunk, JudgeVerdict, Verdict,
 )
 

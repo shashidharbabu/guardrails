@@ -36,8 +36,8 @@ import sys
 from pathlib import Path
 from typing import Dict, List
 
-from multi_agent.config import CHUNKS_JSONL_PATH, TOP_K_CHUNKS
-from multi_agent.models import EvidenceChunk
+from mad.config import CHUNKS_JSONL_PATH, TOP_K_CHUNKS
+from mad.models import EvidenceChunk
 
 # Ensure the multi_agent_debate/rag/ package is importable regardless of the
 # working directory from which this module is loaded.

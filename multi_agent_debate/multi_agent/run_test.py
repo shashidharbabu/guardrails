@@ -38,8 +38,8 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
-from multi_agent.mad_pipeline import run_mad
-from multi_agent.config import DB_PATH
+from mad.mad_pipeline import run_mad
+from mad.config import DB_PATH
 
 # ── Healthcare test cases ──────────────────────────────────────────────────────
 # These mirror your 200-example synthetic evaluation dataset structure.

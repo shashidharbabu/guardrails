@@ -243,22 +243,14 @@ async def _run_mad_async(query: str, llm_answer: str):
     if settings.MAD_MODE == "disabled":
         return None
     try:
-        import sys
-        from pathlib import Path
-        _mad_root = Path(__file__).resolve().parent.parent.parent / "multi_agent_debate" / "full_FinalMAD_with_judge"
-        if str(_mad_root) not in sys.path:
-            sys.path.insert(0, str(_mad_root))
-        from api import _run_pipeline  # type: ignore[import]
+        from mad_v4.api import _run_pipeline  # type: ignore[import]
         return await _run_pipeline(query, llm_answer)
     except Exception as exc:
         logger.warning("new_mad_failed, trying legacy", extra={"error": str(exc)})
         # Legacy fallback: Ollama-based synchronous pipeline
         try:
             loop = asyncio.get_event_loop()
-            try:
-                from multi_agent.mad_pipeline import run_mad  # type: ignore[import]
-            except ImportError:
-                from multi_agent_debate.multi_agent.mad_pipeline import run_mad  # type: ignore[import]
+            from mad.mad_pipeline import run_mad  # type: ignore[import]
             return await loop.run_in_executor(None, run_mad, query, llm_answer)
         except Exception as exc2:
             logger.warning("legacy_mad_also_failed", extra={"error": str(exc2)})

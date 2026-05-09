@@ -24,8 +24,8 @@ load_dotenv(Path(__file__).resolve().parent.parent.parent / ".env")
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 
-from multi_agent.mad_pipeline import run_mad
-from multi_agent.config import (
+from mad.mad_pipeline import run_mad
+from mad.config import (
     AGENT_MODEL, JUDGE_MODEL,
     MAX_CYCLES,
     CONFIDENCE_THRESHOLD_HIGH, CONFIDENCE_THRESHOLD_LOW,

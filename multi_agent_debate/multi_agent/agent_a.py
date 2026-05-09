@@ -54,9 +54,9 @@ from typing import Dict, List, Tuple
 
 from openai import OpenAI
 
-from multi_agent.config import OLLAMA_BASE_URL, OLLAMA_API_KEY, AGENT_MODEL, TOP_K_CHUNKS
-from multi_agent.models import Claim, Challenge, EvidenceChunk, Verdict
-from multi_agent import rag_stub
+from mad.config import OLLAMA_BASE_URL, OLLAMA_API_KEY, AGENT_MODEL, TOP_K_CHUNKS
+from mad.models import Claim, Challenge, EvidenceChunk, Verdict
+from mad import rag_stub
 
 client = OpenAI(base_url=OLLAMA_BASE_URL, api_key=OLLAMA_API_KEY)
 

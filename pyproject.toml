@@ -29,8 +29,6 @@ classifiers = [
 ]
 
 # ── Core dependencies (always installed) ─────────────────────────────────────
-# Kept minimal: only what the public API actually needs at import time.
-# Heavy ML deps live in optional extras below.
 dependencies = [
     "httpx>=0.27",
     "requests>=2.31",
@@ -49,17 +47,51 @@ gateway = [
     "spacy>=3.7",
 ]
 
-# RAG pipeline — Qdrant retrieval + Nvidia embedding model
+# RAG pipeline — Qdrant retrieval + embedding model
 rag = [
     "qdrant-client>=1.9",
     "transformers>=4.40",
     "torch>=2.2",
     "huggingface-hub>=0.23",
+    "openai>=1.30",
 ]
 
 # Confidence scoring with DeepEval LLM judge
 eval = [
     "deepeval>=3.0",
+]
+
+# RLHF feedback loop service
+rlhf = [
+    "fastapi>=0.110",
+    "uvicorn[standard]>=0.29",
+    "pydantic>=2.0",
+]
+
+# MAD v4 — LangGraph + vLLM production pipeline
+mad-v4 = [
+    "langgraph>=0.2.50",
+    "langchain>=0.3.0",
+    "langchain-openai>=0.2.0",
+    "langchain-community>=0.3.0",
+    "langfuse>=2.50",
+    "tenacity>=8.0",
+    "qdrant-client>=1.9",
+    "openai>=1.40",
+]
+
+# Backend orchestrator service (self-hosting)
+backend = [
+    "fastapi>=0.131",
+    "uvicorn[standard]>=0.41",
+    "gunicorn>=22.0",
+    "SQLAlchemy>=2.0",
+    "alembic>=1.18",
+    "psycopg2-binary>=2.9.9",
+    "python-jose[cryptography]>=3.3",
+    "passlib[bcrypt]>=1.7.4",
+    "anthropic>=0.40",
+    "redis>=5.0",
 ]
 
 # Everything — full library mode (no servers needed except Ollama)
@@ -72,6 +104,12 @@ all = [
     "huggingface-hub>=0.23",
     "deepeval>=3.0",
     "ragas>=0.1",
+    "openai>=1.40",
+    "langgraph>=0.2.50",
+    "langchain>=0.3.0",
+    "langchain-openai>=0.2.0",
+    "langchain-community>=0.3.0",
+    "langfuse>=2.50",
 ]
 
 [project.urls]
@@ -85,24 +123,69 @@ Issues     = "https://github.com/shashidharbabu/guardrails-enterprise/issues"
 [tool.setuptools]
 include-package-data = true
 packages = [
-    # Input guardrail service
+    # ── Namespace package (public SDK surface) ────────────────────────────────
+    "guardrails_enterprise",
+    "guardrails_enterprise.gateway",
+    "guardrails_enterprise.confidence",
+    "guardrails_enterprise.mad",
+    "guardrails_enterprise.mad_v4",
+    "guardrails_enterprise.rlhf",
+    "guardrails_enterprise.backend",
+
+    # ── Input guardrail ───────────────────────────────────────────────────────
     "gateway",
     "gateway.validators",
-    # Confidence Scoring Engine
+
+    # ── Confidence Scoring Engine ─────────────────────────────────────────────
     "confidence",
-    # RLHF feedback loop
+
+    # ── RLHF feedback loop ────────────────────────────────────────────────────
     "rlhf",
     "rlhf.feedback_loop",
-    # MAD service (legacy — kept for backward-compat imports)
+    "rlhf.pipeline",
+
+    # ── MAD legacy pipeline (flat alias: `from mad.X import Y`) ──────────────
     "mad",
+
+    # ── MAD v4 production pipeline ────────────────────────────────────────────
+    "mad_v4",
+    "mad_v4.configs",
+    "mad_v4.src",
+    "mad_v4.src.agents",
+    "mad_v4.src.db",
+    "mad_v4.src.debate",
+    "mad_v4.src.decomposer",
+    "mad_v4.src.judge",
+    "mad_v4.src.retrieval",
+    "mad_v4.src.schemas",
+    "mad_v4.src.utils",
+    "mad_v4.src.langfuse_log",
+
+    # ── Backend orchestrator (optional heavy service) ─────────────────────────
+    "app",
+    "app.backend",
+    "app.backend.routers",
 ]
 
 [tool.setuptools.package-dir]
-# Legacy alias so `from mad.X import Y` still works
-"mad" = "multi_agent_debate/multi_agent"
+# MAD legacy alias — `from mad.X import Y` maps to multi_agent_debate/multi_agent/
+"mad"                       = "multi_agent_debate/multi_agent"
+# MAD v4 — maps importable name to the full_FinalMAD_with_judge folder
+"mad_v4"                    = "multi_agent_debate/full_FinalMAD_with_judge"
+"mad_v4.configs"            = "multi_agent_debate/full_FinalMAD_with_judge/configs"
+"mad_v4.src"                = "multi_agent_debate/full_FinalMAD_with_judge/src"
+"mad_v4.src.agents"         = "multi_agent_debate/full_FinalMAD_with_judge/src/agents"
+"mad_v4.src.db"             = "multi_agent_debate/full_FinalMAD_with_judge/src/db"
+"mad_v4.src.debate"         = "multi_agent_debate/full_FinalMAD_with_judge/src/debate"
+"mad_v4.src.decomposer"     = "multi_agent_debate/full_FinalMAD_with_judge/src/decomposer"
+"mad_v4.src.judge"          = "multi_agent_debate/full_FinalMAD_with_judge/src/judge"
+"mad_v4.src.retrieval"      = "multi_agent_debate/full_FinalMAD_with_judge/src/retrieval"
+"mad_v4.src.schemas"        = "multi_agent_debate/full_FinalMAD_with_judge/src/schemas"
+"mad_v4.src.utils"          = "multi_agent_debate/full_FinalMAD_with_judge/src/utils"
+"mad_v4.src.langfuse_log"   = "multi_agent_debate/full_FinalMAD_with_judge/src/langfuse_log"
 
 [tool.setuptools.package-data]
-"*" = ["*.json", "*.yaml", "*.yml", "*.txt", "py.typed"]
+"*" = ["*.json", "*.yaml", "*.yml", "py.typed"]
 
 # ──────────────────────────────────────────────────────────────────────────────
 # Pytest configuration
