@@ -32,6 +32,8 @@ spec:
                 secretKeyRef:
                   name: guardrails-secrets
                   key: QDRANT_API_KEY
+            - name: SQLITE_DB_PATH
+              value: "/tmp/mad.db"
           resources:
             requests:
               memory: "2Gi"

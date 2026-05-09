@@ -154,7 +154,14 @@ def _migrate_sessions_table():
         ("user_id",              "TEXT"),
     ]
     with engine.connect() as conn:
-        existing = {row[1] for row in conn.execute(text("PRAGMA table_info(sessions)")).fetchall()}
+        if _is_sqlite:
+            existing = {row[1] for row in conn.execute(text("PRAGMA table_info(sessions)")).fetchall()}
+        else:
+            rows = conn.execute(text(
+                "SELECT column_name FROM information_schema.columns "
+                "WHERE table_name = 'sessions'"
+            )).fetchall()
+            existing = {row[0] for row in rows}
         for col_name, col_def in new_columns:
             if col_name not in existing:
                 try:
