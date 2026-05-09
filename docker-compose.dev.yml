@@ -67,6 +67,10 @@ services:
       - "8080:8080"
     environment:
       APP_ENV: development
+      HF_TOKEN: ${HF_TOKEN}
+      PII_MODEL_PATH: ${PII_MODEL_PATH:-iiiorg/piiranha-v1-detect-personal-information}
+      THREAT_MODEL_PATH: ${THREAT_MODEL_PATH:-jackhhao/jailbreak-classifier}
+      PROMPT_INJECTION_MODEL_PATH: ${PROMPT_INJECTION_MODEL_PATH:-protectai/deberta-v3-base-prompt-injection-v2}
     volumes:
       - ./gateway:/app/gateway
 

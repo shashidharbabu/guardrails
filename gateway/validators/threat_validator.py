@@ -1,52 +1,34 @@
 """
-Custom JailBreak Validator - wraps shashidharbabu/roberta-jailbreak-guardrails.
+Threat (Jailbreak) Validator — calls HF Serverless Inference API (no local model loading).
 
-Model is RobertaForSequenceClassification with two labels:
-  benign    (0) — safe input
-  jailbreak (1) — jailbreak attempt
+Model: jackhhao/jailbreak-classifier
+Task:  text-classification — returns [{label: jailbreak|benign, score: float}].
 
-Returns jb_score = probability of jailbreak class (raw model confidence, 0.0–1.0).
-Prompt injection is handled separately by CustomPIValidator (pi_validator.py).
-
-Model path: gateway/models/threat_classifier_model/
-  OR set env var: THREAT_MODEL_PATH (or HuggingFace Hub ID)
+Set THREAT_MODEL_PATH to override the model repo ID.
+Set HF_TOKEN for authenticated requests (higher rate limits).
 """
 
+import logging
 import os
-from typing import Any, Callable, ClassVar, Dict, Optional
+from typing import Callable, Dict, List, Optional
 
-from guardrails.validators import (
-    FailResult,
-    PassResult,
-    ValidationResult,
-    Validator,
-    register_validator,
-)
-from transformers import pipeline
+import httpx
+from guardrails.validators import PassResult, ValidationResult, Validator, register_validator
+
+logger = logging.getLogger(__name__)
+
+_HF_API_BASE = "https://router.huggingface.co/hf-inference/models"
+_DEFAULT_MODEL = "jackhhao/jailbreak-classifier"
+
+_JAILBREAK_LABELS = {"JAILBREAK", "INJECTION", "MALICIOUS", "LABEL_1", "JB"}
 
 
 @register_validator(name="custom-threat-classifier", data_type="string")
 class CustomThreatValidator(Validator):
     """
-    Wraps our finetuned JailBreak classifier as a guardrails-ai Validator.
-
-    Returns jb_score regardless of pass/fail — DecisionEngine reads it for
-    composite scoring and hard-override checks.
-
-    LABEL_MAP covers all known label formats from this model family.
+    Calls HF Serverless Inference API for jailbreak classification.
+    No local model, no torch — pure HTTP.
     """
-
-    LABEL_MAP = {
-        "BENIGN": "safe",
-        "SAFE": "safe",
-        "LABEL_0": "safe",
-        "JAILBREAK": "jailbreak",
-        "LABEL_1": "jailbreak",
-        "JB": "jailbreak",
-        "MALICIOUS": "jailbreak",
-    }
-
-    _PIPELINE_CACHE: ClassVar[Dict[str, Any]] = {}
 
     def __init__(
         self,
@@ -54,63 +36,47 @@ class CustomThreatValidator(Validator):
         jb_threshold: float = 0.4,
         on_fail: Optional[Callable] = None,
     ):
-        if model_path is None:
-            model_path = os.environ.get(
-                "THREAT_MODEL_PATH",
-                os.path.join(
-                    os.path.dirname(__file__), "..", "models", "threat_classifier_model"
-                ),
-            )
-        super().__init__(
-            on_fail=on_fail,
-            model_path=model_path,
-            jb_threshold=jb_threshold,
-        )
+        model_path = model_path or os.environ.get("THREAT_MODEL_PATH", _DEFAULT_MODEL)
+        super().__init__(on_fail=on_fail, model_path=model_path, jb_threshold=jb_threshold)
         self.model_path = model_path
         self.jb_threshold = jb_threshold
+        self._hf_token = os.environ.get("HF_TOKEN") or os.environ.get("HUGGING_FACE_HUB_TOKEN", "")
+        self._url = f"{_HF_API_BASE}/{self.model_path}"
 
-    def _load_model(self):
-        if self.model_path not in CustomThreatValidator._PIPELINE_CACHE:
-            hf_token = os.environ.get("HF_TOKEN") or os.environ.get("HUGGING_FACE_HUB_TOKEN")
-            print(f"[JB Validator] Loading model from: {self.model_path}")
-            CustomThreatValidator._PIPELINE_CACHE[self.model_path] = pipeline(
-                task="text-classification",
-                model=self.model_path,
-                tokenizer=self.model_path,
-                top_k=None,
-                device="cpu",
-                truncation=True,
-                max_length=512,
-                token=hf_token,
+    def _call_api(self, text: str) -> List[Dict]:
+        headers = {"Content-Type": "application/json"}
+        if self._hf_token:
+            headers["Authorization"] = f"Bearer {self._hf_token}"
+        try:
+            resp = httpx.post(
+                self._url,
+                json={"inputs": text},
+                headers=headers,
+                timeout=10.0,
             )
-            print("[JB Validator] Model ready")
+            resp.raise_for_status()
+            data = resp.json()
+            if isinstance(data, list) and data and isinstance(data[0], list):
+                return data[0]
+            return data if isinstance(data, list) else []
+        except Exception as exc:
+            logger.warning("[Threat Validator] API call failed: %s", exc)
+            return []
 
-    @property
-    def _pipe(self):
-        return CustomThreatValidator._PIPELINE_CACHE.get(self.model_path)
-
-    def _get_jb_score(self, pipeline_output: list) -> float:
-        """Extract jailbreak class probability from pipeline output."""
-        raw = pipeline_output[0] if isinstance(pipeline_output[0], list) else pipeline_output
-        for item in raw:
-            internal = self.LABEL_MAP.get(item["label"].upper())
-            if internal == "jailbreak":
+    def _get_jb_score(self, results: List[Dict]) -> float:
+        for item in results:
+            if item.get("label", "").upper() in _JAILBREAK_LABELS:
                 return float(item["score"])
         return 0.0
 
     def validate(self, value: str, metadata: Dict) -> ValidationResult:
-        self._load_model()
+        results = self._call_api(value)
+        jb_score = self._get_jb_score(results)
 
-        output = self._pipe(value)
-        jb_score = self._get_jb_score(output)
-        safe_score = max(0.0, 1.0 - jb_score)
-
-        # Always return PassResult so guardrails doesn't short-circuit the chain.
-        # DecisionEngine reads scores from metadata and makes the final routing decision.
         return PassResult(
             metadata={
-                "jb_score":   round(jb_score, 4),
-                "safe_score": round(safe_score, 4),
-                "validator":  "custom-threat-classifier",
+                "jb_score": round(jb_score, 4),
+                "safe_score": round(max(0.0, 1.0 - jb_score), 4),
+                "validator": "custom-threat-classifier",
             }
         )
