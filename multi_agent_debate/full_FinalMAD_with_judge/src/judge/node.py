@@ -50,24 +50,24 @@ def _message_text(message) -> str:
 
 
 def _parse_judge_output(raw: str) -> JudgeOutput:
-    # Strip markdown code fences if present (Claude wraps JSON in ```json ... ```)
+    import re as _re
+
     text = raw.strip()
-    if text.startswith("```"):
-        text = text.split("```", 2)[-1] if text.count("```") >= 2 else text
-        # Remove leading language tag (e.g. "json\n")
-        if "\n" in text:
-            first_line = text.split("\n", 1)[0].strip()
-            if first_line in ("json", ""):
-                text = text.split("\n", 1)[1] if "\n" in text else text
-        text = text.rsplit("```", 1)[0].strip()
-    # Find JSON object in the text
+
+    # Step 1: strip markdown fences (```json ... ``` or ``` ... ```)
+    fence_match = _re.search(r"```(?:json)?\s*(.*?)\s*```", text, _re.DOTALL)
+    if fence_match:
+        text = fence_match.group(1).strip()
+
+    # Step 2: extract the JSON object {...}
     start = text.find("{")
     end = text.rfind("}") + 1
     if start != -1 and end > start:
         text = text[start:end]
-    elif start == -1 and '"v_label"' in text:
-        # Claude omitted the surrounding braces — wrap it
-        text = "{" + text.rstrip().rstrip(",") + "}"
+    elif '"v_label"' in text:
+        # Claude omitted braces entirely — wrap the content
+        text = "{" + text.strip().rstrip(",") + "}"
+
     try:
         payload = json.loads(text)
     except json.JSONDecodeError as exc:
