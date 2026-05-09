@@ -36,7 +36,12 @@ _ENDPOINT = os.environ.get("AGENTS_SAGEMAKER_ENDPOINT", "spartanguard-agents")
 _REGION = os.environ.get("AWS_REGION", "us-west-2")
 _KNOWN_LORAS = {"agent-a", "agent-b"}
 
-_sm_client = boto3.client("sagemaker-runtime", region_name=_REGION)
+from botocore.config import Config as _BotocoreConfig
+_sm_client = boto3.client(
+    "sagemaker-runtime",
+    region_name=_REGION,
+    config=_BotocoreConfig(read_timeout=120, connect_timeout=10, retries={"max_attempts": 1}),
+)
 
 _STOP_TOKENS = re.compile(
     r"(<\|im_end\|>|<\|endoftext\|>|<\|eot_id\|>|<\|end_of_text\|>).*",
