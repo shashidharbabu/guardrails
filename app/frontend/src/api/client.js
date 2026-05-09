@@ -1,4 +1,5 @@
 const MOCK = import.meta.env.VITE_MOCK_API === 'true'
+const API_BASE = import.meta.env.VITE_API_BASE_URL || ''
 
 // ---------------------------------------------------------------------------
 // Mock data
@@ -262,7 +263,7 @@ function delay(ms = 300) {
 }
 
 async function apiFetch(path, options = {}) {
-  const res = await fetch(path, {
+  const res = await fetch(`${API_BASE}${path}`, {
     headers: { 'Content-Type': 'application/json' },
     ...options,
   })
