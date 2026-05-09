@@ -21,6 +21,12 @@ from app.backend.config import get_settings
 logger = logging.getLogger(__name__)
 settings = get_settings()
 
+
+def _sanitise_json_str(s: str) -> str:
+    """Strip control characters that break JSON serialisation (e.g. raw tabs in LLM output)."""
+    import re
+    return re.sub(r'[\x00-\x08\x0b\x0c\x0e-\x1f]', ' ', s)
+
 SYSTEM_PROMPT = (
     "You are an enterprise compliance assistant. Answer questions about regulatory "
     "requirements accurately and concisely based on your knowledge of healthcare, "
@@ -158,7 +164,7 @@ async def _run_mad_background(
                 session_id=session_id,
                 mad_routing=mad_routing,
                 mad_confidence=mad_confidence,
-                mad_output_json=json.dumps(mad_output),
+                mad_output_json=_sanitise_json_str(json.dumps(mad_output)),
                 mad_query_id=getattr(mad_out, "query_id", "") or "",
                 mad_rollout_id=getattr(mad_out, "rollout_id", "") or "",
                 pipeline_duration_ms=duration_ms,

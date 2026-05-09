@@ -266,8 +266,8 @@ def run_batch_scoring(
     path = db_path or get_db_path()
     init_feedback_schema(path)
     with connect(path) as con:
-        n_att = update_attack_rewards(con)
         up, sk = upsert_reward_rows(con, use_presidio_phi=use_presidio())
+        n_att = update_attack_rewards(con)
         log.info(
             "Feedback scoring: deltas_scanned=%s rewards_written=%s skipped_human=%s",
             n_att,

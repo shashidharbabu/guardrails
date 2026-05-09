@@ -284,14 +284,32 @@ def _mad_routing_to_status(routing: str) -> str:
     return mapping.get(routing, "MAD_COMPLETED")
 
 
+def _strip_controls(obj):
+    """Recursively strip C0 control characters (except \\t \\n \\r) from all strings."""
+    import re
+    _re = re.compile(r'[\x00-\x08\x0b\x0c\x0e-\x1f]')
+    if isinstance(obj, str):
+        return _re.sub(' ', obj)
+    if isinstance(obj, dict):
+        return {k: _strip_controls(v) for k, v in obj.items()}
+    if isinstance(obj, list):
+        return [_strip_controls(v) for v in obj]
+    return obj
+
+
 def _deserialize_session(s: dict) -> dict:
+    import re
     for col in ("gateway_payload", "mad_output_json", "cse_result_json"):
         val = s.get(col)
         if isinstance(val, str):
             try:
-                s[col] = json.loads(val)
+                parsed = json.loads(val)
             except (json.JSONDecodeError, TypeError):
-                s[col] = None
+                try:
+                    parsed = json.loads(re.sub(r'[\x00-\x08\x0b\x0c\x0e-\x1f]', ' ', val))
+                except (json.JSONDecodeError, TypeError):
+                    parsed = None
+            s[col] = _strip_controls(parsed) if parsed is not None else None
     # Expose mad_output_json as both mad_output (frontend) and keep original key for CSE endpoint
     s["mad_output"] = s.get("mad_output_json")
     return s

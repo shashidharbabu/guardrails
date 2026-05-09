@@ -52,10 +52,18 @@ def make_agent_client(role: AgentRoleName = "agent_a", max_tokens: int = 384) ->
     if role not in ("agent_a", "agent_b"):
         raise ValueError("role must be 'agent_a' or 'agent_b'")
     from configs import config
+    # When AGENTS_MODEL_NAME is set to the literal string "agent_a" or "agent_b" it means
+    # a single shared vLLM server is serving both adapters via --lora-modules.
+    # Otherwise fall back to role-specific env vars (AGENT_A_MODEL_NAME / AGENT_B_MODEL_NAME)
+    # and ultimately to the shared AGENTS_MODEL_NAME (Ollama / base model fallback).
+    if role == "agent_a":
+        model = os.getenv("AGENT_A_MODEL_NAME", config.AGENTS_MODEL_NAME)
+    else:
+        model = os.getenv("AGENT_B_MODEL_NAME", config.AGENTS_MODEL_NAME)
     return _make_client(
         base_url=_endpoint("VLLM_AGENTS_URL", config.VLLM_AGENTS_URL),
-        model=config.AGENTS_MODEL_NAME,
-        temperature=0.4 if role == "agent_a" else 0.7,
+        model=model,
+        temperature=0.3 if role == "agent_a" else 0.5,
         max_tokens=max_tokens,
     )
 
