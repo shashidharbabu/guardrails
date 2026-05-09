@@ -94,10 +94,13 @@ def chat_completions(req: ChatRequest):
         raise HTTPException(status_code=400, detail="Streaming not supported")
 
     prompt = _build_qwen_prompt(req.messages)
+    # Cap max_new_tokens to 128 so each SageMaker call finishes within 15s on T4.
+    # Agent verdicts are short (SUPPORTED/PARTIAL/NOT_SUPPORTED + brief reasoning).
+    capped_tokens = min(req.max_tokens, 128)
     payload: dict = {
         "inputs": prompt,
         "parameters": {
-            "max_new_tokens": req.max_tokens,
+            "max_new_tokens": capped_tokens,
             "do_sample": req.temperature > 0,
             "temperature": req.temperature if req.temperature > 0 else 1.0,
         },
