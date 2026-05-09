@@ -55,4 +55,4 @@ EXPOSE 8001
 HEALTHCHECK --interval=30s --timeout=5s --start-period=60s --retries=3 \
   CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8001/mad/health')" || exit 1
 
-CMD ["sh", "-c", "python full_FinalMAD_with_judge/sagemaker_proxy.py & gunicorn full_FinalMAD_with_judge.api:app -k uvicorn.workers.UvicornWorker --workers 2 --bind 0.0.0.0:8001 --timeout 300"]
+CMD ["sh", "-c", "python multi_agent_debate/full_FinalMAD_with_judge/sagemaker_proxy.py & gunicorn full_FinalMAD_with_judge.api:app -k uvicorn.workers.UvicornWorker --workers 2 --bind 0.0.0.0:8001 --timeout 300"]
