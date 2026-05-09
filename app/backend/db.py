@@ -12,6 +12,7 @@ from typing import Optional
 from sqlalchemy import (
     Column, DateTime, Float, Index, Integer, String, Text,
     create_engine, text, MetaData, Table, select, insert, update,
+    inspect,
 )
 from sqlalchemy.pool import StaticPool
 
@@ -154,7 +155,7 @@ def _migrate_sessions_table():
         ("user_id",              "TEXT"),
     ]
     with engine.connect() as conn:
-        existing = {row[1] for row in conn.execute(text("PRAGMA table_info(sessions)")).fetchall()}
+        existing = _existing_columns(conn, "sessions")
         for col_name, col_def in new_columns:
             if col_name not in existing:
                 try:
@@ -162,6 +163,13 @@ def _migrate_sessions_table():
                 except Exception:
                     pass
         conn.commit()
+
+
+def _existing_columns(conn, table_name: str) -> set[str]:
+    """Return table column names for both SQLite and PostgreSQL connections."""
+    if _is_sqlite:
+        return {row[1] for row in conn.execute(text(f"PRAGMA table_info({table_name})")).fetchall()}
+    return {col["name"] for col in inspect(conn).get_columns(table_name)}
 
 
 def _migrate_feedback_table():
@@ -177,7 +185,7 @@ def _migrate_feedback_table():
         ("resolved_at",    "TEXT"),
     ]
     with engine.connect() as conn:
-        existing = {row[1] for row in conn.execute(text("PRAGMA table_info(feedback)")).fetchall()}
+        existing = _existing_columns(conn, "feedback")
         for col_name, col_def in new_columns:
             if col_name not in existing:
                 conn.execute(text(f"ALTER TABLE feedback ADD COLUMN {col_name} {col_def}"))

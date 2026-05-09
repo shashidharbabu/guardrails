@@ -37,14 +37,13 @@ COPY nginx.conf /etc/nginx/conf.d/guardrails.conf
 
 COPY --from=builder /build/dist /usr/share/nginx/html
 
-# Non-root: nginx on port 8080
-RUN sed -i 's/listen\s*80/listen 8080/g' /etc/nginx/conf.d/guardrails.conf \
- && chown -R nginx:nginx /usr/share/nginx/html \
+# Static files are served on the port declared in nginx.conf.
+RUN chown -R nginx:nginx /usr/share/nginx/html \
  && chmod -R 755 /usr/share/nginx/html
 
 EXPOSE 8080
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \
-  CMD wget -qO- http://localhost:8080/healthz || exit 1
+  CMD wget -qO- http://127.0.0.1:8080/healthz || exit 1
 
 CMD ["nginx", "-g", "daemon off;"]
