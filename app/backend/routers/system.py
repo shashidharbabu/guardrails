@@ -86,8 +86,22 @@ async def system_health(user: UserContext = Depends(get_current_user)):
         await _check_async("gateway", lambda: _ping_http(f"{settings.GATEWAY_URL}/health"))
     )
 
-    # LLM runtime — Claude (Anthropic) or Ollama depending on provider type
-    if getattr(settings, "LLM_PROVIDER_TYPE", "ollama") == "claude":
+    # LLM runtime — SageMaker (open LLM), Claude, or Ollama
+    provider = getattr(settings, "LLM_PROVIDER_TYPE", "ollama").lower()
+    if provider == "sagemaker":
+        async def _check_sagemaker_llm():
+            import boto3, json as _json, asyncio
+            endpoint = getattr(settings, "LLM_SAGEMAKER_ENDPOINT", "spartanguard-guard")
+            region = getattr(settings, "AWS_REGION", "us-west-2")
+            def _describe():
+                sm = boto3.client("sagemaker", region_name=region)
+                ep = sm.describe_endpoint(EndpointName=endpoint)
+                if ep["EndpointStatus"] != "InService":
+                    raise RuntimeError(f"Endpoint {endpoint} status: {ep['EndpointStatus']}")
+            loop = asyncio.get_event_loop()
+            await loop.run_in_executor(None, _describe)
+        results.append(await _check_async("llm_runtime", _check_sagemaker_llm))
+    elif provider == "claude":
         async def _check_claude():
             import anthropic
             client = anthropic.AsyncAnthropic(api_key=settings.ANTHROPIC_API_KEY)

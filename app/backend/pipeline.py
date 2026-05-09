@@ -220,9 +220,60 @@ async def _call_gateway(query: str) -> dict:
 
 
 async def _call_llm(query: str, model: str) -> str:
-    if settings.LLM_PROVIDER_TYPE == "claude":
+    provider = getattr(settings, "LLM_PROVIDER_TYPE", "openai").lower()
+    if provider == "sagemaker":
+        return await _call_llm_sagemaker(query, model)
+    if provider == "claude":
         return await _call_llm_claude(query, model)
     return await _call_llm_openai_compat(query, model)
+
+
+async def _call_llm_sagemaker(query: str, model: str) -> str:
+    """
+    Call a DJL LMI endpoint on SageMaker (LLaMA-3.1-8B-Instruct).
+    Uses the LLaMA-3.1 chat template with boto3 invoke-endpoint.
+    model param is the SageMaker endpoint name (e.g. spartanguard-guard).
+    """
+    import json as _json
+    import asyncio
+
+    endpoint_name = model or getattr(settings, "LLM_SAGEMAKER_ENDPOINT", "spartanguard-guard")
+    aws_region = getattr(settings, "AWS_REGION", "us-west-2")
+
+    prompt = (
+        f"<|begin_of_text|><|start_header_id|>system<|end_header_id|>\n\n"
+        f"{SYSTEM_PROMPT}<|eot_id|>"
+        f"<|start_header_id|>user<|end_header_id|>\n\n"
+        f"{query}<|eot_id|>"
+        f"<|start_header_id|>assistant<|end_header_id|>\n\n"
+    )
+    payload = {
+        "inputs": prompt,
+        "parameters": {
+            "max_new_tokens": 512,
+            "do_sample": True,
+            "temperature": 0.7,
+            "top_p": 0.9,
+        },
+    }
+
+    def _invoke():
+        import boto3
+        client = boto3.client("sagemaker-runtime", region_name=aws_region)
+        response = client.invoke_endpoint(
+            EndpointName=endpoint_name,
+            ContentType="application/json",
+            Body=_json.dumps(payload),
+        )
+        result = _json.loads(response["Body"].read())
+        if "generated_text" in result:
+            return result["generated_text"]
+        if isinstance(result, list) and result:
+            return result[0].get("generated_text", str(result[0]))
+        return str(result)
+
+    loop = asyncio.get_event_loop()
+    return await loop.run_in_executor(None, _invoke)
 
 
 async def _call_llm_claude(query: str, model: str) -> str:

@@ -23,9 +23,12 @@ data:
   MAD_MODE: "api"
   MAD_TIMEOUT_SECONDS: "600"
 
-  # LLM — decoupled from service, uses Anthropic API
-  LLM_PROVIDER_TYPE: "claude"
-  DEFAULT_LLM_MODEL: "claude-haiku-4-5-20251001"
+  # LLM — SageMaker endpoint (LLaMA-3.1-8B-Instruct, no built-in safety guardrails)
+  # This is intentionally an open model so SpartanGuard's guardrails are exercised
+  LLM_PROVIDER_TYPE: "sagemaker"
+  DEFAULT_LLM_MODEL: "spartanguard-guard"
+  LLM_SAGEMAKER_ENDPOINT: "spartanguard-guard"
+  # MAD judge still uses Claude for high-quality policy reasoning
   JUDGE_BACKEND: "claude"
   CLAUDE_JUDGE_MODEL: "claude-haiku-4-5-20251001"
   CLAUDE_JUDGE_TIMEOUT: "60"
