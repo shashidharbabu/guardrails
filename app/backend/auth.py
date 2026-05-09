@@ -97,13 +97,20 @@ def _decode_jwt(token: str) -> dict:
     """
     try:
         from jose import jwt as jose_jwt, JWTError
-        payload = jose_jwt.decode(
-            token,
-            settings.JWT_SECRET_KEY,
-            algorithms=[settings.JWT_ALGORITHM],
-            audience=settings.OIDC_AUDIENCE,
-        )
-        return payload
+        try:
+            payload = jose_jwt.decode(
+                token,
+                settings.JWT_SECRET_KEY,
+                algorithms=[settings.JWT_ALGORITHM],
+                audience=settings.OIDC_AUDIENCE,
+            )
+            return payload
+        except JWTError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail=f"Invalid or expired token: {exc}",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
     except ImportError:
         pass
 

@@ -277,6 +277,12 @@ async function apiFetch(path, options = {}) {
   if (token) headers['Authorization'] = `Bearer ${token}`
   const res = await fetch(`${API_BASE}${path}`, { ...options, headers })
   if (!res.ok) {
+    // Expired/invalid token — clear session and redirect to login
+    if (res.status === 401) {
+      window.localStorage.removeItem('guardrails.auth.session')
+      window.location.href = '/login'
+      return
+    }
     const text = await res.text()
     throw new Error(`${res.status} ${res.statusText}: ${text}`)
   }
