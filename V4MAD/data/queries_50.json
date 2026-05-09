@@ -1,0 +1,202 @@
+[
+  {
+    "query_id": "q_001",
+    "user_query": "What is the relationship between self-reported physical activity and diabetes-related complications?"
+  },
+  {
+    "query_id": "q_002",
+    "user_query": "What must be disregarded in the proceeding according to the compliance requirements?"
+  },
+  {
+    "query_id": "q_003",
+    "user_query": "What does 'contrary' mean in the context of comparing State law to Federal requirements?"
+  },
+  {
+    "query_id": "q_004",
+    "user_query": "What must a covered entity do when making routine and recurring requests for protected health information?"
+  },
+  {
+    "query_id": "q_005",
+    "user_query": "What is the requirement for using the Employer Identifier in standard transactions?"
+  },
+  {
+    "query_id": "q_006",
+    "user_query": "What are the potential effects of Dronedarone on heart function?"
+  },
+  {
+    "query_id": "q_007",
+    "user_query": "What is the recommended dietary protein intake for individuals with non-dialysis-dependent stage G3 or higher CKD?"
+  },
+  {
+    "query_id": "q_008",
+    "user_query": "What are the training requirements for members of a covered entity's workforce regarding protected health information?"
+  },
+  {
+    "query_id": "q_009",
+    "user_query": "What are the requirements for filing a motion for reconsideration with the Board?"
+  },
+  {
+    "query_id": "q_010",
+    "user_query": "What are the criteria for assessing ventricular diastolic function according to the guidelines?"
+  },
+  {
+    "query_id": "q_011",
+    "user_query": "What is the recommended protein intake for individuals according to age?"
+  },
+  {
+    "query_id": "q_012",
+    "user_query": "What is the required font size and style for the headings on a medical gas container label?"
+  },
+  {
+    "query_id": "q_013",
+    "user_query": "What are the recommended A1C levels for pregnant individuals without preexisting diabetes to minimize adverse fetal outcomes?"
+  },
+  {
+    "query_id": "q_014",
+    "user_query": "What must a Member State do if it disagrees with the conclusion of the coordinating Member State regarding a clinical investigation?"
+  },
+  {
+    "query_id": "q_015",
+    "user_query": "Under what circumstances can a covered entity disclose protected health information to a coroner or medical examiner?"
+  },
+  {
+    "query_id": "q_016",
+    "user_query": "What is the intended audience for the CDC's Clinical Practice Guideline on prescribing opioids for pain?"
+  },
+  {
+    "query_id": "q_017",
+    "user_query": "What factors influence the advancement of AI beyond narrow tasks in healthcare?"
+  },
+  {
+    "query_id": "q_018",
+    "user_query": "What is the guideline number for the 2013 ACCF/AHA Guideline for the Management of Heart Failure?"
+  },
+  {
+    "query_id": "q_019",
+    "user_query": "What is the association between long-term metformin use and vitamin B12 deficiency according to the Diabetes Prevention Program Outcomes Study?"
+  },
+  {
+    "query_id": "q_020",
+    "user_query": "What is the compliance deadline for health plans that are not classified as small health plans regarding the implementation of the standard unique health plan identifier?"
+  },
+  {
+    "query_id": "q_021",
+    "user_query": "What are the submission types appropriate for establishing a PCCP for AI-DSFs?"
+  },
+  {
+    "query_id": "q_022",
+    "user_query": "What are the conditions under which a covered entity can terminate a restriction on protected health information?"
+  },
+  {
+    "query_id": "q_023",
+    "user_query": "What is the maximum allowable relative standard deviation in peak areas for the HPLC reference standard?"
+  },
+  {
+    "query_id": "q_024",
+    "user_query": "What steps must a competent authority take upon receiving reports of suspected serious incidents from healthcare professionals, users, or patients?"
+  },
+  {
+    "query_id": "q_025",
+    "user_query": "What must a covered entity do if restricted protected health information is disclosed to a health care provider for emergency treatment?"
+  },
+  {
+    "query_id": "q_026",
+    "user_query": "What plasma glucose values indicate a diagnosis of gestational diabetes mellitus (GDM) using the one-step strategy?"
+  },
+  {
+    "query_id": "q_027",
+    "user_query": "What is the recommended action for individuals with prediabetes and a history of GDM during the postpartum period?"
+  },
+  {
+    "query_id": "q_028",
+    "user_query": "What is the responsibility of the Federal Trade Commission upon receiving a notification of a breach of security under subsection (a)(2)?"
+  },
+  {
+    "query_id": "q_029",
+    "user_query": "What are the affiliations of Carmelo A. Milano as listed in the document?"
+  },
+  {
+    "query_id": "q_030",
+    "user_query": "What information must be communicated to outpatient health care professionals at discharge for patients with diabetes?"
+  },
+  {
+    "query_id": "q_031",
+    "user_query": "What is the requirement for the CE marking when a notified body is involved in the conformity assessment procedure?"
+  },
+  {
+    "query_id": "q_032",
+    "user_query": "What is the jurisdiction for proceedings related to offences committed outside the United Kingdom under the Online Safety Act 2023?"
+  },
+  {
+    "query_id": "q_033",
+    "user_query": "What areas of a service must be included in measures for compliance with children's online safety duties?"
+  },
+  {
+    "query_id": "q_034",
+    "user_query": "What is the definition of 'the relevant day' in relation to children's risk assessments?"
+  },
+  {
+    "query_id": "q_035",
+    "user_query": "What assessments must financial entities conduct before entering into a contractual arrangement for ICT services supporting critical functions?"
+  },
+  {
+    "query_id": "q_036",
+    "user_query": "What must the court consider when making a service restriction order regarding a non-compliant provider?"
+  },
+  {
+    "query_id": "q_037",
+    "user_query": "What must a provider infer about content to determine if it constitutes an offence under the regulations?"
+  },
+  {
+    "query_id": "q_038",
+    "user_query": "What articles are included in the directive that repeals Council Directives 90/385/EEC and 93/42/EEC?"
+  },
+  {
+    "query_id": "q_039",
+    "user_query": "What are the penalties for violating personal information handling regulations?"
+  },
+  {
+    "query_id": "q_040",
+    "user_query": "What must a person do upon receiving a notice of withdrawal of consent for sending specified messages to a Singapore telephone number?"
+  },
+  {
+    "query_id": "q_041",
+    "user_query": "What is the procedure for reviewing GAI system outputs for validity and safety?"
+  },
+  {
+    "query_id": "q_042",
+    "user_query": "What is the purpose of the ETSI Group Report SAI 005?"
+  },
+  {
+    "query_id": "q_043",
+    "user_query": "What access rights do market surveillance authorities have regarding data and documentation for products with digital elements?"
+  },
+  {
+    "query_id": "q_044",
+    "user_query": "What factors should be considered when analyzing the quantity of operational risk associated with a bank's model use?"
+  },
+  {
+    "query_id": "q_045",
+    "user_query": "What are the specific risks associated with GenAI models regarding input data leaks?"
+  },
+  {
+    "query_id": "q_046",
+    "user_query": "What are the essential elements of a bank's model risk management framework?"
+  },
+  {
+    "query_id": "q_047",
+    "user_query": "What must a business provide to a recipient-business when making automated decision-making technology available for significant decisions?"
+  },
+  {
+    "query_id": "q_048",
+    "user_query": "What responsibilities do staff of Member States have in relation to AI regulatory sandboxes?"
+  },
+  {
+    "query_id": "q_049",
+    "user_query": "What are the cybersecurity risk considerations for high-risk AI systems during their lifecycle according to Regulation (EU) 2024/1689?"
+  },
+  {
+    "query_id": "q_050",
+    "user_query": "What are the four principles for explainable AI according to NISTIR 8312?"
+  }
+]
