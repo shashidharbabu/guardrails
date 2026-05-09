@@ -21,17 +21,20 @@ def init_db():
     conn.execute(
         """
         CREATE TABLE IF NOT EXISTS gateway_events (
-            id              INTEGER PRIMARY KEY AUTOINCREMENT,
-            timestamp       REAL    NOT NULL,
-            decision        TEXT    NOT NULL,
-            gateway_score   REAL    NOT NULL,
-            pii_score       REAL    NOT NULL,
-            jb_score        REAL    NOT NULL,
-            pi_score        REAL    NOT NULL,
-            pii_entities    TEXT,
-            threat_types    TEXT,
-            blocked_reason  TEXT,
-            raw_input       TEXT
+            id                INTEGER PRIMARY KEY AUTOINCREMENT,
+            timestamp         REAL    NOT NULL,
+            decision          TEXT    NOT NULL,
+            gateway_score     REAL    NOT NULL,
+            pii_score         REAL    NOT NULL,
+            jb_score          REAL    NOT NULL,
+            pi_score          REAL    NOT NULL,
+            pii_entities      TEXT,
+            threat_types      TEXT,
+            blocked_reason    TEXT,
+            raw_input         TEXT,
+            judge_verdict     TEXT,
+            judge_reason      TEXT,
+            judge_threat_type TEXT
         )
     """
     )
@@ -45,6 +48,16 @@ def init_db():
         CREATE INDEX IF NOT EXISTS idx_timestamp ON gateway_events(timestamp)
     """
     )
+    # Migration: add judge columns to existing DBs that lack them
+    for col, coltype in [
+        ("judge_verdict", "TEXT"),
+        ("judge_reason", "TEXT"),
+        ("judge_threat_type", "TEXT"),
+    ]:
+        try:
+            conn.execute(f"ALTER TABLE gateway_events ADD COLUMN {col} {coltype}")
+        except Exception:
+            pass  # column already exists
     conn.commit()
     conn.close()
 
@@ -56,8 +69,9 @@ def log_event(result: GatewayResult):
         """
         INSERT INTO gateway_events
         (timestamp, decision, gateway_score, pii_score, jb_score, pi_score,
-         pii_entities, threat_types, blocked_reason, raw_input)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+         pii_entities, threat_types, blocked_reason, raw_input,
+         judge_verdict, judge_reason, judge_threat_type)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     """,
         (
             time.time(),
@@ -70,6 +84,9 @@ def log_event(result: GatewayResult):
             json.dumps(result.threat_types),
             result.blocked_reason,
             result.raw_input[:500],
+            result.judge_verdict,
+            result.judge_reason,
+            result.judge_threat_type,
         ),
     )
     conn.commit()

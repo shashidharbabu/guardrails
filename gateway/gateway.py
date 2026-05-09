@@ -21,6 +21,7 @@ from guardrails import Guard
 
 from gateway import logger as event_logger
 from gateway.decision_engine import Decision, DecisionEngine, GatewayResult
+from gateway.judge import GatewayJudge
 from gateway.validators.pi_validator import CustomPIValidator
 from gateway.validators.pii_validator import CustomPIIValidator
 from gateway.validators.threat_validator import CustomThreatValidator
@@ -94,6 +95,8 @@ class GuardrailGateway:
             pi_override_threshold=pi_override_threshold,
             pii_override_threshold=pii_override_threshold,
         )
+
+        self._judge = GatewayJudge()
 
         event_logger.init_db()
 
@@ -173,6 +176,25 @@ class GuardrailGateway:
             pi_score=pi_score,
             pii_entities=pii_entities,
         )
+
+        # 4th stage: LLM judge (upgrade-only — cannot downgrade severity)
+        judge_result = self._judge.judge(
+            query=user_input,
+            pii_score=pii_score,
+            jb_score=jb_score,
+            pi_score=pi_score,
+            initial_decision=result.decision.value,
+        )
+        result.judge_verdict = judge_result.verdict
+        result.judge_reason = judge_result.reason
+        result.judge_threat_type = judge_result.threat_type
+
+        # Apply upgrade: if judge raised severity, update final decision + reason
+        _severity = {"PASS": 0, "ESCALATE": 1, "BLOCK": 2}
+        if _severity.get(judge_result.verdict, 0) > _severity.get(result.decision.value, 0):
+            result.decision = Decision(judge_result.verdict)
+            if judge_result.reason:
+                result.blocked_reason = f"[Judge] {judge_result.reason}"
 
         event_logger.log_event(result)
         return result

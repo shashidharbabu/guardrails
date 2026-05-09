@@ -107,6 +107,9 @@ class ValidateResponse(BaseModel):
     threat_types: List[str]
     blocked_reason: Optional[str]
     duration_ms: Optional[int] = None
+    judge_verdict: Optional[str] = None
+    judge_reason: Optional[str] = None
+    judge_threat_type: Optional[str] = None
 
 
 class ConfigUpdateRequest(BaseModel):
@@ -137,6 +140,9 @@ def validate_input(request: ValidateRequest):
         threat_types=result.threat_types,
         blocked_reason=result.blocked_reason,
         duration_ms=duration_ms,
+        judge_verdict=result.judge_verdict,
+        judge_reason=result.judge_reason,
+        judge_threat_type=result.judge_threat_type,
     )
 
 
@@ -146,6 +152,7 @@ def health():
         "status": "ok",
         "validators": "hf-serverless (stateless HTTP — no local models)",
         "active_models": _config["models"],
+        "judge_enabled": _gateway._judge.enabled,
     }
 
 

@@ -40,6 +40,10 @@ class GatewayResult:
     threat_types: List[str] = field(default_factory=list)
     blocked_reason: Optional[str] = None
     raw_input: str = ""
+    # Judge fields (populated after classifier stage)
+    judge_verdict: Optional[str] = None
+    judge_reason: Optional[str] = None
+    judge_threat_type: Optional[str] = None
 
     @property
     def is_allowed(self) -> bool:
@@ -59,6 +63,9 @@ class GatewayResult:
             "pii_entities": self.pii_entities,
             "threat_types": self.threat_types,
             "blocked_reason": self.blocked_reason,
+            "judge_verdict": self.judge_verdict,
+            "judge_reason": self.judge_reason,
+            "judge_threat_type": self.judge_threat_type,
         }
 
 
@@ -88,14 +95,16 @@ class DecisionEngine:
         pi_override_threshold: float = 0.7,
         pii_override_threshold: float = 0.9,
     ):
-        assert abs(pii_weight + jb_weight + pi_weight - 1.0) < 1e-6, (
-            "Weights must sum to 1.0"
+        total = pii_weight + jb_weight + pi_weight
+        assert abs(total - 1.0) < 1e-6, (
+            f"Weights must sum to 1.0 (got {total:.10f})"
         )
         self.pass_threshold = pass_threshold
         self.block_threshold = block_threshold
-        self.pii_weight = pii_weight
-        self.jb_weight = jb_weight
-        self.pi_weight = pi_weight
+        # Normalize to exactly 1.0 to avoid floating-point drift
+        self.pii_weight = pii_weight / total
+        self.jb_weight = jb_weight / total
+        self.pi_weight = pi_weight / total
         self.jb_override_threshold = jb_override_threshold
         self.pi_override_threshold = pi_override_threshold
         self.pii_override_threshold = pii_override_threshold

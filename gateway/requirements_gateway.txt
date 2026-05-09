@@ -7,3 +7,4 @@ sqlalchemy>=2.0
 httpx>=0.27.0
 python-dotenv>=1.0
 pytest>=8.0
+anthropic>=0.40.0,<1.0                    # Claude Haiku judge (4th-stage LLM judge)
