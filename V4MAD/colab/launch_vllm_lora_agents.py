@@ -35,6 +35,7 @@ PORT = int(os.environ.get("AGENTS_PORT", "8003"))
 FINAL_A_DIR = Path(os.environ.get("FINAL_A_DIR", "/content/adapters/finalA"))
 FINAL_B_DIR = Path(os.environ.get("FINAL_B_DIR", "/content/adapters/finalB"))
 NGROK_AUTHTOKEN = os.environ.get("NGROK_AUTHTOKEN", "")
+KEEP_ALIVE = os.environ.get("KEEP_ALIVE", "1").lower() in {"1", "true", "yes"}
 
 
 def run(cmd: list[str]) -> None:
@@ -142,6 +143,11 @@ def main() -> None:
         timeout=60,
     )
     print(resp.status_code, resp.text[:1000], flush=True)
+
+    if KEEP_ALIVE:
+        print("\nKEEP THIS CELL RUNNING", flush=True)
+        while True:
+            time.sleep(60)
 
 
 if __name__ == "__main__":

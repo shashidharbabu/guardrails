@@ -211,7 +211,7 @@ export default function NewQuery() {
                   ))}
                 </select>
                 <div style={{ fontFamily: 'var(--font-ui)', fontSize: 11, color: 'var(--text-muted)', marginTop: 5 }}>
-                  Model must be pulled in Ollama. MAD agents always use qwen2.5:7b.
+                  Model must be pulled in Ollama. MAD uses V4MAD with remote LoRA agents when configured.
                 </div>
               </div>
 

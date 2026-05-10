@@ -34,11 +34,14 @@ RULES:
    - Never 0.0 or 1.0 — leave room for agent updates
 
 4. Coverage requirement:
-   - Extract enough claims to cover ALL important factual content in the baseline answer.
-   - Do not summarize too aggressively.
+   - Extract 3 to 5 claims total.
+   - Prefer exactly 5 claims when the answer contains 5 or more material factual points.
+   - Use 3 or 4 claims only when the answer is short and has fewer distinct material facts.
+   - Cover the most important factual content in the baseline answer.
+   - Do not create more than 5 claims.
    - Split compound sentences into separate atomic claims.
    - Include definitions, conditions, exceptions, dates, entities, thresholds, numbers, timelines, and procedural requirements when present.
-   - If the baseline answer has 3-5 factual sentences, usually extract 5-10 claims.
+   - If there are many details, choose the 3 to 5 claims most central to answering the original query.
    - Do not omit qualifiers like "unless", "except", "only if", "at least", "within", "before", "after", or jurisdiction/scope limits.
 
 5. JSON requirement:
@@ -70,8 +73,10 @@ BASELINE LLM ANSWER:
 
 Extract atomic claims from this answer.
 
-Aim for high coverage of the answer, not a short summary.
-Every factual requirement, condition, threshold, entity, exception, or timeline should become its own atomic claim.
+Return 3 to 5 claims total.
+Use exactly 5 claims when possible.
+If the answer has fewer than 5 distinct material facts, return 3 or 4 claims.
+Every selected claim must be important for verifying the answer to the original query.
 
 Return ONLY valid JSON using the required schema."""
 
@@ -237,7 +242,11 @@ You are BLIND to:
 
 Judge based on the strength of evidence and quality of reasoning alone.
 
-OUTPUT FORMAT: Valid JSON only:
+Return exactly one valid JSON object. Do not include markdown fences,
+headings, bullet points, or any prose before or after the JSON.
+The first character of your response must be "{" and the last must be "}".
+
+OUTPUT FORMAT:
 {
     "v_label": 1.0,
     "judge_confidence": 0.0,

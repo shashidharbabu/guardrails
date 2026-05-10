@@ -37,7 +37,7 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Run V4MAD test queries")
     parser.add_argument("--queries", default=str(DEFAULT_QUERIES))
     parser.add_argument("--limit", type=int, default=1)
-    parser.add_argument("--max-claims", type=int, default=2)
+    parser.add_argument("--max-claims", type=int, default=int(os.environ.get("V4MAD_MAX_CLAIMS", "5")))
     parser.add_argument("--baseline-model", default=os.environ.get("DEFAULT_LLM_MODEL", "qwen2.5:7b"))
     parser.add_argument("--baseline-url", default=os.environ.get("LLM_PROVIDER_URL", "http://localhost:11434"))
     return parser.parse_args()

@@ -86,6 +86,7 @@ QDRANT_PORT = int(os.environ.get("QDRANT_PORT", "6333"))
 QDRANT_URL = os.environ.get("QDRANT_URL", "")
 QDRANT_API_KEY = os.environ.get("QDRANT_API_KEY", "")
 QDRANT_TIMEOUT = int(os.environ.get("QDRANT_TIMEOUT", "60"))
+RAG_V2_DENSE_DEVICE = os.environ.get("RAG_V2_DENSE_DEVICE", "auto").lower()
 
 # HyDE — available but disabled (ablation proved no-HyDE wins)
 HYDE_API_KEY = os.environ.get("OPENROUTER_API_KEY", "")
@@ -218,16 +219,21 @@ class DenseRetriever:
         print("  Loading embedding model...")
         self.tokenizer = AutoTokenizer.from_pretrained(
             EMBED_MODEL_NAME, trust_remote_code=True)
+        requested_device = RAG_V2_DENSE_DEVICE
+        if requested_device == "auto":
+            requested_device = (
+                "cuda" if torch.cuda.is_available()
+                else "mps" if torch.backends.mps.is_available()
+                else "cpu"
+            )
+        dtype = torch.float32 if requested_device == "cpu" else torch.float16
+
         self.model = AutoModel.from_pretrained(
             EMBED_MODEL_NAME,
             trust_remote_code=True,
-            dtype=torch.float16,
+            dtype=dtype,
         )
-        self.device = (
-            "cuda" if torch.cuda.is_available()
-            else "mps" if torch.backends.mps.is_available()
-            else "cpu"
-        )
+        self.device = requested_device
         self.model = self.model.to(self.device).eval()
 
         print("  Connecting to Qdrant...")

@@ -16,6 +16,7 @@ Every call traced to Langfuse.
 
 import hashlib
 import json
+import re
 import sys
 import time
 from pathlib import Path
@@ -46,8 +47,7 @@ except Exception:
 def _parse_judge(raw: str) -> dict:
     parsed = parse_agent_json(raw)
     if not parsed:
-        return {"v_label": 0.5, "judge_confidence": 0.0,
-                "judge_reasoning": "parse failed", "evidence_chunk_ids": []}
+        return _parse_judge_text_fallback(raw)
     try:
         v = float(parsed["v_label"])
         if v not in (0.0, 0.5, 1.0):
@@ -57,6 +57,28 @@ def _parse_judge(raw: str) -> dict:
     except (KeyError, TypeError, ValueError):
         parsed["v_label"] = 0.5
     return parsed
+
+
+def _parse_judge_text_fallback(raw: str) -> dict:
+    text = raw.strip()
+    lower = text.lower()
+
+    if any(marker in lower for marker in ("not supported", "contradicted", "hallucinated")):
+        v_label = 0.0
+    elif any(marker in lower for marker in ("partially supported", "partial", "not fully accurate", "mixed")):
+        v_label = 0.5
+    elif any(marker in lower for marker in ("fully supported", "directly supports", "clearly supports")):
+        v_label = 1.0
+    else:
+        v_label = 0.5
+
+    chunk_ids = sorted(set(re.findall(r"\b(?:t1|t2|EMA|hitech)[A-Za-z0-9_:.\-]+(?:rechunk_\d+|[a-f0-9]{12})?\b", raw)))
+    return {
+        "v_label": v_label,
+        "judge_confidence": 0.5,
+        "judge_reasoning": text[:2400] or "Judge returned non-JSON output; fallback text parser used.",
+        "evidence_chunk_ids": chunk_ids[:8],
+    }
 
 
 async def judge_node(state: MADState) -> dict:

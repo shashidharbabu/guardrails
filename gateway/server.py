@@ -82,6 +82,20 @@ def _build_gateway() -> GuardrailGateway:
 _gateway = _build_gateway()
 
 
+def _validator_cache_is_loaded(validator_cls) -> bool:
+    cache = getattr(validator_cls, "_PIPELINE_CACHE", None)
+    if cache is None:
+        cache = getattr(validator_cls, "_MODEL_CACHE", None)
+    return bool(cache)
+
+
+def _clear_validator_cache(validator_cls) -> None:
+    for attr in ("_PIPELINE_CACHE", "_MODEL_CACHE"):
+        cache = getattr(validator_cls, attr, None)
+        if cache is not None:
+            cache.clear()
+
+
 # ---------------------------------------------------------------------------
 # Schemas
 # ---------------------------------------------------------------------------

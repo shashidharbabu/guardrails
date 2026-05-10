@@ -18,7 +18,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from openai import AsyncOpenAI
 
 from config import (DECOMPOSER_API_KEY, DECOMPOSER_BASE_URL,
-                    DECOMPOSER_MAX_TOKENS, DECOMPOSER_MODEL, DECOMPOSER_TEMP,
+                    DECOMPOSER_MAX_CLAIMS, DECOMPOSER_MAX_TOKENS,
+                    DECOMPOSER_MIN_CLAIMS, DECOMPOSER_MODEL, DECOMPOSER_TEMP,
                     LANGFUSE_HOST, LANGFUSE_PUBLIC_KEY, LANGFUSE_SECRET_KEY)
 from db import get_db_conn, get_llm_cache, insert_claim, insert_llm_cache
 from prompts import DECOMPOSER_SYSTEM, decomposer_user
@@ -100,6 +101,31 @@ async def _call_decomposer(messages):
     return resp
 
 
+async def _repair_claim_count(messages, raw: str) -> dict | None:
+    repair_messages = messages + [
+        {
+            "role": "assistant",
+            "content": raw,
+        },
+        {
+            "role": "user",
+            "content": (
+                f"Rewrite the claims as ONLY valid JSON with {DECOMPOSER_MIN_CLAIMS} to "
+                f"{DECOMPOSER_MAX_CLAIMS} claims total. Prefer exactly "
+                f"{DECOMPOSER_MAX_CLAIMS} claims when possible. Keep only the most "
+                "material atomic claims needed to verify the answer. No markdown."
+            ),
+        },
+    ]
+    try:
+        resp = await _call_decomposer(repair_messages)
+        return parse_agent_json(resp.choices[0].message.content) or _extract_json_object(
+            resp.choices[0].message.content
+        )
+    except Exception:
+        return None
+
+
 def _coverage_check(baseline: str, claims: list[dict], threshold: float = 0.6) -> tuple[bool, float]:
     baseline_words = set(baseline.lower().split())
     claim_words    = set(" ".join(c["claim_text"] for c in claims).lower().split())
@@ -107,6 +133,10 @@ def _coverage_check(baseline: str, claims: list[dict], threshold: float = 0.6) -
         return True, 1.0
     ratio = len(baseline_words & claim_words) / len(baseline_words)
     return ratio >= threshold, ratio
+
+
+def _normalize_claim_text(text: str) -> str:
+    return re.sub(r"\s+", " ", text.strip().lower()).rstrip(".")
 
 
 async def decompose_node(state: MADState) -> dict:
@@ -170,25 +200,39 @@ async def decompose_node(state: MADState) -> dict:
         return {"errors": state.get("errors", []) + [f"{query_id}: decompose parse failed"]}
 
     raw_claims = parsed["claims"]
+    if isinstance(raw_claims, list) and len(raw_claims) < DECOMPOSER_MIN_CLAIMS:
+        repaired = await _repair_claim_count(messages, raw)
+        if repaired and isinstance(repaired.get("claims"), list):
+            parsed = repaired
+            raw_claims = parsed["claims"]
+
     if not isinstance(raw_claims, list):
         raw_claims = []
 
     claims = []
+    seen_claims = set()
     for i, c in enumerate(raw_claims):
         if not isinstance(c, dict):
             continue
-        if not str(c.get("claim_text", "")).strip():
+        claim_text = str(c.get("claim_text", "")).strip()
+        if not claim_text:
             continue
+        normalized = _normalize_claim_text(claim_text)
+        if normalized in seen_claims:
+            continue
+        seen_claims.add(normalized)
         claim_id = str(uuid.uuid4())
         claim    = {
             "claim_id":        claim_id,
-            "claim_text":      c.get("claim_text", ""),
-            "claim_index":     c.get("claim_index", i),
+            "claim_text":      claim_text,
+            "claim_index":     len(claims),
             "is_material":     bool(c.get("is_material", True)),
             "is_critical":     bool(c.get("is_critical", False)),
             "confidence_prior": float(c.get("confidence_prior", 0.75)),
         }
         claims.append(claim)
+        if len(claims) >= DECOMPOSER_MAX_CLAIMS:
+            break
 
     ok, ratio = _coverage_check(baseline_answer, claims)
     for claim in claims:

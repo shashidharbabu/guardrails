@@ -61,6 +61,8 @@ QUERY_TOP_K           = 5    # how many chunks stored per query in source data
 
 # ── RAG v2 / Qdrant Cloud (live per-claim retrieval) ───────────────────────────
 MAD_USE_LIVE_RAG = os.getenv("MAD_USE_LIVE_RAG", "1").lower() in {"1", "true", "yes"}
+RAG_V2_REMOTE_URL = os.getenv("RAG_V2_REMOTE_URL", "").rstrip("/")
+RAG_V2_REMOTE_TIMEOUT = float(os.getenv("RAG_V2_REMOTE_TIMEOUT", "300"))
 QDRANT_HOST     = os.getenv("QDRANT_HOST", "localhost")
 QDRANT_PORT     = int(os.getenv("QDRANT_PORT", "6333"))
 COLLECTION_NAME = "guardrails_rag_v2"
@@ -74,6 +76,9 @@ QUERY_CHUNKS_FILE  = DATA_DIR / "query_chunks_50.json"
 
 # ── Concurrency ────────────────────────────────────────────────────────────────
 CLAIM_CONCURRENCY = 2    # parallel claims within debate nodes
+DECOMPOSER_MIN_CLAIMS = int(os.getenv("DECOMPOSER_MIN_CLAIMS", "3"))
+DECOMPOSER_MAX_CLAIMS = int(os.getenv("DECOMPOSER_MAX_CLAIMS", "5"))
+V4MAD_MAX_CLAIMS = int(os.getenv("V4MAD_MAX_CLAIMS", str(DECOMPOSER_MAX_CLAIMS)))  # 0 = no cap
 
 # ── Langfuse ───────────────────────────────────────────────────────────────────
 LANGFUSE_PUBLIC_KEY = "pk-lf-2efefb74-7c5a-415e-9bb7-062ae2edc2d5"

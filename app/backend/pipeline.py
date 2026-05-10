@@ -8,9 +8,12 @@ All service URLs come from the settings module — no hardcoded localhost.
 import asyncio
 import json
 import logging
+import os
+import sys
 import time
 import uuid
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Optional
 
 import httpx
@@ -145,44 +148,22 @@ async def _run_mad_background(
     t0: float,
     request_id: Optional[str] = None,
 ):
-    db.insert_session_event(
-        session_id=session_id,
-        stage="mad",
-        to_status="MAD_RUNNING",
-        from_status="MAD_QUEUED",
-        request_id=request_id,
-    )
     try:
-        mad_out = await _run_mad_async(query, llm_answer)
-        if mad_out:
-            mad_routing = mad_out.routing_decision
-            mad_confidence = mad_out.aggregate_confidence
-            mad_output = mad_out.model_dump(mode="json")
-            cse_result = getattr(mad_out, "cse_result", None)
-            duration_ms = int((time.time() - t0) * 1000)
-            db.update_session_mad(
-                session_id=session_id,
-                mad_routing=mad_routing,
-                mad_confidence=mad_confidence,
-                mad_output_json=_sanitise_json_str(json.dumps(mad_output)),
-                mad_query_id=getattr(mad_out, "query_id", "") or "",
-                mad_rollout_id=getattr(mad_out, "rollout_id", "") or "",
-                pipeline_duration_ms=duration_ms,
-                cse_result_json=json.dumps(cse_result) if isinstance(cse_result, dict) else None,
-                langfuse_trace_id=getattr(mad_out, "langfuse_trace_id", None),
-            )
-            db.insert_session_event(
-                session_id=session_id,
-                stage="mad",
-                to_status="MAD_COMPLETED",
-                from_status="MAD_RUNNING",
-                message=f"MAD routing: {mad_routing}",
-                request_id=request_id,
-            )
-            logger.info(
-                "mad_completed",
-                extra={"session_id": session_id, "mad_routing": mad_routing},
-            )
+        repo_root = Path(__file__).resolve().parent.parent.parent
+        env = os.environ.copy()
+        env["PYTHONPATH"] = f"{repo_root}{os.pathsep}{env.get('PYTHONPATH', '')}"
+        proc = await asyncio.create_subprocess_exec(
+            sys.executable,
+            "-m",
+            "app.backend.mad_worker",
+            session_id,
+            request_id or "",
+            cwd=str(repo_root),
+            env=env,
+        )
+        return_code = await proc.wait()
+        if return_code != 0:
+            raise RuntimeError(f"MAD worker exited with code {return_code}")
     except Exception as exc:
         logger.error("mad_background_failed", extra={"session_id": session_id, "error": str(exc)}, exc_info=True)
         db.insert_session_event(
@@ -263,3 +244,7 @@ async def _run_mad_async(query: str, llm_answer: str):
         except ImportError:
             from multi_agent_debate.multi_agent.mad_pipeline import run_mad  # type: ignore[import]
         return await loop.run_in_executor(None, run_mad, query, llm_answer)
+
+
+def _run_mad_sync(query: str, llm_answer: str):
+    return asyncio.run(_run_mad_async(query, llm_answer))

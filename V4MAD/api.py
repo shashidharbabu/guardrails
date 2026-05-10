@@ -22,7 +22,7 @@ for _path in (str(_V4MAD_ROOT), str(_REPO_ROOT)):
     if _path not in sys.path:
         sys.path.insert(0, _path)
 
-from config import AGENT_A_MODEL, AGENT_B_MODEL, BASELINE_MODEL, DB_PATH
+from config import AGENT_A_MODEL, AGENT_B_MODEL, BASELINE_MODEL, DB_PATH, V4MAD_MAX_CLAIMS
 from db import (
     get_agent_output,
     get_claim_chunks,
@@ -65,6 +65,7 @@ class MADResponse(BaseModel):
     claims: list[ClaimOut]
     judge_verdicts: list[JudgeVerdictOut]
     debate_transcript: str
+    agent_outputs: dict[str, Any] = Field(default_factory=dict)
     query_id: str
     rollout_id: str
     cse_result: Optional[dict[str, Any]] = None
@@ -150,7 +151,39 @@ def _build_judge_outs(claims: list[dict], judge_verdicts: dict[str, dict]) -> li
     return outs
 
 
-def _build_transcript(query: str, claims: list[dict], routing: str, aggregate: float) -> str:
+def _agent_round_line(agent_outputs: dict[str, dict], claim_id: str, agent_role: str, round_num: int) -> str:
+    output = agent_outputs.get(claim_id, {}).get(agent_role, {}).get(round_num) or {}
+    verdict = output.get("verdict", "N/A")
+    confidence = output.get("confidence", "N/A")
+    reasoning = str(output.get("reasoning", "")).replace("\n", " ").strip()
+    if len(reasoning) > 260:
+        reasoning = reasoning[:257] + "..."
+    return f"{agent_role} r{round_num}: {verdict} conf={confidence} :: {reasoning}"
+
+
+def _judge_label(verdict: dict) -> str:
+    score = verdict.get("v_label")
+    try:
+        score = float(score)
+    except (TypeError, ValueError):
+        return "N/A"
+    if score == 1.0:
+        return "SUPPORTED"
+    if score == 0.5:
+        return "PARTIAL"
+    if score == 0.0:
+        return "NOT_SUPPORTED"
+    return "N/A"
+
+
+def _build_transcript(
+    query: str,
+    claims: list[dict],
+    routing: str,
+    aggregate: float,
+    agent_outputs: dict[str, dict],
+    judge_verdicts: dict[str, dict],
+) -> str:
     lines = [
         "V4MAD single-query run",
         f"Query: {query}",
@@ -159,7 +192,19 @@ def _build_transcript(query: str, claims: list[dict], routing: str, aggregate: f
         f"Claims: {len(claims)}",
     ]
     for claim in claims:
-        lines.append(f"- {claim.get('claim_id')}: {claim.get('claim_text')}")
+        claim_id = claim.get("claim_id")
+        judge = judge_verdicts.get(claim_id, {})
+        lines.append("")
+        lines.append(f"- {claim_id}: {claim.get('claim_text')}")
+        lines.append(f"  {_agent_round_line(agent_outputs, claim_id, 'agent_a', 0)}")
+        lines.append(f"  {_agent_round_line(agent_outputs, claim_id, 'agent_b', 0)}")
+        lines.append(f"  {_agent_round_line(agent_outputs, claim_id, 'agent_a', 1)}")
+        lines.append(f"  {_agent_round_line(agent_outputs, claim_id, 'agent_b', 1)}")
+        if judge:
+            lines.append(
+                f"  judge: {_judge_label(judge)} score={judge.get('v_label', 'N/A')} :: "
+                f"{str(judge.get('judge_reasoning', '')).replace(chr(10), ' ')[:260]}"
+            )
     return "\n".join(lines)
 
 
@@ -227,8 +272,9 @@ async def run_v4mad(
         state.update(await decompose_node(state))
         state["claims"] = get_claims_for_query(conn, query_id)
 
-    if max_claims is not None and max_claims > 0:
-        state["claims"] = state.get("claims", [])[:max_claims]
+    effective_max_claims = max_claims if max_claims is not None else V4MAD_MAX_CLAIMS
+    if effective_max_claims is not None and effective_max_claims > 0:
+        state["claims"] = state.get("claims", [])[:effective_max_claims]
 
     state.update(await claim_rag_node(state))
 
@@ -262,7 +308,8 @@ async def run_v4mad(
         correction_signal=None,
         claims=_build_claim_outs(claims, claim_chunks, agent_outputs),
         judge_verdicts=_build_judge_outs(claims, judge_verdicts),
-        debate_transcript=_build_transcript(query, claims, routing, aggregate),
+        debate_transcript=_build_transcript(query, claims, routing, aggregate, agent_outputs, judge_verdicts),
+        agent_outputs=agent_outputs,
         query_id=query_id,
         rollout_id=rollout_id,
         cse_result=None,

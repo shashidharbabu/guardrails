@@ -305,6 +305,15 @@ export default function SessionTrace() {
   const judgeMs = totalMs ? totalMs - gatewayMs - llmMs - madMs : 0
   const confidence = mad?.aggregate_confidence ?? mad?.confidence_score
   const confClass = confidence == null ? '' : confidence >= 0.75 ? 'conf-high' : confidence >= 0.45 ? 'conf-mid' : 'conf-low'
+  const claimCount = (mad?.claims ?? mad?.debate_cycles ?? []).length
+  const claimEvidenceIds = mad?.claims?.flatMap(claim => claim.evidence_chunks || []) || []
+  const uniqueEvidenceCount = new Set(claimEvidenceIds).size
+  const perClaimTopK = mad?.claims?.length
+    ? Math.max(...mad.claims.map(claim => claim.evidence_chunks?.length || 0))
+    : (mad?.evidence_pool?.length || 0)
+  const ragBadge = mad?.claims?.length
+    ? `${claimCount} claims × top-${perClaimTopK} · ${uniqueEvidenceCount} evidence refs`
+    : `${mad?.evidence_pool?.length || 0} chunks · Recall@1 94.9%`
 
   return (
     <div>
@@ -469,7 +478,7 @@ export default function SessionTrace() {
               iconClass="si-i"
               title="RAG Pipeline"
               timeLabel={`${gatewayMs}ms → ${gatewayMs + llmMs}ms`}
-              badge={`${mad.evidence_pool?.length || 0} chunks · Recall@1 94.9%`}
+              badge={ragBadge}
               badgeClass="b-bank"
             >
               <div className="span-row">
@@ -490,7 +499,9 @@ export default function SessionTrace() {
                     Qdrant retrieval + BM25 hybrid + cross-encoder reranking
                   </div>
                   <div className="ssub">
-                    Top-{mad.evidence_pool?.length || 0} chunks · tier-aware authority scoring
+                    {mad.claims?.length
+                      ? `Claim-level top-${perClaimTopK} retrieval · ${uniqueEvidenceCount} unique evidence refs`
+                      : `Top-${mad.evidence_pool?.length || 0} chunks · tier-aware authority scoring`}
                   </div>
                 </div>
               </div>
@@ -539,7 +550,7 @@ export default function SessionTrace() {
                 <div style={{ flex: 1 }}>
                   <div className="slbl">Multi-Agent Debate running in background</div>
                   <div className="ssub">
-                    ~5–10 min · 2 cycles · Ollama qwen2.5:7b · auto-refreshing every 10s
+                    ~5–10 min · 2 cycles · V4MAD LoRA agents · auto-refreshing every 10s
                   </div>
                 </div>
               </div>

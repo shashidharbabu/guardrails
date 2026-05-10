@@ -14,15 +14,33 @@ then this node assigns:
 import sys
 from pathlib import Path
 
+import httpx
+
 _V4MAD_ROOT = Path(__file__).resolve().parents[1]
 _REPO_ROOT = _V4MAD_ROOT.parent
 sys.path.insert(0, str(_V4MAD_ROOT))
 sys.path.insert(0, str(_REPO_ROOT))
 
-from config import MAD_USE_LIVE_RAG
+from config import MAD_USE_LIVE_RAG, RAG_V2_REMOTE_TIMEOUT, RAG_V2_REMOTE_URL
 from db import get_db_conn, insert_claim_chunks
 from rag_rerank import assign_chunks, assign_ranked_chunks
 from schemas import MADState
+
+
+async def _retrieve_remote_rag(query: str, state: MADState) -> dict:
+    async with httpx.AsyncClient(timeout=RAG_V2_REMOTE_TIMEOUT) as client:
+        response = await client.post(
+            f"{RAG_V2_REMOTE_URL}/retrieve",
+            json={
+                "query": query,
+                "session_id": state["query_id"],
+                "agent_id": "shared",
+                "round_num": 0,
+                "k": 5,
+            },
+        )
+        response.raise_for_status()
+        return response.json()
 
 
 async def claim_rag_node(state: MADState) -> dict:
@@ -34,7 +52,7 @@ async def claim_rag_node(state: MADState) -> dict:
     claim_chunks: dict[str, dict] = {}
 
     rag_service = None
-    if MAD_USE_LIVE_RAG:
+    if MAD_USE_LIVE_RAG and not RAG_V2_REMOTE_URL:
         from rag_v2.rag_service import get_service
         rag_service = get_service(verbose=False)
 
@@ -42,9 +60,14 @@ async def claim_rag_node(state: MADState) -> dict:
         claim_id   = claim["claim_id"]
         claim_text = claim["claim_text"]
 
-        if rag_service is not None:
+        retrieval_query = f"{claim_text}. Context: {user_query}"
+
+        if RAG_V2_REMOTE_URL:
+            retrieved = await _retrieve_remote_rag(retrieval_query, state)
+            assignment = assign_ranked_chunks(retrieved["chunks"])
+        elif rag_service is not None:
             retrieved = rag_service.retrieve_for_cod(
-                query=f"{claim_text}. Context: {user_query}",
+                query=retrieval_query,
                 session_id=state["query_id"],
                 agent_id="shared",
                 round_num=0,
