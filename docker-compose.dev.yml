@@ -46,11 +46,14 @@ services:
       BASELINE_BASE_URL: http://host.docker.internal:11434/v1
       DECOMPOSER_BASE_URL: http://host.docker.internal:11434/v1
       MAD_DB_PATH: /tmp/mad_v4.db
+      RAG_V2_REMOTE_URL: http://rag-service:8010
       DISABLE_AUTH: "true"
       LOG_LEVEL: DEBUG
       CORS_ALLOWED_ORIGINS: "http://localhost:5173,http://localhost:4173"
     depends_on:
       postgres:
+        condition: service_healthy
+      rag-service:
         condition: service_healthy
     volumes:
       - ./app:/app/app
@@ -69,6 +72,28 @@ services:
         condition: service_healthy
       gateway:
         condition: service_healthy
+
+  rag-service:
+    build:
+      context: .
+      dockerfile: rag_v2/Dockerfile
+    env_file:
+      - .env
+    ports:
+      - "8010:8010"
+    environment:
+      RAG_V2_BASE_DIR: /app/rag_v2
+      RAG_V2_QDRANT_PATH: /app/rag_v2/indexes_qdrant_data
+      RAG_V2_BM25_PATH: /app/rag_v2/bm25_combined.pkl
+      RAG_V2_OLD_CHUNKS_PATH: /app/rag_v2/data/enriched_chunks.json
+      RAG_V2_HC_CHUNKS_PATH: /app/rag_v2/data/healthcare_enriched_chunks.jsonl
+      RAG_V2_DENSE_DEVICE: cpu
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8010/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 600s
 
   mad:
     build:
