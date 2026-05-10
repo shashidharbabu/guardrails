@@ -12,7 +12,9 @@ _conn: Optional[sqlite3.Connection] = None
 def get_db_conn(path: str = None) -> sqlite3.Connection:
     global _conn
     if _conn is None:
-        _conn = sqlite3.connect(path or str(DB_PATH), check_same_thread=False)
+        db_path = Path(path or str(DB_PATH))
+        db_path.parent.mkdir(parents=True, exist_ok=True)
+        _conn = sqlite3.connect(str(db_path), check_same_thread=False)
         _conn.execute("PRAGMA journal_mode=WAL")
         _conn.execute("PRAGMA synchronous=NORMAL")
         _conn.row_factory = sqlite3.Row

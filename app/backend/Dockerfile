@@ -31,6 +31,8 @@ COPY --from=builder /install /usr/local
 
 # Copy application source
 COPY app/ ./app/
+COPY V4MAD/ ./V4MAD/
+COPY rag_v2/ ./rag_v2/
 COPY multi_agent_debate/ ./multi_agent_debate/
 
 RUN chown -R guardrails:guardrails /app

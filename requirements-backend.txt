@@ -13,3 +13,6 @@ passlib[bcrypt]>=1.7.4,<2.0
 prometheus-fastapi-instrumentator>=6.1.0,<7.0  # Prometheus metrics
 anthropic>=0.40.0,<1.0                        # Claude SDK (co-pilot)
 redis>=5.0.0,<6.0                             # Queue / cache
+openai>=1.0.0,<2.0                            # OpenAI-compatible V4MAD model clients
+numpy>=1.26.0,<3.0                            # V4MAD chunk assignment helpers
+scikit-learn>=1.4.0,<2.0                      # V4MAD TF-IDF fallback reranker

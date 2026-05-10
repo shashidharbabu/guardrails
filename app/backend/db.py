@@ -138,7 +138,8 @@ human_reviews_table = Table(
 
 def init_db():
     metadata.create_all(engine)
-    _migrate_sessions_table()
+    if _is_sqlite:
+        _migrate_sessions_table()
     _add_indexes()
 
 

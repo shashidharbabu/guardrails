@@ -33,6 +33,8 @@ services:
     build:
       context: .
       dockerfile: app/backend/Dockerfile
+    env_file:
+      - .env
     ports:
       - "8000:8000"
     environment:
@@ -40,6 +42,10 @@ services:
       DATABASE_URL: postgresql://guardrails:guardrails_dev@postgres:5432/guardrails
       REDIS_URL: redis://redis:6379/0
       GATEWAY_URL: http://gateway:8080
+      LLM_PROVIDER_URL: http://host.docker.internal:11434
+      BASELINE_BASE_URL: http://host.docker.internal:11434/v1
+      DECOMPOSER_BASE_URL: http://host.docker.internal:11434/v1
+      MAD_DB_PATH: /tmp/mad_v4.db
       DISABLE_AUTH: "true"
       LOG_LEVEL: DEBUG
       CORS_ALLOWED_ORIGINS: "http://localhost:5173,http://localhost:4173"
@@ -58,6 +64,11 @@ services:
       - "5173:8080"
     environment:
       VITE_APP_ENV: development
+    depends_on:
+      backend:
+        condition: service_healthy
+      gateway:
+        condition: service_healthy
 
   mad:
     build:
@@ -102,6 +113,8 @@ services:
       PII_MODEL_PATH: ${PII_MODEL_PATH:-iiiorg/piiranha-v1-detect-personal-information}
       THREAT_MODEL_PATH: ${THREAT_MODEL_PATH:-jackhhao/jailbreak-classifier}
       PROMPT_INJECTION_MODEL_PATH: ${PROMPT_INJECTION_MODEL_PATH:-protectai/deberta-v3-base-prompt-injection-v2}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      JUDGE_BACKEND: ${JUDGE_BACKEND:-claude}
     volumes:
       - ./gateway:/app/gateway
 
