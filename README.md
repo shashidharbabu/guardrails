@@ -714,7 +714,7 @@ Agent LoRA adapters (`agent-a-adapters/`, `agent-b-adapters/`) are included in t
 
 | Name | GitHub | Role |
 |---|---|---|
-| Shashidhar Babu | [@shashidharbabu](https://github.com/shashidharbabu) | Project lead, MAD pipeline, RLHF, deployment |
+| Shashidhar Babu | [@shashidharbabu](https://github.com/shashidharbabu) | Project lead |
 | Harshita Sayala | [@harshitasayala10](https://github.com/harshitasayala10) | Collaborator |
 | Nakshatra Desai | [@Nak1106](https://github.com/Nak1106) | Collaborator |
 | Vimalanandhan Sivanandham | [@Vimalanandhan](https://github.com/Vimalanandhan) | Collaborator |
