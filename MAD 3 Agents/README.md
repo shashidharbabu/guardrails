@@ -209,3 +209,8 @@ Stage 3: Qwen2.5-7B-Instruct fine-tuned with Unsloth GRPO.
          GRPO generates 4 completions per prompt, updates toward higher Brier reward.
          Result: model learns calibrated, evidence-grounded verdict reasoning.
 ```
+
+
+---
+
+Prepared and contributed by **Vimalanandhan Sivanandham** for the MAD 3 Agents capstone pipeline.
