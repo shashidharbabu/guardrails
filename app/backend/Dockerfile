@@ -31,7 +31,6 @@ COPY --from=builder /install /usr/local
 
 # Copy application source
 COPY app/ ./app/
-COPY multi_agent/ ./multi_agent/
 COPY multi_agent_debate/ ./multi_agent_debate/
 
 RUN chown -R guardrails:guardrails /app
@@ -48,7 +47,7 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
 
 CMD ["gunicorn", "app.backend.main:app", \
      "-k", "uvicorn.workers.UvicornWorker", \
-     "--workers", "4", \
+     "--workers", "1", \
      "--bind", "0.0.0.0:8000", \
      "--timeout", "120", \
      "--access-logfile", "-", \

@@ -109,7 +109,7 @@ function ConfigPanel({ title, children, footer }) {
 
 /* ─── Main page ──────────────────────────────────────────────── */
 export default function Settings() {
-  const backendHealth = useServiceHealth('/healthz')
+  const backendHealth = useServiceHealth('/api/health')
   const gatewayHealth = useServiceHealth('/api/gateway/health')
   const [gatewayConfig, setGatewayConfig] = useState(null)
 

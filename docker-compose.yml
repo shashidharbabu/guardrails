@@ -62,9 +62,9 @@ services:
       PI_INFERENCE_URL: ""
       JB_INFERENCE_URL: ""
       # Fallback local model paths (used only when *_INFERENCE_URL is empty)
-      PII_MODEL_PATH: vineeth453/qwen25-7b-pii-detection-lora
-      THREAT_MODEL_PATH: Qwen/Qwen2.5-3B-Instruct
-      PROMPT_INJECTION_MODEL_PATH: harshitasayala/pi-llama31-8b
+      PII_MODEL_PATH: dslim/bert-base-NER
+      THREAT_MODEL_PATH: jackhhao/jailbreak-classifier
+      PROMPT_INJECTION_MODEL_PATH: protectai/deberta-v3-base-prompt-injection-v2
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8080/health')"]
       interval: 30s
@@ -83,11 +83,18 @@ services:
     environment:
       APP_ENV: development
       EMBED_MODEL: Qwen/Qwen3-Embedding-4B
-      JUDGE_MODEL_NAME: claude-haiku-4-5-20251001
-      AGENTS_MODEL_NAME: agent_a
-      # vLLM — set VLLM_URL to your local vLLM instance if running one
-      # VLLM_URL: http://host.docker.internal:8000/v1
-      VLLM_URL: ""
+      OLLAMA_BASE_URL: http://host.docker.internal:11434/v1
+      VLLM_BASELINE_URL: http://host.docker.internal:11434/v1
+      VLLM_DECOMPOSER_URL: http://host.docker.internal:11434/v1
+      VLLM_AGENTS_URL: http://host.docker.internal:11434/v1
+      VLLM_JUDGE_URL: http://host.docker.internal:11434/v1
+      AGENTS_MODEL_NAME: qwen2.5:7b
+      AGENT_A_MODEL_NAME: qwen2.5:7b
+      AGENT_B_MODEL_NAME: qwen2.5:7b
+      JUDGE_MODEL_NAME: qwen2.5:7b
+      SQLITE_DB_PATH: /app/data/mad.db
+      CLAIM_CONCURRENCY: "2"
+      LANGCHAIN_CACHE_DB: ""
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8001/mad/health')"]
       interval: 30s
@@ -126,6 +133,9 @@ services:
       DATABASE_URL: postgresql://guardrails:guardrails_dev@postgres:5432/guardrails
       REDIS_URL: redis://redis:6379/0
       GATEWAY_URL: http://gateway:8080
+      LLM_PROVIDER_TYPE: ollama
+      LLM_PROVIDER_URL: http://host.docker.internal:11434
+      DEFAULT_LLM_MODEL: qwen2.5:7b
       MAD_MODE: api
       MAD_API_URL: http://mad-api:8001/mad/verify
       FEEDBACK_API_URL: http://rlhf:8002
@@ -160,6 +170,7 @@ services:
     environment:
       VITE_APP_ENV: development
       VITE_API_URL: http://localhost:8000
+      BACKEND_URL: http://backend:8000
     depends_on:
       - backend
 

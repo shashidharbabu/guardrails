@@ -1,3 +1,7 @@
+# API server
+fastapi>=0.110.0
+uvicorn>=0.29.0
+
 # Core orchestration
 langgraph>=0.2.50
 langchain>=0.3.0

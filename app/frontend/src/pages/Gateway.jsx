@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion'
 import PageHeader from '../components/PageHeader'
 import MetricCard from '../components/MetricCard'
@@ -493,7 +493,7 @@ function TabAuditLogs() {
   const [filter, setFilter] = useState('ALL')
   const [limit, setLimit] = useState(50)
 
-  const load = useCallback(async () => {
+  async function load() {
     setLoading(true)
     setError(null)
     try {
@@ -504,9 +504,9 @@ function TabAuditLogs() {
     } finally {
       setLoading(false)
     }
-  }, [limit])
+  }
 
-  useEffect(() => { load() }, [load])
+  useEffect(() => { load() }, [limit])
 
   const filtered = filter === 'ALL' ? events : events.filter(e => e.decision === filter)
 
