@@ -63,11 +63,24 @@ async def _ping_http(url: str, timeout: float = 3.0) -> None:
         r.raise_for_status()
 
 
-def _ollama_base_url() -> str:
+def _llm_health_url() -> str:
+    """
+    Return a health-check URL that works for both Ollama and vLLM/OpenAI-compatible servers.
+    Ollama exposes GET /api/tags; vLLM and OpenAI-compatible servers expose GET /v1/models.
+    We prefer /v1/models (works for both) when LLM_PROVIDER_TYPE != 'ollama'.
+    """
     base = settings.LLM_PROVIDER_URL.rstrip("/")
-    if base.endswith("/v1"):
-        base = base[:-3]
-    return base
+    provider_type = getattr(settings, "LLM_PROVIDER_TYPE", "ollama") or "ollama"
+    if provider_type.lower() == "ollama":
+        # Strip trailing /v1 to get Ollama base, then use its native tag endpoint
+        if base.endswith("/v1"):
+            base = base[:-3]
+        return f"{base}/api/tags"
+    # vLLM / custom OpenAI-compatible — /v1/models is always present
+    if not base.endswith("/v1"):
+        base = f"{base}/v1"
+    return f"{base}/models"
+
 
 
 @router.get("/health")
@@ -90,28 +103,35 @@ async def system_health(user: UserContext = Depends(get_current_user)):
     provider = getattr(settings, "LLM_PROVIDER_TYPE", "ollama").lower()
     if provider == "sagemaker":
         async def _check_sagemaker_llm():
-            import boto3, json as _json, asyncio
+            import asyncio
+            import boto3
+
             endpoint = getattr(settings, "LLM_SAGEMAKER_ENDPOINT", "spartanguard-agents")
             region = getattr(settings, "AWS_REGION", "us-west-2")
+
             def _describe():
                 sm = boto3.client("sagemaker", region_name=region)
                 ep = sm.describe_endpoint(EndpointName=endpoint)
                 if ep["EndpointStatus"] != "InService":
                     raise RuntimeError(f"Endpoint {endpoint} status: {ep['EndpointStatus']}")
+
             loop = asyncio.get_event_loop()
             await loop.run_in_executor(None, _describe)
+
         results.append(await _check_async("llm_runtime", _check_sagemaker_llm))
     elif provider == "claude":
         async def _check_claude():
             import anthropic
+
             client = anthropic.AsyncAnthropic(api_key=settings.ANTHROPIC_API_KEY)
             await client.models.list()
+
         results.append(await _check_async("llm_runtime", _check_claude))
     else:
         results.append(
             await _check_async(
                 "llm_runtime",
-                lambda: _ping_http(f"{_ollama_base_url()}/api/tags", timeout=5.0),
+                lambda: _ping_http(_llm_health_url(), timeout=5.0),
             )
         )
 

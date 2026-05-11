@@ -1,0 +1,105 @@
+# Overlay for GPU/vLLM adapter serving.
+# Use on top of docker-compose.dev.yml when a GPU host is available.
+#
+# Usage:
+#   docker compose -f docker-compose.dev.yml -f docker-compose.vllm.yml up
+#
+# Prerequisites:
+#   1. Download adapter zips from Google Drive (see docs/GRPO_LORA_DEPLOYMENT.md)
+#   2. Unzip into repo root so these paths exist:
+#        agent-a-adapters/adapter_model.safetensors
+#        agent-b-adapters/adapter_model.safetensors
+#   3. NVIDIA Container Toolkit installed on the host
+#   4. Set HF_TOKEN in a .env file at repo root (needed to pull the base model)
+
+version: "3.9"
+
+services:
+  # Single vLLM process — base model loaded once, both LoRA adapters registered at startup.
+  # Agent A and Agent B are routed by model name ("agent_a" / "agent_b").
+  vllm:
+    image: vllm/vllm-openai:latest
+    runtime: nvidia
+    environment:
+      HUGGING_FACE_HUB_TOKEN: ${HF_TOKEN}
+    ports:
+      - "8001:8000"
+    volumes:
+      - ./agent-a-adapters:/models/agent_a
+      - ./agent-b-adapters:/models/agent_b
+      - vllm_cache:/root/.cache/huggingface
+    command: >
+      --model Qwen/Qwen2.5-14B-Instruct
+      --host 0.0.0.0
+      --port 8000
+      --enable-lora
+      --lora-modules agent_a=/models/agent_a agent_b=/models/agent_b
+      --max-lora-rank 16
+      --max-model-len 32768
+      --gpu-memory-utilization 0.90
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/v1/models"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 120s
+
+  # Judge — separate vLLM process for the 32B judge model (needs its own GPU or larger node).
+  # Comment this out and set VLLM_JUDGE_URL=http://vllm:8000/v1 to share the same server
+  # with a smaller judge model (e.g. Qwen2.5-14B-Instruct) if only one GPU is available.
+  vllm-judge:
+    image: vllm/vllm-openai:latest
+    runtime: nvidia
+    environment:
+      HUGGING_FACE_HUB_TOKEN: ${HF_TOKEN}
+    ports:
+      - "8002:8000"
+    volumes:
+      - vllm_cache:/root/.cache/huggingface
+    command: >
+      --model Qwen/Qwen2.5-32B-Instruct
+      --host 0.0.0.0
+      --port 8000
+      --max-model-len 32768
+      --gpu-memory-utilization 0.90
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/v1/models"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 180s
+
+  # Override backend env to point at the vLLM containers instead of Ollama
+  backend:
+    environment:
+      LLM_PROVIDER_TYPE: vllm
+      VLLM_AGENTS_URL: http://vllm:8000/v1
+      VLLM_JUDGE_URL: http://vllm-judge:8000/v1
+      VLLM_DECOMPOSER_URL: http://vllm:8000/v1
+      VLLM_BASELINE_URL: http://vllm:8000/v1
+      AGENT_A_MODEL_NAME: agent_a
+      AGENT_B_MODEL_NAME: agent_b
+      AGENTS_MODEL_NAME: agent_a
+      JUDGE_MODEL_NAME: Qwen/Qwen2.5-32B-Instruct
+      DECOMPOSER_MODEL_NAME: Qwen/Qwen2.5-14B-Instruct
+      BASELINE_MODEL_NAME: Qwen/Qwen2.5-14B-Instruct
+    depends_on:
+      vllm:
+        condition: service_healthy
+
+volumes:
+  vllm_cache:

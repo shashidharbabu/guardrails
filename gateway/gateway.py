@@ -54,17 +54,14 @@ class GuardrailGateway:
         pi_override_threshold: float = 0.7,
         pii_override_threshold: float = 0.9,
     ):
-        base_dir = os.path.dirname(__file__)
         pii_model_path = pii_model_path or os.environ.get(
-            "PII_MODEL_PATH", os.path.join(base_dir, "models", "pii_ner_model")
+            "PII_MODEL_PATH", "dslim/bert-base-NER"
         )
         threat_model_path = threat_model_path or os.environ.get(
-            "THREAT_MODEL_PATH",
-            os.path.join(base_dir, "models", "threat_classifier_model"),
+            "THREAT_MODEL_PATH", "jackhhao/jailbreak-classifier"
         )
         pi_model_path = pi_model_path or os.environ.get(
-            "PROMPT_INJECTION_MODEL_PATH",
-            "meta-llama/Llama-Prompt-Guard-2-86M",
+            "PROMPT_INJECTION_MODEL_PATH", "protectai/deberta-v3-base-prompt-injection-v2"
         )
 
         self._pii_validator = CustomPIIValidator(
@@ -110,7 +107,7 @@ class GuardrailGateway:
         jb_score = 0.0
         pi_score = 0.0
         pii_entities = []
-        validation_error = None
+        validator_failed = False
 
         # Call each validator directly — Guard history is unreliable for multi-validator PassResult metadata
         try:
@@ -120,7 +117,7 @@ class GuardrailGateway:
             pii_entities = pii_meta.get("pii_entities", [])
         except Exception as exc:
             print(f"[Gateway] PII validator error: {exc}")
-            validation_error = str(exc)
+            validator_failed = True
 
         try:
             jb_result = self._threat_validator.validate(user_input, {})
@@ -128,8 +125,7 @@ class GuardrailGateway:
             jb_score = float(jb_meta.get("jb_score", 0.0))
         except Exception as exc:
             print(f"[Gateway] JB validator error: {exc}")
-            if not validation_error:
-                validation_error = str(exc)
+            validator_failed = True
 
         try:
             pi_result = self._pi_validator.validate(user_input, {})
@@ -137,8 +133,21 @@ class GuardrailGateway:
             pi_score = float(pi_meta.get("pi_score", 0.0))
         except Exception as exc:
             print(f"[Gateway] PI validator error: {exc}")
-            if not validation_error:
-                validation_error = str(exc)
+            validator_failed = True
+
+        if validator_failed:
+            result = GatewayResult(
+                decision=Decision.ESCALATE,
+                gateway_score=self._engine.pass_threshold,
+                pii_score=0.0,
+                jb_score=0.0,
+                pi_score=0.0,
+                threat_types=["VALIDATOR_ERROR"],
+                blocked_reason="Flagged for review — validator unavailable, scores unverified",
+                raw_input=user_input,
+            )
+            event_logger.log_event(result)
+            return result
 
         result = self._engine.decide(
             raw_input=user_input,
@@ -147,22 +156,6 @@ class GuardrailGateway:
             pi_score=pi_score,
             pii_entities=pii_entities,
         )
-
-        if validation_error and result.decision == Decision.PASS:
-            result = GatewayResult(
-                decision=Decision.ESCALATE,
-                gateway_score=max(result.gateway_score, self._engine.pass_threshold),
-                pii_score=pii_score,
-                jb_score=jb_score,
-                pi_score=pi_score,
-                pii_entities=pii_entities,
-                threat_types=["VALIDATOR_ERROR"],
-                blocked_reason=(
-                    "Gateway validator unavailable; routed to analyst review instead of passing. "
-                    f"Error: {validation_error[:240]}"
-                ),
-                raw_input=user_input,
-            )
 
         event_logger.log_event(result)
         return result

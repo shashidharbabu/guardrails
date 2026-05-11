@@ -47,9 +47,9 @@ app.add_middleware(
 # ---------------------------------------------------------------------------
 
 _DEFAULT_MODELS = {
-    "pii":              os.environ.get("PII_MODEL_PATH", "vineeth453/qwen25-7b-pii-detection-lora"),
-    "jailbreak":        os.environ.get("THREAT_MODEL_PATH", "Qwen/Qwen2.5-3B-Instruct"),
-    "prompt_injection": os.environ.get("PROMPT_INJECTION_MODEL_PATH", "harshitasayala/pi-llama31-8b"),
+    "pii":              os.environ.get("PII_MODEL_PATH", "dslim/bert-base-NER"),
+    "jailbreak":        os.environ.get("THREAT_MODEL_PATH", "jackhhao/jailbreak-classifier"),
+    "prompt_injection": os.environ.get("PROMPT_INJECTION_MODEL_PATH", "protectai/deberta-v3-base-prompt-injection-v2"),
 }
 
 _DEFAULT_THRESHOLDS = {
@@ -142,16 +142,9 @@ def validate_input(request: ValidateRequest):
 
 @app.get("/health")
 def health():
-    from gateway.validators.pii_validator import CustomPIIValidator
-    from gateway.validators.threat_validator import CustomThreatValidator
-    from gateway.validators.pi_validator import CustomPIValidator
     return {
         "status": "ok",
-        "models_loaded": {
-            "pii":              bool(CustomPIIValidator._PIPELINE_CACHE),
-            "jailbreak":        bool(CustomThreatValidator._PIPELINE_CACHE),
-            "prompt_injection": bool(CustomPIValidator._PIPELINE_CACHE),
-        },
+        "validators": "hf-serverless (stateless HTTP — no local models)",
         "active_models": _config["models"],
     }
 
@@ -205,25 +198,13 @@ def update_config(body: ConfigUpdateRequest):
             if key in _config["thresholds"] and val is not None:
                 _config["thresholds"][key] = float(val)
 
-    # If model paths changed, clear the pipeline caches so new models are loaded
-    if model_changed:
-        from gateway.validators.pii_validator import CustomPIIValidator
-        from gateway.validators.threat_validator import CustomThreatValidator
-        from gateway.validators.pi_validator import CustomPIValidator
-        CustomPIIValidator._PIPELINE_CACHE.clear()
-        CustomThreatValidator._PIPELINE_CACHE.clear()
-        CustomPIValidator._PIPELINE_CACHE.clear()
-
-    # Re-create gateway with updated config
-    # If no model change: models are still in cache → fast
-    # If model change: cache was cleared → models reload on first .process() call
+    # Re-create gateway — validators are stateless HTTP clients, model path change is instant
     _gateway = _build_gateway()
 
     return {
         "status": "ok",
         "config": _config,
-        "model_reload_triggered": model_changed,
-        "note": "Model reload happens lazily on next /validate call (~30-60s warmup)" if model_changed else None,
+        "model_changed": model_changed,
     }
 
 

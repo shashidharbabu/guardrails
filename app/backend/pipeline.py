@@ -21,6 +21,12 @@ from app.backend.config import get_settings
 logger = logging.getLogger(__name__)
 settings = get_settings()
 
+
+def _sanitise_json_str(s: str) -> str:
+    """Strip control characters that break JSON serialisation (e.g. raw tabs in LLM output)."""
+    import re
+    return re.sub(r'[\x00-\x08\x0b\x0c\x0e-\x1f]', ' ', s)
+
 SYSTEM_PROMPT = (
     "You are an enterprise compliance assistant. Answer questions about regulatory "
     "requirements accurately and concisely based on your knowledge of healthcare, "
@@ -158,7 +164,7 @@ async def _run_mad_background(
                 session_id=session_id,
                 mad_routing=mad_routing,
                 mad_confidence=mad_confidence,
-                mad_output_json=json.dumps(mad_output),
+                mad_output_json=_sanitise_json_str(json.dumps(mad_output)),
                 mad_query_id=getattr(mad_out, "query_id", "") or "",
                 mad_rollout_id=getattr(mad_out, "rollout_id", "") or "",
                 pipeline_duration_ms=duration_ms,
@@ -178,16 +184,20 @@ async def _run_mad_background(
                 extra={"session_id": session_id, "mad_routing": mad_routing},
             )
         else:
-            message = "MAD unavailable or disabled; session retained with LLM answer only."
             db.insert_session_event(
                 session_id=session_id,
                 stage="mad",
                 to_status="MAD_UNAVAILABLE",
                 from_status="MAD_RUNNING",
-                message=message,
+                error_code="MAD_UNAVAILABLE",
+                error_message="MAD service returned no result",
                 request_id=request_id,
             )
-            db.update_session_status(session_id, "MAD_UNAVAILABLE")
+            db.update_session_status(
+                session_id,
+                "MAD_UNAVAILABLE",
+                error_message="MAD service returned no result",
+            )
             logger.warning("mad_unavailable", extra={"session_id": session_id})
     except Exception as exc:
         logger.error("mad_background_failed", extra={"session_id": session_id, "error": str(exc)}, exc_info=True)

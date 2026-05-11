@@ -2,17 +2,17 @@ import { Link } from 'react-router-dom'
 import { motion, useReducedMotion } from 'framer-motion'
 
 const MODULES = [
-  ['Gateway Control', 'Preflight enforcement for PII, jailbreak, and prompt-injection risk before model execution.'],
-  ['Evidence Review', 'Trace decisions back to policy evidence, retrieval context, and reviewer outcomes.'],
-  ['Human Escalation', 'Route ambiguous requests to analysts with clear action history and feedback capture.'],
-  ['Risk Reporting', 'Operational metrics for safety posture, decision trends, review load, and model health.'],
+  ['Gateway', 'Preflight policy enforcement for PII, jailbreak, and prompt-injection risk before model execution.'],
+  ['Evaluation', 'Benchmark guardrail quality, retrieval confidence, and MAD outcomes with executive-ready evidence.'],
+  ['Review', 'Human-in-the-loop queues for escalations, false-positive triage, and analyst feedback capture.'],
+  ['Analytics', 'Operational safety metrics, decision trends, latency distribution, and model health in one place.'],
 ]
 
 const SIGNALS = [
-  ['Policy checks', 'PII, jailbreak, and injection controls'],
-  ['Evidence trace', 'Decision history ready for review'],
-  ['Human review', 'Escalations routed to analysts'],
-  ['Gateway-ready', 'Production enforcement workflow'],
+  ['99.9%', 'policy uptime target'],
+  ['4.7k', 'governance evidence chunks'],
+  ['3-layer', 'gateway, RAG, MAD verification'],
+  ['SOC-ready', 'audit and review workflow'],
 ]
 
 export default function Landing() {
@@ -29,7 +29,7 @@ export default function Landing() {
         <Link to="/" className="brand-lockup">
           <span className="brand-mark" aria-hidden="true" />
           <span>
-            <strong>SpartanGuard</strong>
+            <strong>Guardrails</strong>
             <small>Enterprise AI Safety</small>
           </span>
         </Link>
@@ -46,10 +46,10 @@ export default function Landing() {
 
       <section className="landing-hero">
         <motion.div className="hero-copy" {...reveal}>
-          <div className="eyebrow">Enterprise AI safety operations</div>
-          <h1>Control production AI risk before it reaches your users.</h1>
+          <div className="eyebrow">AI governance, evaluation, and enforcement</div>
+          <h1>Operate production AI with guardrails your risk team can trust.</h1>
           <p>
-            SpartanGuard gives safety, product, and compliance teams one operating layer for policy enforcement, review, evidence, and audit readiness.
+            Guardrails unifies live gateway enforcement, evaluation, monitoring, and human review into a premium control plane for enterprise AI safety.
           </p>
           <div className="hero-actions">
             <Link to="/request-access" className="btn btn-primary btn-xl">Request enterprise access</Link>
@@ -79,7 +79,7 @@ export default function Landing() {
           </div>
           <div className="preview-grid">
             <div className="preview-main">
-              <div className="preview-title">Production decision stream</div>
+              <div className="preview-title">Gateway decision stream</div>
               {['PASS', 'ESCALATE', 'BLOCK', 'PASS'].map((status, i) => (
                 <div key={`${status}-${i}`} className={`preview-row ${status.toLowerCase()}`}>
                   <span>{status}</span>
@@ -103,7 +103,7 @@ export default function Landing() {
 
       <section id="platform" className="landing-section">
         <div className="section-kicker">One platform</div>
-        <h2>A control plane for AI teams that need enforcement, evidence, and accountability.</h2>
+        <h2>Policy enforcement, observability, and review designed as one operating system.</h2>
         <div className="module-grid">
           {MODULES.map(([title, copy]) => (
             <article key={title} className="module-card">
@@ -118,9 +118,9 @@ export default function Landing() {
       <section id="workflow" className="workflow-band">
         <div>
           <div className="section-kicker">Operational clarity</div>
-          <h2>Every decision carries the outcome, evidence, and review path your teams need.</h2>
+          <h2>Every decision carries the evidence, trace, and review path your teams need.</h2>
           <p>
-            Route risky requests before they reach models, inspect client-safe session traces, compare safety performance, and close the loop with analyst feedback.
+            Route risky requests before they reach models, inspect full session traces, compare evaluation performance, and close the loop with analyst feedback.
           </p>
         </div>
         <div className="workflow-steps">
@@ -138,11 +138,11 @@ export default function Landing() {
           <div className="section-kicker">Built for serious AI teams</div>
           <h2>Give safety, product, and compliance teams the same source of truth.</h2>
         </div>
-        <Link to="/request-access" className="btn btn-primary btn-xl">Request access</Link>
+        <Link to="/request-access" className="btn btn-primary btn-xl">Start with Guardrails</Link>
       </section>
 
       <footer className="public-footer">
-        <span>SpartanGuard</span>
+        <span>Guardrails</span>
         <span>Enterprise AI safety platform</span>
         <Link to="/sign-in">Sign in</Link>
       </footer>

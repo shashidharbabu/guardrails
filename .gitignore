@@ -47,6 +47,12 @@ app/.langchain_cache.db
 multi_agent_debate/*.db
 multi_agent_debate/*.db-shm
 multi_agent_debate/*.db-wal
+*.db
+*.db-shm
+*.db-wal
+
+# DeepEval cache
+.deepeval/
 
 # OS
 .DS_Store
@@ -66,6 +72,7 @@ data/
 !config/*.yaml
 !rlhf/data/
 !rlhf/data/*.json
+!multi_agent_debate/**/examples/*.json
 
 # Node.js / Frontend
 node_modules/
@@ -77,3 +84,21 @@ app/frontend/.env.local
 dist/
 build/
 *.egg-info/
+
+
+
+# GRPO adapter weights — too large for GitHub (263 MB each), stored in Google Drive
+# See docs/GRPO_LORA_DEPLOYMENT.md for artifact location
+agent-a-adapters/adapter_model.safetensors
+agent-b-adapters/adapter_model.safetensors
+# Allow adapter configs and tokenizer files despite *.json rule above
+!agent-a-adapters/adapter_config.json
+!agent-a-adapters/tokenizer.json
+!agent-a-adapters/tokenizer_config.json
+!agent-a-adapters/chat_template.jinja
+!agent-a-adapters/README.md
+!agent-b-adapters/adapter_config.json
+!agent-b-adapters/tokenizer.json
+!agent-b-adapters/tokenizer_config.json
+!agent-b-adapters/chat_template.jinja
+!agent-b-adapters/README.md
